@@ -1,0 +1,60 @@
+{
+  "name": "ai-freedom-studios",
+  "private": true,
+  "workspaces": [
+    "api",
+    "frontend",
+    "shared"
+  ],
+  "scripts": {
+    "install:all": "npm install",
+    "dev:api": "npm --workspace api run start:dev",
+    "dev:frontend": "npm --workspace frontend run dev",
+    "build:all": "npm --workspace api run build && npm --workspace frontend run build",
+    "dev": "npm-run-all --parallel dev:frontend dev:api",
+    "start:api": "npm --workspace api run start",
+    "start:frontend": "npm --workspace frontend run start",
+    "start:all": "npm-run-all --parallel start:api start:frontend"
+  },
+  "devDependencies": {
+    "@babel/plugin-proposal-class-properties": "^7.18.6",
+    "@babel/plugin-proposal-decorators": "^7.28.0",
+    "@babel/plugin-proposal-private-methods": "^7.18.6",
+    "@babel/plugin-transform-private-methods": "^7.27.1",
+    "@babel/plugin-transform-runtime": "^7.28.5",
+    "@babel/preset-env": "^7.28.5",
+    "@babel/preset-typescript": "^7.28.5",
+    "@types/cors": "^2.8.19",
+    "@types/node": "^25.0.0",
+    "@types/passport-jwt": "^4.0.1",
+    "@types/uuid": "^10.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.49.0",
+    "@typescript-eslint/parser": "^8.49.0",
+    "eslint": "^9.39.1",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.4",
+    "npm-run-all": "^4.1.5",
+    "prettier": "^3.7.4"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.948.0",
+    "@nestjs/config": "^4.0.2",
+    "@nestjs/mapped-types": "^2.1.0",
+    "@nestjs/passport": "^11.0.5",
+    "@nestjs/platform-express": "^11.1.9",
+    "@nestjs/schedule": "^6.1.0",
+    "@nestjs/throttler": "^6.5.0",
+    "@testing-library/react": "^16.3.0",
+    "@types/express": "^5.0.6",
+    "@types/multer": "^2.0.0",
+    "bcryptjs": "^3.0.3",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.3",
+    "cookie-parser": "^1.4.7",
+    "helmet": "^8.1.0",
+    "nest-winston": "^1.10.2",
+    "passport-jwt": "^4.0.1",
+    "react-hot-toast": "^2.6.0",
+    "winston": "^3.19.0"
+  }
+}

@@ -1,0 +1,73 @@
+import { Module, MiddlewareConsumer, NestModule, Logger } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
+import { WinstonModule } from 'nest-winston';
+import * as winston from 'winston';
+import { Reflector } from '@nestjs/core';
+import { MongooseModule } from '@nestjs/mongoose';
+import { ScheduleModule } from '@nestjs/schedule';
+import { RequestLoggerMiddleware } from './common/request-logger.middleware';
+import { MetricsModule } from './metrics/metrics.module';
+import { CreativesModule } from './creatives/creatives.module';
+import { SchedulingModule } from './scheduling/scheduling.module';
+import { SchedulingWorker } from './jobs/scheduling.worker';
+import { MetricsSyncWorker } from './jobs/metrics.worker';
+import { VideoRenderWorker } from './jobs/videoRender.worker';
+import { AuthModule } from './auth/auth.module';
+import { TenantsModule } from './tenants/tenants.module';
+import { BillingModule } from './billing/billing.module';
+import { AdminModule } from './admin/admin.module';
+import { SubscriptionsV2Module } from './subscriptions/subscriptionsV2.module';
+import { IntegrationsModule } from './integrations/integrations.module';
+import { ModelsModule } from './models/models.module';
+
+const logger = new Logger('AppModule');
+
+@Module({
+  imports: [
+    ConfigModule.forRoot({ isGlobal: true }),
+    WinstonModule.forRoot({
+      transports: [
+        new winston.transports.File({
+          filename: './logs/api.log',
+          level: 'debug',
+          format: winston.format.combine(
+            winston.format.timestamp(),
+            winston.format.json()
+          ),
+        }),
+        new winston.transports.Console({
+          level: 'info',
+          format: winston.format.combine(
+            winston.format.colorize(),
+            winston.format.simple()
+          ),
+        }),
+      ],
+    }),
+    MongooseModule.forRoot(process.env.MONGO_URI || 'mongodb://localhost:27017/aifreedomstudios', {
+      connectionFactory: (connection) => {
+        Logger.log(`MongoDB connected: ${connection.name}`, 'AppModule');
+        return connection;
+      },
+      autoIndex: process.env.NODE_ENV === 'development',
+    }),
+    ModelsModule,
+    ScheduleModule.forRoot(),
+    MetricsModule,
+    IntegrationsModule,
+    CreativesModule,
+    SchedulingModule,
+    AuthModule,
+    TenantsModule,
+    BillingModule,
+    AdminModule,
+    SubscriptionsV2Module,
+  ],
+  providers: [],
+})
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(RequestLoggerMiddleware).forRoutes('*');
+  }
+  }
+

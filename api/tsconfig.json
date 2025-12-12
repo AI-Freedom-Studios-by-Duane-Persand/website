@@ -1,0 +1,25 @@
+{
+  "extends": "./tsconfig.build.json",
+  "compilerOptions": {
+  "outDir": "./dist",
+  "rootDir": "../",
+   "baseUrl": ".",
+     "experimentalDecorators": true,
+     "emitDecoratorMetadata": true,
+     "skipLibCheck": true,
+     "target": "es2017",
+     "module": "commonjs",
+     "esModuleInterop": true,
+     "strict": true,
+     "paths": {
+      "@shared/*": ["../shared/*"]
+     }
+  },
+  "include": [
+    "*.ts",
+    "src/**/*",
+    "models/*.ts",
+    "../shared/**/*"
+  ],
+  "exclude": ["node_modules", "dist"]
+}
