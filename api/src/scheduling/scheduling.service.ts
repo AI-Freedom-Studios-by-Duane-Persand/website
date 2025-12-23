@@ -1,15 +1,20 @@
 // api/src/scheduling/scheduling.service.ts
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
-import { ScheduledItemModel } from '../models/scheduledItem.schema';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
 import { AyrsharePublisher } from './social-publisher/ayrshare.publisher';
-import { CreativeModel } from '../models/creative.schema';
+import { CreativeDocument } from '../creatives/schemas/creative.schema';
 
 @Injectable()
 export class SchedulingService {
-  constructor(private readonly ayrsharePublisher: AyrsharePublisher) {}
+  constructor(
+    private readonly ayrsharePublisher: AyrsharePublisher,
+    @InjectModel('Creative') private readonly creativeModel: Model<CreativeDocument>,
+    @InjectModel('ScheduledItem') private readonly scheduledItemModel: Model<any>,
+  ) {}
 
   async scheduleCreative({ tenantId, creativeId, platforms, scheduledAt, publisher }: any) {
-    return ScheduledItemModel.create({
+    return this.scheduledItemModel.create({
       tenantId,
       creativeId,
       platform: platforms[0], // for simplicity, one per item
@@ -27,9 +32,9 @@ export class SchedulingService {
   async processScheduledPosts(): Promise<void> {
     // Find all scheduled items that are due to be published
     const now = new Date();
-    const items = await ScheduledItemModel.find({ status: 'pending', scheduledAt: { $lte: now } });
+    const items = await this.scheduledItemModel.find({ status: 'pending', scheduledAt: { $lte: now } });
     for (const item of items) {
-      const creative = await CreativeModel.findById(item.creativeId);
+      const creative = await this.creativeModel.findById(item.creativeId);
       if (!creative) continue;
       try {
         const result = await this.ayrsharePublisher.publishOrganicPost({

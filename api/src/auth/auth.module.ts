@@ -10,6 +10,7 @@ import { UsersModule } from '../users/users.module';
 import { TenantsModule } from '../tenants/tenants.module';
 import { JwtStrategy } from './jwt.strategy';
 import { JwtAuthGuard } from './jwt-auth.guard';
+import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { JwtAuthGuard } from './jwt-auth.guard';
     UsersModule,
     TenantsModule,
     LoggerModule,
+    SubscriptionsModule, // Added SubscriptionsModule to resolve dependency
   ],
   providers: [
     AuthService,

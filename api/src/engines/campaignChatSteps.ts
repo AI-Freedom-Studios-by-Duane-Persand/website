@@ -1,0 +1,147 @@
+export interface CampaignChatStep {
+  key: string;
+  prompt: string;
+  consideration: string;
+  required: boolean;
+  skippable: boolean;
+  acceptsRecommendation: boolean;
+}
+
+export const campaignChatSteps: CampaignChatStep[] = [
+  {
+    key: 'campaignName',
+    prompt: 'What is the name of your campaign?',
+    consideration: 'Choose a clear, memorable name that reflects your campaign objectives.',
+    required: true,
+    skippable: false,
+    acceptsRecommendation: true,
+  },
+  {
+    key: 'websiteUrl',
+    prompt: 'Share your website URL (optional). I can pull headline/description to align tone.',
+    consideration: 'Website hero copy often encodes brand tone and core value prop.',
+    required: false,
+    skippable: true,
+    acceptsRecommendation: false,
+  },
+  {
+    key: 'businessGoals',
+    prompt: 'What are your primary business goals for this campaign? (e.g., brand awareness, lead generation, sales)',
+    consideration: 'Be specific and measurable. This helps AI tailor strategy for 95% success rate.',
+    required: true,
+    skippable: false,
+    acceptsRecommendation: true,
+  },
+  {
+    key: 'targetAudience',
+    prompt: 'Describe your target audience in detail (demographics, interests, pain points, behaviors)',
+    consideration: 'Include age range, location, interests, challenges they face, and where they spend time online.',
+    required: true,
+    skippable: false,
+    acceptsRecommendation: true,
+  },
+  {
+    key: 'platforms',
+    prompt: 'Which platforms will you use? (Instagram, Facebook, Twitter, LinkedIn, TikTok, YouTube)',
+    consideration: 'Choose platforms where your target audience is most active. You can select multiple.',
+    required: true,
+    skippable: false,
+    acceptsRecommendation: true,
+  },
+  {
+    key: 'budget',
+    prompt: 'What is your total budget for this campaign (in USD)?',
+    consideration: 'Include both organic and paid advertising budget. Be realistic for best AI recommendations.',
+    required: true,
+    skippable: false,
+    acceptsRecommendation: true,
+  },
+  {
+    key: 'duration',
+    prompt: 'How long will this campaign run? (e.g., 1 month, 3 months, 6 months)',
+    consideration: 'Campaign duration affects content planning, budget allocation, and success metrics.',
+    required: true,
+    skippable: false,
+    acceptsRecommendation: true,
+  },
+  {
+    key: 'contentPillars',
+    prompt: 'What are your 3-5 main content themes/pillars for this campaign?',
+    consideration: 'Content pillars should align with your goals and resonate with your audience.',
+    required: true,
+    skippable: false,
+    acceptsRecommendation: true,
+  },
+  {
+    key: 'brandVoice',
+    prompt: 'Describe your brand voice and tone (e.g., professional, casual, humorous, inspirational)',
+    consideration: 'Consistency in voice builds trust and recognition. Include any words/phrases to avoid.',
+    required: true,
+    skippable: false,
+    acceptsRecommendation: true,
+  },
+  {
+    key: 'competitorInsights',
+    prompt: 'Who are your main competitors and what are they doing well/poorly in their marketing?',
+    consideration: 'Understanding competition helps differentiate your campaign and avoid their mistakes.',
+    required: false,
+    skippable: true,
+    acceptsRecommendation: true,
+  },
+  {
+    key: 'keyMessages',
+    prompt: 'What are the 2-3 key messages you want to communicate in this campaign?',
+    consideration: 'Clear, focused messaging increases campaign effectiveness and audience recall.',
+    required: true,
+    skippable: false,
+    acceptsRecommendation: true,
+  },
+  {
+    key: 'successMetrics',
+    prompt: 'How will you measure success? (e.g., reach, engagement rate, conversions, ROI)',
+    consideration: 'Define specific KPIs so AI can optimize strategy for measurable outcomes.',
+    required: true,
+    skippable: false,
+    acceptsRecommendation: true,
+  },
+  {
+    key: 'postingCadence',
+    prompt: 'How often do you want to post? (e.g., daily, 3x/week, 5x/week)',
+    consideration: 'Balance consistency with quality. More isn\'t always better—it depends on your audience and resources.',
+    required: true,
+    skippable: false,
+    acceptsRecommendation: true,
+  },
+  {
+    key: 'contentFormats',
+    prompt: 'What content formats will you use? (e.g., images, videos, carousels, stories, reels)',
+    consideration: 'Diverse formats increase engagement. Platform algorithms favor native formats (e.g., Reels on Instagram).',
+    required: true,
+    skippable: false,
+    acceptsRecommendation: true,
+  },
+  {
+    key: 'paidAdvertising',
+    prompt: 'Will you run paid ads? If yes, what percentage of budget is allocated to ads?',
+    consideration: 'Paid ads amplify reach and accelerate results. Even 20% of budget for ads can significantly boost performance.',
+    required: false,
+    skippable: true,
+    acceptsRecommendation: true,
+  },
+  {
+    key: 'existingAssets',
+    prompt: 'Do you have existing brand assets (logos, images, videos, brand guidelines)?',
+    consideration: 'Existing assets speed up campaign launch. Mention what you have available.',
+    required: false,
+    skippable: true,
+    acceptsRecommendation: true,
+  },
+  {
+    key: 'constraints',
+    prompt: 'Any constraints or extra parameters? (e.g., tone:witty, maxLength:120, regions:US,CA)',
+    consideration: 'Constraints help direct generation and scheduling. Use key:value pairs.',
+    required: false,
+    skippable: true,
+    acceptsRecommendation: false,
+  },
+];

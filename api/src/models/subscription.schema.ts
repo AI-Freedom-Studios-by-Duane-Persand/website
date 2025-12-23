@@ -31,4 +31,4 @@ export const SubscriptionSchema = new Schema<SubscriptionDocument>({
   updatedAt: { type: Date, default: Date.now },
 });
 
-export const SubscriptionModel = model<SubscriptionDocument>('Subscription', SubscriptionSchema);
+// Do not export compiled model. Use MongooseModule.forFeature in modules.

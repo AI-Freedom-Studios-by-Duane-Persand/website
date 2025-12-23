@@ -2,11 +2,11 @@
 import { Module } from '@nestjs/common';
 import { ConfigService } from './config.service';
 import { ModelsModule } from '../models/models.module';
-import { R2ConfigSeedService } from './r2-config-seed.service';
+import { IntegrationConfigSeedService } from './r2-config-seed.service';
 
 @Module({
   imports: [ModelsModule],
-  providers: [ConfigService, R2ConfigSeedService],
-  exports: [ConfigService],
+  providers: [ConfigService, IntegrationConfigSeedService],
+  exports: [ConfigService, ModelsModule],
 })
 export class IntegrationsModule {}

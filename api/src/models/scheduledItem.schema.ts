@@ -15,7 +15,7 @@ export interface ScheduledItemDocument extends Document {
   updatedAt: Date;
 }
 
-const ScheduledItemSchema = new Schema<ScheduledItemDocument>({
+export const ScheduledItemSchema = new Schema<ScheduledItemDocument>({
   tenantId: { type: Schema.Types.ObjectId, ref: 'Tenant', required: true },
   creativeId: { type: Schema.Types.ObjectId, ref: 'Creative', required: true },
   platform: { type: String, required: true },
@@ -29,4 +29,4 @@ const ScheduledItemSchema = new Schema<ScheduledItemDocument>({
   updatedAt: { type: Date, default: Date.now },
 });
 
-export const ScheduledItemModel = model<ScheduledItemDocument>('ScheduledItem', ScheduledItemSchema);
+// Do not export compiled model. Use MongooseModule.forFeature in modules.

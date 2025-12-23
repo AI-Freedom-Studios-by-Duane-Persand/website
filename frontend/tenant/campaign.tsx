@@ -8,7 +8,9 @@ export default function Campaign() {
   useSubscriptionGuard();
   const [name, setName] = useState('');
   const [desc, setDesc] = useState('');
-  const [status, setStatus] = useState('draft');
+  const [budget, setBudget] = useState(0); // New field for budget
+  const [startDate, setStartDate] = useState(''); // New field for start date
+  const [endDate, setEndDate] = useState(''); // New field for end date
   const [editId, setEditId] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -20,13 +22,24 @@ export default function Campaign() {
       setEditId(edit);
       setLoading(true);
       fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/campaigns/${edit}`)
-        .then(res => res.json())
-        .then(data => {
-          setName(data.name);
-          setDesc(data.description);
-          setStatus(data.status);
+        .then(res => {
+          if (!res.ok) {
+            throw new Error('Failed to fetch campaign');
+          }
+          return res.json();
         })
-        .catch(() => setError('Failed to load campaign'))
+        .then(data => {
+          console.log('Fetched campaign data:', data);
+          setName(data.title);
+          setDesc(data.description);
+          setBudget(data.budget);
+          setStartDate(data.startDate);
+          setEndDate(data.endDate);
+        })
+        .catch(err => {
+          console.error('Error fetching campaign:', err);
+          setError('Failed to load campaign');
+        })
         .finally(() => setLoading(false));
     }
   }, []);
@@ -35,23 +48,33 @@ export default function Campaign() {
     setLoading(true);
     setError('');
     try {
+      console.log('Saving campaign with data:', { name, desc, budget, startDate, endDate });
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
-      if (editId) {
-        await fetch(`${apiUrl}/api/campaigns/${editId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, description: desc, status }),
-        });
-      } else {
-        await fetch(`${apiUrl}/api/campaigns`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, description: desc, status }),
-        });
+      const payload = {
+        title: name,
+        description: desc,
+        budget,
+        startDate,
+        endDate,
+        userId: 'user-id-placeholder',
+      };
+
+      const response = await fetch(`${apiUrl}/api/campaigns${editId ? `/${editId}` : ''}`, {
+        method: editId ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to save campaign');
       }
+
+      console.log('Campaign saved successfully');
       window.location.href = '/tenant/dashboard';
-    } catch {
-      setError('Failed to save campaign');
+    } catch (err) {
+      console.error('Error saving campaign:', err);
+      setError(err.message || 'Failed to save campaign');
     } finally {
       setLoading(false);
     }
@@ -92,18 +115,41 @@ export default function Campaign() {
               />
             </div>
             <div>
-              <label className="block text-gray-700 mb-2" htmlFor="campaign-status">Status</label>
-              <select
-                id="campaign-status"
-                value={status}
-                onChange={e => setStatus(e.target.value)}
+              <label className="block text-gray-700 mb-2" htmlFor="campaign-budget">Budget</label>
+              <input
+                id="campaign-budget"
+                type="number"
+                value={budget}
+                onChange={e => setBudget(Number(e.target.value))}
+                placeholder="Budget"
                 className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-300"
-                aria-label="Status"
-              >
-                <option value="draft">Draft</option>
-                <option value="active">Active</option>
-                <option value="completed">Completed</option>
-              </select>
+                required
+                aria-label="Budget"
+              />
+            </div>
+            <div>
+              <label className="block text-gray-700 mb-2" htmlFor="campaign-start-date">Start Date</label>
+              <input
+                id="campaign-start-date"
+                type="date"
+                value={startDate}
+                onChange={e => setStartDate(e.target.value)}
+                className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-300"
+                required
+                aria-label="Start Date"
+              />
+            </div>
+            <div>
+              <label className="block text-gray-700 mb-2" htmlFor="campaign-end-date">End Date</label>
+              <input
+                id="campaign-end-date"
+                type="date"
+                value={endDate}
+                onChange={e => setEndDate(e.target.value)}
+                className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-300"
+                required
+                aria-label="End Date"
+              />
             </div>
             <button
               type="submit"
@@ -119,4 +165,3 @@ export default function Campaign() {
     </Layout>
   );
 }
-// ...existing code...

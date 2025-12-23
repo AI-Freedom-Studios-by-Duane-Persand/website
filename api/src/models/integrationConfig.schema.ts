@@ -19,4 +19,4 @@ export const IntegrationConfigSchema = new Schema<IntegrationConfigDocument>({
   updatedAt: { type: Date, default: Date.now },
 });
 
-export const IntegrationConfigModel = model<IntegrationConfigDocument>('IntegrationConfig', IntegrationConfigSchema);
+// Do not export compiled model. Use MongooseModule.forFeature in modules.

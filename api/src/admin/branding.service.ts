@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { BrandingConfig, BrandingConfigModel } from './branding.model';
+import { BrandingConfig } from './branding.model';
 
 @Injectable()
 export class BrandingService {

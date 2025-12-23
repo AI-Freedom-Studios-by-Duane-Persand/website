@@ -1,17 +1,26 @@
 // api/src/tenants/tenants.module.ts
-import { Module } from '@nestjs/common';
+import { Module, Logger, Injectable } from '@nestjs/common';
 import { TenantsService } from './tenants.service';
 import { TenantsController } from './tenants.controller';
-import { ModelsModule } from '../models/models.module';
 import { MongooseModule } from '@nestjs/mongoose';
-import { TenantSchema } from '../models/tenant.schema';
+import { TenantSchema } from './schemas/tenant.schema';
+import { ModelsModule } from '../models/models.module';
+import { UsersModule } from '../users/users.module';
+
+@Injectable()
+export class TenantsModuleLogger {
+  constructor() {
+    Logger.log('TenantsModule initialized', 'TenantsModuleLogger');
+  }
+}
 
 @Module({
   imports: [
-    MongooseModule.forFeature([{ name: 'Tenant', schema: TenantSchema }]),
+    UsersModule, // Import UsersModule to provide UsersService
+    ModelsModule,
   ],
-  providers: [TenantsService],
+  providers: [TenantsService, TenantsModuleLogger],
   controllers: [TenantsController],
-  exports: [TenantsService, MongooseModule],
+  exports: [TenantsService],
 })
 export class TenantsModule {}

@@ -14,10 +14,6 @@ import { ModelsModule } from '../models/models.module';
 @Module({
   imports: [
     SubscriptionsModule,
-    MongooseModule.forFeature([
-      { name: Subscription.name, schema: SubscriptionSchema },
-      { name: Package.name, schema: PackageSchema },
-    ]),
     ModelsModule,
   ],
   providers: [StorageService, ConfigService, SubscriptionRequiredGuard],

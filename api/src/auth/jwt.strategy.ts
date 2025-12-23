@@ -79,7 +79,6 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
           return token;
         },
       ]),
-      ignoreExpiration: false,
       secretOrKey: process.env.JWT_SECRET || 'changeme',
     });
     // Log after super() to confirm Winston logger injection and strategy initialization
@@ -90,9 +89,6 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: any) {
-    const secret = process.env.JWT_SECRET;
-    const token = payload?.token || 'N/A';
-    this.logger?.debug?.(`[JwtStrategy] Verifying JWT`, { secret, token, payload });
     // Confirm validate method is reached
     this.logger?.debug?.('[JwtStrategy] validate() called', {
       context: 'JwtStrategy',
@@ -126,9 +122,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       // For legacy compatibility, set 'role' to first role if only one
       const role = roles.length === 1 ? roles[0] : undefined;
       return {
-        userId: payload.sub,
-        tenantId: payload.tenantId,
+        sub: payload.sub, // Map sub property correctly
         email: payload.email,
+        tenantId: payload.tenantId,
         roles,
         ...(role ? { role } : {}),
       };

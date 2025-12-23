@@ -1,5 +1,5 @@
 // api/src/models/creative.schema.ts
-import { Schema, Document, model, Types } from 'mongoose';
+import { Schema, Document, Types } from 'mongoose';
 
 export interface CreativeDocument extends Document {
   campaignId: Types.ObjectId;
@@ -83,4 +83,4 @@ export const CreativeSchema = new Schema<CreativeDocument>({
   updatedAt: { type: Date, default: Date.now },
 });
 
-export const CreativeModel = model<CreativeDocument>('Creative', CreativeSchema);
+// Do not export a compiled model here. Use MongooseModule.forFeature in modules.

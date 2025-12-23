@@ -6,4 +6,5 @@ const SubscriptionSchema = new Schema({
   renewal: Date,
 });
 
-export const SubscriptionModel = model('Subscription', SubscriptionSchema);
+export { SubscriptionSchema };
+// Do not export compiled model. Use MongooseModule.forFeature in modules.

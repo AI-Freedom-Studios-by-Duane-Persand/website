@@ -10,7 +10,7 @@ export interface AngleDocument extends Document {
   updatedAt: Date;
 }
 
-const AngleSchema = new Schema<AngleDocument>({
+export const AngleSchema = new Schema<AngleDocument>({
   campaignId: { type: Schema.Types.ObjectId, ref: 'Campaign', required: true },
   title: { type: String, required: true },
   description: { type: String, required: true },
@@ -19,4 +19,4 @@ const AngleSchema = new Schema<AngleDocument>({
   updatedAt: { type: Date, default: Date.now },
 });
 
-export const AngleModel = model<AngleDocument>('Angle', AngleSchema);
+// Do not export compiled model. Use MongooseModule.forFeature in modules.

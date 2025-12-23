@@ -1,14 +1,22 @@
 // api/src/users/users.module.ts
-import { Module } from '@nestjs/common';
+import { Module, Logger, Injectable } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { UsersController } from './users.controller';
 import { MongooseModule } from '@nestjs/mongoose';
-import { UserSchema } from '../models/user.schema';
+import { ModelsModule } from '../models/models.module';
+import { UserSchema } from './schemas/user.schema';
+
+@Injectable()
+export class UsersModuleLogger {
+  constructor() {
+    Logger.log('UsersModule initialized', 'UsersModuleLogger');
+  }
+}
 
 @Module({
-  imports: [MongooseModule.forFeature([{ name: 'User', schema: UserSchema }])],
-  providers: [UsersService],
+  imports: [ModelsModule],
+  providers: [UsersService, UsersModuleLogger],
   controllers: [UsersController],
-  exports: [UsersService, MongooseModule],
+  exports: [UsersService],
 })
 export class UsersModule {}

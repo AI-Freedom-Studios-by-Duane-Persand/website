@@ -41,4 +41,4 @@ const CampaignBriefSchema = new Schema<CampaignBriefDocument>({
   updatedAt: { type: Date, default: Date.now },
 });
 
-export const CampaignBriefModel = model<CampaignBriefDocument>('CampaignBrief', CampaignBriefSchema);
+// Do not export compiled model. Use MongooseModule.forFeature in modules.

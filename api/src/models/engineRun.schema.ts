@@ -10,6 +10,7 @@ export interface EngineRunDocument extends Document {
   output: any;
   score?: number;
   createdAt: Date;
+  updatedAt: Date;
 }
 
 export const EngineRunSchema = new Schema<EngineRunDocument>({
@@ -20,7 +21,7 @@ export const EngineRunSchema = new Schema<EngineRunDocument>({
   input: { type: Schema.Types.Mixed, required: true },
   output: { type: Schema.Types.Mixed, required: true },
   score: { type: Number },
-  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now },
 });
 
-export const EngineRunModel = model<EngineRunDocument>('EngineRun', EngineRunSchema);
+// Do not export compiled model. Use MongooseModule.forFeature in modules.

@@ -16,7 +16,7 @@ export interface BrandProfileDocument extends Document {
   updatedAt: Date;
 }
 
-const BrandProfileSchema = new Schema<BrandProfileDocument>({
+export const BrandProfileSchema = new Schema<BrandProfileDocument>({
   tenantId: { type: Schema.Types.ObjectId, ref: 'Tenant', required: true },
   name: { type: String, required: true },
   voiceGuidelines: { type: String, required: true },
@@ -31,4 +31,4 @@ const BrandProfileSchema = new Schema<BrandProfileDocument>({
   updatedAt: { type: Date, default: Date.now },
 });
 
-export const BrandProfileModel = model<BrandProfileDocument>('BrandProfile', BrandProfileSchema);
+// Do not export compiled model. Use MongooseModule.forFeature in modules.

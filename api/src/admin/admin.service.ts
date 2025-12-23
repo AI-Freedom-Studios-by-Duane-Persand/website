@@ -4,11 +4,11 @@ import { ConfigService } from '../integrations/config.service';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { TenantsService } from '../tenants/tenants.service';
-import { UserDocument } from '../models/user.schema';
+import { UserDocument } from '../users/schemas/user.schema';
 import { CampaignDocument } from '../models/campaign.schema';
-import { CreativeDocument } from '../models/creative.schema';
+import { CreativeDocument } from '../creatives/schemas/creative.schema';
 import { Subscription, SubscriptionDocument } from '../models/subscriptionV2.model';
-import { TenantDocument } from '../models/tenant.schema';
+import { TenantDocument } from '../tenants/schemas/tenant.schema';
 import { EngineRunDocument } from '../models/engineRun.schema';
 import { IntegrationConfigDocument } from '../models/integrationConfig.schema';
 

@@ -1,15 +1,19 @@
 
 import { Controller, Get, Post, UseGuards, Request, BadRequestException } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
 import { UserJwt } from '../../../shared/user-jwt.interface';
 import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard } from '../roles.guard';
 import { Roles } from '../roles.decorator';
 import { StripeService } from '../services/stripe.service';
-import { SubscriptionModel } from '../models';
 
 @Controller('billing')
 export class BillingController {
-  constructor(private readonly stripeService: StripeService) {}
+  constructor(
+    private readonly stripeService: StripeService,
+    @InjectModel('Subscription') private readonly subscriptionModel: Model<any>,
+  ) {}
 
   @Roles('tenant')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
@@ -17,7 +21,7 @@ export class BillingController {
   async getBillingInfo(@Request() req: { user: UserJwt }) {
     const tenantId = req.user.tenantId;
     try {
-      const sub = await SubscriptionModel.findOne({ tenantId });
+      const sub = await this.subscriptionModel.findOne({ tenantId });
       if (!sub) return { plan: 'None', renewal: null };
       return { plan: sub.plan, renewal: sub.renewal };
     } catch (err) {
@@ -45,8 +49,8 @@ export class BillingController {
     try {
       const result = await this.stripeService.verifyCheckoutSession(sessionId);
       if (result.paid) {
-        // Update subscription state in MongoDB (example for legacy SubscriptionModel)
-        await SubscriptionModel.updateOne(
+        // Update subscription state in MongoDB
+        await this.subscriptionModel.updateOne(
           { tenantId: req.user.tenantId },
           { $set: { plan: 'paid', renewal: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) } },
           { upsert: true }

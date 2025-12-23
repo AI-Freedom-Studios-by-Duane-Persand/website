@@ -4,7 +4,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { MetricsService } from '../metrics/metrics.service';
 import { TenantsService } from '../tenants/tenants.service';
-import { TenantDocument } from '../models/tenant.schema';
+import { TenantDocument } from '../tenants/schemas/tenant.schema';
 
 @Injectable()
 export class MetricsSyncWorker {

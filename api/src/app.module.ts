@@ -1,4 +1,4 @@
-import { Module, MiddlewareConsumer, NestModule, Logger } from '@nestjs/common';
+import { Module, MiddlewareConsumer, NestModule, Logger, Injectable } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { WinstonModule } from 'nest-winston';
 import * as winston from 'winston';
@@ -19,8 +19,23 @@ import { AdminModule } from './admin/admin.module';
 import { SubscriptionsV2Module } from './subscriptions/subscriptionsV2.module';
 import { IntegrationsModule } from './integrations/integrations.module';
 import { ModelsModule } from './models/models.module';
+import { SocialAccountsModule } from './social/social-accounts.module';
+import { MetaPostsModule } from './social/meta-posts.module';
+import { CampaignsModule } from './campaigns/campaigns.module';
+import { MetaAdsModule } from './meta-ads/meta-ads.module';
+import { SubscriptionsModule } from './subscriptions/subscriptions.module';
+import { PlatformsController } from './platforms/platforms.controller';
+import { EnginesModule } from './engines/engines.module';
+import { CampaignChatModule } from './campaignChat.module';
 
 const logger = new Logger('AppModule');
+
+@Injectable()
+export class AppModuleLogger {
+  constructor() {
+    Logger.log('AppModule initialized', 'AppModuleLogger');
+  }
+}
 
 @Module({
   imports: [
@@ -62,12 +77,20 @@ const logger = new Logger('AppModule');
     BillingModule,
     AdminModule,
     SubscriptionsV2Module,
+    SocialAccountsModule,
+    MetaPostsModule,
+    CampaignsModule,
+    MetaAdsModule,
+    SubscriptionsModule,
+    EnginesModule,
+    CampaignChatModule
   ],
-  providers: [],
+  controllers: [PlatformsController],
+  providers: [AppModuleLogger],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
     consumer.apply(RequestLoggerMiddleware).forRoutes('*');
   }
-  }
+}
 

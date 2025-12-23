@@ -1,7 +1,6 @@
 {
   "compilerOptions": {
     "outDir": "./dist",
-    "rootDir": "./api/src",
     "baseUrl": ".",
     "composite": true,
     "declaration": true,
@@ -20,8 +19,7 @@
   },
   "include": [
     "api/src/**/*.ts",
-    "src/**/*",
-    "../shared/**/*"
+    "shared/**/*.ts"
   ],
   "exclude": ["node_modules", "dist"]
 }

@@ -1,14 +1,19 @@
 // Asset upload controller
 import { Controller, Post, UploadedFile, UseInterceptors, Req, Body, BadRequestException } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
 import { UserJwt } from '../../../shared/user-jwt.interface';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { StorageService } from '../storage/storage.service';
-import { CreativeModel } from '../models/creative.schema';
-import { BrandProfileModel } from '../models/brandProfile.schema';
+import { CreativeDocument } from '../creatives/schemas/creative.schema';
 
 @Controller('assets')
 export class AssetsController {
-  constructor(private readonly storageService: StorageService) {}
+  constructor(
+    private readonly storageService: StorageService,
+    @InjectModel('Creative') private readonly creativeModel: Model<CreativeDocument>,
+    @InjectModel('BrandProfile') private readonly brandProfileModel: Model<any>,
+  ) {}
 
   @Post('upload')
   @UseInterceptors(FileInterceptor('file'))
@@ -28,14 +33,14 @@ export class AssetsController {
     let updatedCreative = null;
     let updatedBrandProfile = null;
     if (body.creativeId) {
-      updatedCreative = await CreativeModel.findByIdAndUpdate(
+      updatedCreative = await this.creativeModel.findByIdAndUpdate(
         body.creativeId,
         { $push: { 'assets.imageUrls': url } },
         { new: true }
       ).lean();
     }
     if (body.brandProfileId) {
-      updatedBrandProfile = await BrandProfileModel.findByIdAndUpdate(
+      updatedBrandProfile = await this.brandProfileModel.findByIdAndUpdate(
         body.brandProfileId,
         { $push: { 'brandAssets.logos': url } },
         { new: true }

@@ -2,7 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { winstonConfig } from './logger';
 import { WinstonModule } from 'nest-winston';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, BadRequestException } from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
 import cookieParser from 'cookie-parser';
 import { config } from 'dotenv';
@@ -52,9 +52,26 @@ async function bootstrap() {
   const { AllExceptionsFilter } = await import('./common/all-exceptions.filter');
   const loggerInstance = WinstonModule.createLogger(winstonConfig);
   app.useGlobalFilters(new AllExceptionsFilter(loggerInstance));
-  // Enable global validation pipe
-  console.log('[main.ts] Enabling global ValidationPipe...');
-  app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
+  // Enable global validation pipe with payload logging
+  console.log('[main.ts] Enabling global ValidationPipe with payload logging...');
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+      exceptionFactory: (errors) => {
+        const detailedErrors = errors.map((err) => ({
+          field: err.property,
+          errors: Object.values(err.constraints || {}),
+        }));
+        loggerInstance.warn('[ValidationPipe] Validation failed', { errors: detailedErrors });
+        return new BadRequestException({
+          message: 'Validation failed',
+          errors: detailedErrors,
+        });
+      },
+    }),
+  );
    // --- R2 config seeding now handled in R2ConfigSeedService.onApplicationBootstrap ---
   const port = process.env.PORT || 3001;
   await app.listen(port);

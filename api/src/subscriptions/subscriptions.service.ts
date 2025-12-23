@@ -1,15 +1,15 @@
-// ...imports remain at the top...
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Inject } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-// Removed legacy Subscription type import
 import { CreateSubscriptionDto, UpdateSubscriptionDto } from '../../../shared/subscription.dto';
 import { Subscription, SubscriptionDocument } from '../models/subscriptionV2.model';
+import { Logger } from 'winston';
 
 @Injectable()
 export class SubscriptionsService {
   constructor(
     @InjectModel(Subscription.name) private readonly subscriptionModel: Model<SubscriptionDocument>,
+    @Inject('winston') private readonly logger: Logger,
   ) {}
 
   // Find subscription by userId (for /subscriptions/my)
@@ -23,7 +23,25 @@ export class SubscriptionsService {
   }
 
 
-  async findOne(id: string): Promise<SubscriptionDocument> {
+  async findOne(id: string, userId?: string): Promise<SubscriptionDocument> {
+    if (id === 'my') {
+      if (!userId) {
+        throw new Error('User ID is required to fetch the subscription.');
+      }
+      const subscription = await this.findByUserId(userId);
+      if (!subscription) throw new NotFoundException('Subscription not found');
+      return subscription;
+    }
+
+    if (id === 'subscription-status' || id === 'status') {
+      if (!userId) {
+        throw new Error('User ID is required to fetch the subscription status.');
+      }
+      const subscription = await this.findByUserId(userId);
+      if (!subscription) throw new NotFoundException('Subscription not found');
+      return subscription;
+    }
+
     const subscription = await this.subscriptionModel.findById(id).exec();
     if (!subscription) throw new NotFoundException('Subscription not found');
     return subscription;
@@ -46,5 +64,20 @@ export class SubscriptionsService {
   async remove(id: string): Promise<{ deleted: boolean }> {
     const res = await this.subscriptionModel.deleteOne({ _id: id }).exec();
     return { deleted: res.deletedCount > 0 };
+  }
+
+  async getSubscriptionStatus(userId: string): Promise<{ status: string }> {
+    this.logger.info('Fetching subscription status', { userId });
+    const subscription = await this.findByUserId(userId);
+    if (!subscription || subscription.status !== 'active') {
+      this.logger.warn('No active subscription found', { userId });
+      return { status: 'inactive' };
+    }
+    this.logger.info('Active subscription found', { userId, subscriptionId: subscription._id });
+    return { status: 'active' };
+  }
+
+  async updateSubscriptionStatus(subscriptionId: string, status: string): Promise<void> {
+    await this.subscriptionModel.findByIdAndUpdate(subscriptionId, { status }).exec();
   }
 }

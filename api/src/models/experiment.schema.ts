@@ -11,7 +11,7 @@ export interface ExperimentDocument extends Document {
   updatedAt: Date;
 }
 
-const ExperimentSchema = new Schema<ExperimentDocument>({
+export const ExperimentSchema = new Schema<ExperimentDocument>({
   campaignId: { type: Schema.Types.ObjectId, ref: 'Campaign', required: true },
   hypothesis: { type: String, required: true },
   creativeIds: [{ type: Schema.Types.ObjectId, ref: 'Creative', required: true }],
@@ -21,4 +21,4 @@ const ExperimentSchema = new Schema<ExperimentDocument>({
   updatedAt: { type: Date, default: Date.now },
 });
 
-export const ExperimentModel = model<ExperimentDocument>('Experiment', ExperimentSchema);
+// Do not export compiled model. Use MongooseModule.forFeature in modules.

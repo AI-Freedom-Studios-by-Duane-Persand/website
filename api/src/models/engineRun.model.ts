@@ -9,7 +9,7 @@ export class EngineRun {
   userId!: string;
 
   @Prop({ required: true })
-  engineType!: string; // e.g., 'strategy', 'copy', etc.
+  engineType!: string;
 
   @Prop({ type: Object, required: true })
   input!: Record<string, any>;

@@ -5,7 +5,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Subscription, SubscriptionDocument } from '../models/subscriptionV2.model';
 import { Model } from 'mongoose';
 import { TenantsService } from '../tenants/tenants.service';
-import { TenantDocument } from '../models/tenant.schema';
+import { TenantDocument } from '../tenants/schemas/tenant.schema';
 import { plans } from '../config/plans';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', { apiVersion: '2022-11-15' });

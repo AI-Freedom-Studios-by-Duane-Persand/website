@@ -5,7 +5,7 @@
   "license": "MIT",
   "scripts": {
     "start": "node dist/api/src/main.js",
-    "start:dev": "nest start --watch",
+    "start:dev": "npm run build && node dist/api/src/main.js",
     "build": "nest build"
   },
   "dependencies": {
@@ -41,15 +41,17 @@
     "@types/cookie-parser": "^1.4.10",
     "@types/express": "^5.0.6",
     "@types/jest": "^30.0.0",
+    "jest": "^30.2.0",
+    "ts-jest": "^29.4.6",
     "ts-node": "^10.0.0",
-    "typescript": "^5.0.0"
+    "typescript": "^5.9.3"
   },
   "jest": {
     "transform": {
-      "^.+\\.(ts|tsx)$": "babel-jest"
+      "^.+\\.(ts|tsx)$": "ts-jest"
     },
     "testMatch": [
-      "**/src/**/*.spec.(ts|js)"
+      "<rootDir>/src/**/*.spec.ts"
     ],
     "moduleFileExtensions": [
       "ts",

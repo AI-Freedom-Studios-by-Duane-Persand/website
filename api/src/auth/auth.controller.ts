@@ -1,5 +1,5 @@
 // api/src/auth/auth.controller.ts
-import { Controller, Post, Body, UnauthorizedException, BadRequestException, Options, Logger, Get, Req, UseGuards, Res } from '@nestjs/common';
+import { Controller, Post, Body, UnauthorizedException, BadRequestException, Options, Logger, Get, Req, UseGuards, Res, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { Response } from 'express';
 import * as bcrypt from 'bcryptjs';
 import { UsersService } from '../users/users.service';
@@ -7,6 +7,8 @@ import { AuthService } from './auth.service';
 import { TenantsService } from '../tenants/tenants.service';
 import { Request } from 'express';
 import { JwtAuthGuard } from './jwt-auth.guard';
+import { SubscriptionsService } from '../subscriptions/subscriptions.service';
+import { UserJwt } from '../../../shared/user-jwt.interface';
 
 @Controller('auth')
 export class AuthController {
@@ -15,6 +17,7 @@ export class AuthController {
     private readonly authService: AuthService,
     private readonly usersService: UsersService,
     private readonly tenantsService: TenantsService,
+    private readonly subscriptionsService: SubscriptionsService, // Inject SubscriptionsService
   ) {}
 
   @Post('login')
@@ -48,28 +51,102 @@ export class AuthController {
     if (!body.email || !body.password || !body.tenant) {
       throw new BadRequestException('Missing required fields');
     }
-    // Atomically find or create tenant
-    const tenant = await this.tenantsService.findOrCreateByName(body.tenant);
-    const tenantId = tenant._id.toString();
-    // Check for existing user in this tenant
-    const existing = await this.usersService.findByEmail(body.email, tenantId);
-    if (existing) throw new BadRequestException('Email already in use');
-    const passwordHash = await bcrypt.hash(body.password, 10);
-    const user = await this.usersService.create({
-      email: body.email,
-      password: '', // not used, but required by DTO
-      passwordHash,
-      tenantId,
-      role: 'tenantOwner',
-      roles: ['tenantOwner'],
-      name: body.email.split('@')[0],
-    });
-    return { success: true, userId: user._id };
+
+    let session;
+    try {
+      // Check if transactions are supported
+      const isReplicaSet = await this.tenantsService.isReplicaSet();
+      if (isReplicaSet) {
+        session = await this.tenantsService.startTransaction();
+        session.startTransaction();
+      }
+
+      // Create tenant
+      const tenant = await this.tenantsService.findOrCreateByName(body.tenant, body.email, session);
+
+      // Create user with tenantId
+      const passwordHash = await bcrypt.hash(body.password, 10);
+      const user = await this.usersService.create(
+        {
+          email: body.email,
+          password: body.password, // Include the original password
+          passwordHash,
+          name: body.email.split('@')[0],
+          role: 'tenantOwner',
+          roles: ['tenantOwner'], // Ensure roles include tenantOwner by default
+          tenantId: tenant._id.toString(),
+        },
+        session
+      );
+
+      // Update tenant with user ID for ownerId and userIds
+      await this.tenantsService.update(
+        tenant._id.toString(),
+        {
+          ownerId: user._id.toString(),
+          userIds: [user._id.toString()],
+        },
+        session
+      );
+
+      // Update tenant subscription status
+      await this.tenantsService.update(
+        tenant._id.toString(),
+        {
+          subscriptionStatus: 'active',
+        },
+        session
+      );
+
+      if (session) {
+        await session.commitTransaction();
+      }
+      return { user, tenant };
+    } catch (error) {
+      if (session) {
+        await session.abortTransaction();
+      }
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      throw new InternalServerErrorException('Signup failed: ' + errorMessage);
+    } finally {
+      if (session) {
+        session.endSession();
+      }
+    }
   }
 
   @Get('me')
   @UseGuards(JwtAuthGuard)
   async me(@Req() req: Request) {
-    return req.user || null;
+    const user = req.user as UserJwt; // Explicitly cast req.user to UserJwt
+    const userId = user?.sub; // Access the sub property from UserJwt
+
+    // Debugging log for req.user
+    console.debug('[AuthController][me] req.user:', req.user);
+
+    if (!userId) {
+      console.error('[AuthController][me] Missing userId in req.user:', req.user);
+      throw new BadRequestException('User ID not found');
+    }
+
+    const userRecord = await this.usersService.findOne(userId); // Corrected method to match service definition
+    if (!userRecord) {
+      console.error('[AuthController][me] User not found for userId:', userId);
+      throw new NotFoundException('User not found');
+    }
+
+    return {
+      userId: userId,
+      email: userRecord.email,
+      roles: userRecord.roles,
+    };
   }
+}
+
+// Ensure req.user type includes sub property
+interface AuthenticatedRequest extends Request {
+  user?: {
+    sub: string;
+    [key: string]: any;
+  };
 }

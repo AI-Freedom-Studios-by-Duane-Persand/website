@@ -33,4 +33,4 @@ export const MetricSchema = new Schema<MetricDocument>({
   createdAt: { type: Date, default: Date.now },
 });
 
-export const MetricModel = model<MetricDocument>('Metric', MetricSchema);
+// Do not export compiled model. Use MongooseModule.forFeature in modules.

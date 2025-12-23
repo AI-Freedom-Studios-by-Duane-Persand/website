@@ -4,5 +4,4 @@ export interface UserJwt {
   email?: string;
   roles?: string[];
   tenantId?: string;
-  // Add any other custom claims here
 }

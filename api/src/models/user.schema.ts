@@ -1,5 +1,5 @@
 // api/src/models/user.schema.ts
-import { Schema, Document, model, Types } from 'mongoose';
+import { Schema, Document, Types } from 'mongoose';
 
 export interface UserDocument extends Document {
   tenantId: Types.ObjectId;
@@ -20,5 +20,4 @@ export const UserSchema = new Schema<UserDocument>({
 });
 
 UserSchema.index({ email: 1, tenantId: 1 }, { unique: true });
-
-export const UserModel = model<UserDocument>('User', UserSchema);
+// Do not export a compiled model here. Use MongooseModule.forFeature in modules.

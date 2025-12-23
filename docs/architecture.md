@@ -1,4 +1,3 @@
-
 # AI Freedom Studios Documentation
 
 ## Table of Contents
@@ -118,6 +117,44 @@ You can also run scripts in each workspace using `npm --workspace <name> run <sc
 ## Extensibility
 - Add new engines, integrations, or plans by extending modules and types in `/shared`
 - Modular service structure for easy feature addition
+
+## Campaign Flow Updates with Cloudflare R2 Integration
+
+### Overview
+The campaign flow has been updated to integrate Cloudflare R2 for asset management and enhance AI-driven content generation. This ensures scalability, security, and extensibility for managing campaigns and assets.
+
+### Key Changes
+1. **Strategy & Planning**:
+   - Introduced a versioned `Strategy` model with fields for platforms, goals, audience, and content pillars.
+   - Downstream artifacts are marked as “needs review” when strategy changes.
+
+2. **Content Creation**:
+   - Added support for AI-generated, user-uploaded, and hybrid content.
+   - Integrated with the Poe API for AI model selection and content generation.
+   - Enabled selective regeneration of content (e.g., captions, images).
+
+3. **Asset Management**:
+   - Extended the `StorageService` to upload, tag, and reuse assets in Cloudflare R2.
+   - Added support for replacing assets and updating references in campaigns.
+   - Linked assets to campaigns and strategy versions.
+
+4. **Frontend Enhancements**:
+   - Updated the campaign creation UI to include fields for AI model selection and asset management.
+   - Added an asset library UI for managing uploaded and generated assets.
+
+5. **Backend Enhancements**:
+   - Updated `CampaignsService` to integrate strategy, content, and asset management.
+   - Enhanced `StrategyEngine` and `CopyEngine` to support AI model selection and upload generated content to R2.
+
+### Benefits
+- **Scalability**: Handles large volumes of campaigns and assets efficiently.
+- **Security**: Encrypts R2 credentials and validates asset uploads.
+- **Extensibility**: Supports additional storage providers and AI engines in the future.
+
+### Next Steps
+- Add unit and integration tests for the updated services and UI.
+- Provide user guides for the asset library and R2 configuration management.
+- Monitor performance and optimize for high-volume usage.
 
 ---
 For implementation steps, see `.github/prompts/plan-campaignOs.prompt.md` and `.github/prompts/plan-campaignOs-nextSteps.prompt.md`.

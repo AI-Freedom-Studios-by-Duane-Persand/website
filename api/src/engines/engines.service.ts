@@ -2,7 +2,7 @@
 
 import { Injectable, ForbiddenException, Inject, Req } from '@nestjs/common';
 import { ConfigService } from '../integrations/config.service';
-import { GeminiClient } from './gemini.client';
+import { AIModelsService } from './ai-models.service';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { EngineRun, EngineRunDocument } from '../models/engineRun.model';
@@ -10,6 +10,10 @@ import { Subscription, SubscriptionDocument } from '../models/subscriptionV2.mod
 import { Package, PackageDocument } from '../models/package.model';
 
 export interface EngineInput {
+
+
+  model: string;
+  contents: string;
   [key: string]: any;
 }
 export interface EngineOutput {
@@ -24,7 +28,7 @@ export interface Engine {
 export class EnginesService {
   constructor(
     private readonly configService: ConfigService,
-    private readonly geminiClient: GeminiClient,
+    private readonly aiModelsService: AIModelsService,
     @InjectModel(EngineRun.name) private engineRunModel: Model<EngineRunDocument>,
     @InjectModel(Subscription.name) private subscriptionModel: Model<SubscriptionDocument>,
     @InjectModel(Package.name) private packageModel: Model<PackageDocument>,
@@ -54,7 +58,10 @@ export class EnginesService {
     // Log engine run
     console.log('[Engine] StrategyEngine run:', input);
     try {
-      const result = await this.geminiClient.generateContent('strategy', input);
+      const result = await this.aiModelsService.generateContent('strategy', {
+        model: input.model,
+        contents: input.contents,
+      });
       // Save engine run to DB
       await this.engineRunModel.create({
         userId,
@@ -111,7 +118,10 @@ export class EnginesService {
     // Log engine run
     console.log('[Engine] CopyEngine run:', input);
     try {
-      const result = await this.geminiClient.generateContent('copy', input);
+      const result = await this.aiModelsService.generateContent('copy', {
+        model: input.model,
+        contents: input.contents,
+      });
       // Save engine run to DB
       await this.engineRunModel.create({
         userId,

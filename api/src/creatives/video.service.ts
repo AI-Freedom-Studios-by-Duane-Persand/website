@@ -1,9 +1,14 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { CreativeModel } from '../models/creative.schema';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { CreativeDocument } from './schemas/creative.schema';
 
 @Injectable()
 export class VideoService {
   private readonly logger = new Logger(VideoService.name);
+  constructor(
+    @InjectModel('Creative') private readonly creativeModel: Model<CreativeDocument>,
+  ) {}
 
   /**
    * Process all creatives of type 'video' with status 'scheduled'.
@@ -11,7 +16,7 @@ export class VideoService {
    * Returns the number of videos processed.
    */
   async processPendingRenders(): Promise<number> {
-    const pendingVideos = await CreativeModel.find({ type: 'video', status: 'scheduled' });
+    const pendingVideos = await this.creativeModel.find({ type: 'video', status: 'scheduled' });
     let processed = 0;
     for (const creative of pendingVideos) {
       try {

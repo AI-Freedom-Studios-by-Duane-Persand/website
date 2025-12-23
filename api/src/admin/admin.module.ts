@@ -10,11 +10,11 @@ import { BrandingController } from './branding.controller';
 import { BrandingService } from './branding.service';
 import { StorageModule } from '../storage/storage.module';
 import { LoggerModule } from '../logger.module';
-import { UserSchema } from '../models/user.schema';
+import { UserSchema } from '../users/schemas/user.schema';
 import { CampaignSchema } from '../models/campaign.schema';
-import { CreativeSchema } from '../models/creative.schema';
+import { CreativeSchema } from '../creatives/schemas/creative.schema';
 import { Subscription, SubscriptionSchema } from '../models/subscriptionV2.model';
-import { TenantSchema } from '../models/tenant.schema';
+import { TenantSchema } from '../tenants/schemas/tenant.schema';
 import { EngineRunSchema } from '../models/engineRun.schema';
 import { IntegrationConfigSchema } from '../models/integrationConfig.schema';
 import { AdminPackagesModule } from './admin-packages.module';
@@ -22,6 +22,14 @@ import { AdminPackagesController } from './admin-packages.controller';
 import { R2ConfigController } from './r2-config.controller';
 
 import { ModelsModule } from '../models/models.module';
+import { Injectable, Logger } from '@nestjs/common';
+
+@Injectable()
+export class AdminModuleLogger {
+  constructor() {
+    Logger.log('AdminModule initialized', 'AdminModuleLogger');
+  }
+}
 
 @Module({
   imports: [
@@ -30,13 +38,8 @@ import { ModelsModule } from '../models/models.module';
     LoggerModule,
     AdminPackagesModule,
     ModelsModule,
-    MongooseModule.forFeature([
-      { name: 'BrandingConfig', schema: BrandingConfigSchema },
-      { name: 'Tenant', schema: TenantSchema },
-      { name: 'EngineRun', schema: EngineRunSchema },
-    ]),
   ],
-  providers: [AdminService, ConfigService, BrandingService],
+  providers: [AdminService, ConfigService, BrandingService, AdminModuleLogger],
   controllers: [AdminController, BrandingController, AdminPackagesController, R2ConfigController],
 })
 export class AdminModule {}

@@ -71,6 +71,26 @@ export function middleware(req: NextRequest) {
       url.pathname = '/public/billing';
       return NextResponse.redirect(url);
     }
+
+    try {
+      const payload = jwt.verify(token.value, JWT_SECRET);
+      console.log('[MIDDLEWARE] Decoded JWT for subscription check:', payload);
+      if (typeof payload === 'object' && payload !== null && 'subscriptionStatus' in payload) {
+        if (payload.subscriptionStatus !== 'active') {
+          console.log('[MIDDLEWARE] Subscription not active, redirecting to /billing');
+          url.pathname = '/billing';
+          return NextResponse.redirect(url);
+        }
+      } else {
+        console.log('[MIDDLEWARE] Invalid JWT payload, redirecting to /login');
+        url.pathname = '/login';
+        return NextResponse.redirect(url);
+      }
+    } catch (err) {
+      console.log('[MIDDLEWARE] Error verifying JWT:', err);
+      url.pathname = '/login';
+      return NextResponse.redirect(url);
+    }
   }
 
   if (publicPaths.some(path => req.nextUrl.pathname.startsWith(path))) {
@@ -85,7 +105,12 @@ export function middleware(req: NextRequest) {
     // WARNING: jwt.decode does NOT verify signature. Only use for non-sensitive checks in middleware.
     const payload: any = jwt.decode(token.value);
     console.log('[MIDDLEWARE] Decoded JWT for subscription check:', payload);
-    if (payload && payload.subscriptionStatus !== 'active') {
+    if (
+      typeof payload === 'object' &&
+      payload !== null &&
+      'subscriptionStatus' in payload &&
+      payload.subscriptionStatus !== 'active'
+    ) {
       // Allow access to billing, block other app/tenant routes
       if (!req.nextUrl.pathname.startsWith('/billing')) {
         console.log('[MIDDLEWARE] Subscription not active, redirecting to /billing');
