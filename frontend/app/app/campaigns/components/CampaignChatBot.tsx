@@ -1,7 +1,8 @@
 "use client";
 import React, { useState, useEffect, useRef, useMemo } from "react";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001";
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "/api";
 
 type Message = { sender: "user" | "system"; message: string; step?: string };
 type Props = {

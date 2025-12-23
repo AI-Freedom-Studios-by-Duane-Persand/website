@@ -13,7 +13,7 @@ interface Package {
 // Use absolute API base URL in browser, fallback to backend default for SSR/local
 const API_BASE = typeof window !== "undefined" && process.env.NEXT_PUBLIC_API_BASE
   ? process.env.NEXT_PUBLIC_API_BASE
-  : "http://localhost:3001/api";
+  : "/api";
 const fetchPackages = async (): Promise<Package[]> => {
   const res = await fetch(`${API_BASE}/admin/packages`);
   if (!res.ok) throw new Error("Failed to fetch packages");

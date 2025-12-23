@@ -6,7 +6,7 @@ import CampaignList from "./components/CampaignList";
 import Stepper from "./components/Stepper";
 
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001";
+  process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "/api";
 
 function getAuthHeaders(): HeadersInit {
   const token =

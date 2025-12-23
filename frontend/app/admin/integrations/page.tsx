@@ -18,7 +18,7 @@ export default function AdminIntegrationsPage() {
   const [r2Saving, setR2Saving] = useState(false);
   const API_BASE = typeof window !== "undefined" && process.env.NEXT_PUBLIC_API_BASE
     ? process.env.NEXT_PUBLIC_API_BASE
-    : "http://localhost:3001/api";
+    : "/api";
 
   useEffect(() => {
     fetch(`${API_BASE}/admin/integrations`, { credentials: "include" })

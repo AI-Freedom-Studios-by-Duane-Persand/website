@@ -12,7 +12,7 @@ export default function AdminSubscriptionsPage() {
   const [newData, setNewData] = useState<any>({});
   const API_BASE = typeof window !== "undefined" && process.env.NEXT_PUBLIC_API_BASE
     ? process.env.NEXT_PUBLIC_API_BASE
-    : "http://localhost:3001/api";
+    : "/api";
 
   const [tenantOptions, setTenantOptions] = useState<{ label: string; value: string }[]>([]);
   const [planOptions, setPlanOptions] = useState<{ label: string; value: string }[]>([]);

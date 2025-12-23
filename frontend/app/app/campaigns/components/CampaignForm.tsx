@@ -31,7 +31,7 @@ function CampaignForm({ step, setStep, fetchCampaigns, setError }: Props) {
   const [section, setSection] = useState<"strategy" | "content" | "schedule" | "ads">("strategy");
 
   const API_BASE_URL =
-    process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001";
+    process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "/api";
 
   const getAuthHeaders = (): HeadersInit => {
     if (typeof window === "undefined") {
