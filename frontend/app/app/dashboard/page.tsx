@@ -19,7 +19,7 @@ export default function DashboardPage() {
       return;
     }
 
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "/api";
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "";
     console.log("DEBUG: Calling API URL:", `${apiUrl}/api/auth/me`);
 
     function getAuthHeaders(): Record<string, string> {

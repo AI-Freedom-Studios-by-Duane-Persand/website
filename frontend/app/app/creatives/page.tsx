@@ -32,7 +32,7 @@ export default function CreativesPage() {
 
   const apiUrl = useMemo(
     () =>
-      process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "/api",
+      process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "",
     []
   );
 
