@@ -70,22 +70,30 @@ export default function SocialConnectionsCard({
     setConnecting(true);
     setError(null);
     try {
-      // Call endpoint that creates profile + generates JWT in one step
-      // Per Ayrshare Business Plan docs: POST /generateJWT requires profile key header
-      const res = await fetch(`${API_BASE_URL}/api/social-accounts/connect/jwt-new`, {
-        method: "POST",
-        headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
-      });
-      if (!res.ok) throw new Error(`Failed to start connection (${res.status})`);
-      const data = await res.json();
-      const url = data?.url;
-      if (url) window.open(url, "_blank", "noopener,noreferrer");
+      // Use Meta (Facebook) OAuth to connect Facebook Pages and Instagram accounts
+      const appId = process.env.NEXT_PUBLIC_META_APP_ID;
+      const redirectUri = `${window.location.origin}/auth/meta/callback`;
+      const state = Math.random().toString(36).substring(7); // CSRF protection
+      
+      if (!appId) {
+        throw new Error('Meta App ID not configured');
+      }
+      
+      // Store state in session storage for verification in callback
+      sessionStorage.setItem('meta_oauth_state', state);
+      
+      // Generate OAuth URL
+      const scope = 'pages_manage_posts,pages_manage_engagement,pages_read_engagement,instagram_basic,instagram_content_publish';
+      const authUrl = `https://www.facebook.com/v24.0/dialog/oauth?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}&scope=${scope}&response_type=code`;
+      
+      // Redirect to Meta OAuth
+      window.location.href = authUrl;
     } catch (err: any) {
       setError(err?.message || "Unable to start connection flow");
-    } finally {
       setConnecting(false);
     }
   }, []);
+
 
   useEffect(() => {
     fetchProfiles();

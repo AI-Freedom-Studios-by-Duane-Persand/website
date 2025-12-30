@@ -24,11 +24,14 @@ createPost(options: AyrsharePostOptions): Promise<AyrsharePostResponse>
 createMetaPost(content: string, metaPageId: string): Promise<any> // Legacy wrapper
 deletePost(postId: string, bulk?: boolean): Promise<any>
 
-// Profile Management
+// Profile Management (Business Plan)
 getProfiles(): Promise<AyrshareProfile[]>
 getProfile(profileKey: string): Promise<AyrshareProfile>
 checkConnection(platform: string): Promise<{ connected: boolean }>
+createProfile(title?: string): Promise<{ profileKey: string }>
 generateJWT(domain?: string): Promise<{ jwt: string; url: string }>
+generateJWTForNewProfile(): Promise<{ jwt: string; url: string; profileKey: string }>
+generateJWTWithProfileKey(profileKey: string): Promise<{ jwt: string; url: string }>
 
 // Analytics & History
 getHistory(lastRecords?: number, lastDays?: number): Promise<any>
@@ -95,7 +98,10 @@ REST API endpoints for social media operations.
 GET    /api/social-accounts/profiles              - Get all connected profiles
 GET    /api/social-accounts/profiles/:profileKey  - Get specific profile
 GET    /api/social-accounts/connection/:platform  - Check platform connection
-POST   /api/social-accounts/connect/jwt           - Generate connection JWT
+POST   /api/social-accounts/connect/jwt           - Generate connection JWT (legacy)
+POST   /api/social-accounts/connect/jwt-new       - Create profile + generate JWT (Business Plan)
+POST   /api/social-accounts/profiles/create       - Create new user profile
+POST   /api/social-accounts/profiles/:profileKey/jwt - Generate JWT with existing profile key
 GET    /api/social-accounts/user                  - Get user info
 
 POST   /api/social-accounts/posts                 - Create new post
@@ -211,6 +217,50 @@ const accountStats = await this.socialPublisher.getAccountAnalytics(['instagram'
 
 ### Account Management
 
+#### Social Account OAuth Connection Flow (Business Plan)
+
+The Business Plan uses a profile-based architecture for multi-user support. The OAuth flow works as follows:
+
+**Step 1: Create Profile (Backend)**
+```typescript
+// Create a new profile that will receive the OAuth authorization
+const { profileKey } = await this.ayrshareService.createProfile('My Profile');
+```
+
+**Step 2: Generate JWT (Backend)**
+```typescript
+// Generate JWT token for the OAuth authorization URL
+const { jwt, url } = await this.ayrshareService.generateJWTWithProfileKey(profileKey);
+// Returns: { jwt: 'token123...', url: 'https://app.ayrshare.com/authorize?jwt=token123...' }
+```
+
+**Step 3: Open Authorization (Frontend)**
+```typescript
+// User clicks "Connect Accounts" button
+window.open(url, '_blank', 'noopener,noreferrer');
+```
+
+**Step 4: User Authorizes (On Ayrshare)**
+- User sees Ayrshare authorization page in new tab
+- User selects which social networks to connect (Facebook, Instagram, Twitter, etc.)
+- User completes OAuth flow for each selected platform
+
+**Step 5: Profile Linked (Background)**
+- User closes the authorization tab when done
+- Profile is now linked to selected social accounts
+- Backend can use the profileKey to post to those accounts
+
+**One-Step Alternative (Recommended):**
+```typescript
+// Create profile + generate JWT in one call for convenience
+const { jwt, url, profileKey } = await this.ayrshareService.generateJWTForNewProfile();
+
+// Frontend: open URL for user authorization
+window.open(url, '_blank', 'noopener,noreferrer');
+```
+
+#### Get Account Information
+
 ```typescript
 // Get all connected profiles
 const profiles = await this.socialPublisher.getConnectedProfiles();
@@ -218,9 +268,8 @@ const profiles = await this.socialPublisher.getConnectedProfiles();
 // Check if platform is connected
 const isConnected = await this.ayrshareService.checkConnection('facebook');
 
-// Generate JWT for connecting new account
-const { jwt, url } = await this.ayrshareService.generateJWT('yourdomain.com');
-// Redirect user to url to connect their social account
+// Get user account information
+const user = await this.ayrshareService.getUser();
 ```
 
 ## Platform-Specific Options

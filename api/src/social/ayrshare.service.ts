@@ -276,6 +276,7 @@ export class AyrshareService {
    * Generate JWT token for account connection flow (Business Plan)
    * Creates a new profile and generates JWT in one call for convenience
    * Per Ayrshare Business Plan docs: flow is create profile → POST /generateJWT with profile key
+   * REQUIRES: Ayrshare Max Pack subscription (JWT generation is a Max Pack feature)
    */
   async generateJWTForNewProfile(): Promise<{ jwt: string; url: string; profileKey: string }> {
     try {
@@ -293,7 +294,7 @@ export class AyrshareService {
       
       this.logger.log(`Profile created with key: ${profileKey}`);
       
-      // Step 2: Generate JWT using the profile key
+      // Step 2: Generate JWT using the profile key (REQUIRES MAX PACK)
       const jwtResponse = await this.axiosInstance.post(
         '/generateJWT',
         {},
@@ -315,6 +316,12 @@ export class AyrshareService {
       this.logger.log('JWT generated successfully for account linking');
       return { jwt, url, profileKey };
     } catch (error: any) {
+      // Special handling for Max Pack requirement error
+      if (error.response?.status === 401 && error.response?.data?.includes?.('Max Pack')) {
+        const message = 'Ayrshare Max Pack subscription required. The JWT generation feature (used for user social account linking) requires Max Pack. Please activate Max Pack in your Ayrshare Dashboard under Account settings, or contact support@ayrshare.com for assistance.';
+        this.logger.error(`[Max Pack Required]: ${message}`);
+        throw new BadRequestException(message);
+      }
       this.handleError('Failed to create profile or generate JWT', error);
     }
   }
