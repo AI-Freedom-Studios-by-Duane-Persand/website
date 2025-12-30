@@ -21,11 +21,18 @@ export class AuthService {
 
   async login(user: any) {
     try {
+      // Normalize roles: prefer array from user.roles; fallback to single user.role
+      const roles: string[] = Array.isArray(user?.roles)
+        ? user.roles
+        : (user?.role ? [user.role] : []);
+
       const payload = {
-        sub: user._id.toString(), // Add user ID as sub
-        email: user.email, // Add user email
-        tenantId: user.tenantId, // Add tenant ID
-        roles: [user.role],
+        sub: user._id.toString(),
+        email: user.email,
+        tenantId: user.tenantId,
+        roles,
+        // Legacy compatibility: include single role if present
+        ...(roles.length === 1 ? { role: roles[0] } : {}),
       };
       return {
         token: this.jwtService.sign(payload),

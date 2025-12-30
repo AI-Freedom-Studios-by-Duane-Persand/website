@@ -4,6 +4,9 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import CampaignChatBot from "./components/CampaignChatBot";
 import CampaignList from "./components/CampaignList";
 import Stepper from "./components/Stepper";
+import SocialConnectionsCard from "../components/SocialConnectionsCard";
+import EarlyAccessGate from "../../components/EarlyAccessGate";
+import { useAuth } from "../../hooks/useAuth";
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "";
@@ -68,6 +71,7 @@ const StatPill = ({ label, value }: { label: string; value: any }) => (
 );
 
 export default function CampaignsPage() {
+  const { hasEarlyAccess } = useAuth();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -334,6 +338,7 @@ export default function CampaignsPage() {
   ];
 
   return (
+    <EarlyAccessGate hasAccess={hasEarlyAccess}>
     <main className="min-h-screen bg-gradient-to-br from-[#0f172a] via-[#020617] to-[#020617] px-4 py-6 text-white">
       {showConnectModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
@@ -413,6 +418,14 @@ export default function CampaignsPage() {
             {error}
           </div>
         )}
+
+        <div className="mb-6">
+          <SocialConnectionsCard
+            title="Connect once, publish everywhere"
+            subtitle="Use a single connection for campaign publishing, scheduling, and approvals."
+            compact
+          />
+        </div>
 
         <div className="grid lg:grid-cols-[260px,1fr] gap-6 min-h-[calc(100vh-16rem)]">
           <aside className="rounded-3xl border border-white/10 bg-white/5 p-4 shadow-2xl h-fit lg:sticky lg:top-6 shrink-0">
@@ -644,5 +657,6 @@ export default function CampaignsPage() {
         </div>
       </div>
     </main>
+    </EarlyAccessGate>
   );
 }

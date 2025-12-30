@@ -27,6 +27,9 @@ import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { PlatformsController } from './platforms/platforms.controller';
 import { EnginesModule } from './engines/engines.module';
 import { CampaignChatModule } from './campaignChat.module';
+import { ApprovalsModule } from './approvals/approvals.module';
+import { StrategiesModule } from './strategies/strategies.module';
+import { PromptingModule } from './prompting/prompting.module';
 
 const logger = new Logger('AppModule');
 
@@ -59,12 +62,26 @@ export class AppModuleLogger {
         }),
       ],
     }),
-    MongooseModule.forRoot(process.env.MONGO_URI || 'mongodb://localhost:27017/aifreedomstudios', {
+    MongooseModule.forRoot(process.env.MONGODB_URI || process.env.MONGO_URI || 'mongodb://localhost:27017/aifreedomstudios', {
       connectionFactory: (connection) => {
-        Logger.log(`MongoDB connected: ${connection.name}`, 'AppModule');
+        connection.on('connected', () => {
+          Logger.log(`MongoDB connected successfully`, 'AppModule');
+        });
+        connection.on('error', (err: Error) => {
+          Logger.error(`MongoDB connection error: ${err.message}`, 'AppModule');
+        });
         return connection;
       },
+      // Atlas-specific options
+      serverSelectionTimeoutMS: 10000, // 10 seconds to select a server
+      socketTimeoutMS: 45000, // 45 seconds for socket operations
+      retryWrites: true,
+      retryReads: true,
+      maxPoolSize: 10,
+      minPoolSize: 2,
+      // For development
       autoIndex: process.env.NODE_ENV === 'development',
+      w: 1, // Write concern
     }),
     ModelsModule,
     ScheduleModule.forRoot(),
@@ -83,7 +100,10 @@ export class AppModuleLogger {
     MetaAdsModule,
     SubscriptionsModule,
     EnginesModule,
-    CampaignChatModule
+    CampaignChatModule,
+    ApprovalsModule,
+    StrategiesModule,
+    PromptingModule,
   ],
   controllers: [PlatformsController],
   providers: [AppModuleLogger],

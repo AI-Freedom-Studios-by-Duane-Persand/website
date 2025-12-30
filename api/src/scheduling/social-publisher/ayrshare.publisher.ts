@@ -19,8 +19,12 @@ export class AyrsharePublisher implements SocialPublisher {
     if (!apiKey) throw new InternalServerErrorException('Ayrshare API key missing');
     const payload = {
       platforms: args.platforms,
-      post: args.creative.copy.body || args.creative.copy.caption,
-      mediaUrls: args.creative.assets?.imageUrls || args.creative.assets?.videoUrl ? [args.creative.assets.videoUrl] : [],
+      post: Array.isArray(args.creative.copy.body)
+        ? args.creative.copy.body.join('\n')
+        : args.creative.copy.body || args.creative.copy.caption,
+      mediaUrls: args.creative.assets?.videoUrl
+        ? [args.creative.assets.videoUrl]
+        : args.creative.assets?.imageUrls || [],
     };
     const res = await axios.post('https://app.ayrshare.com/api/post', payload, {
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },

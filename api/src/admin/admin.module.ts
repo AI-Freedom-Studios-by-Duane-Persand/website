@@ -20,6 +20,7 @@ import { IntegrationConfigSchema } from '../models/integrationConfig.schema';
 import { AdminPackagesModule } from './admin-packages.module';
 import { AdminPackagesController } from './admin-packages.controller';
 import { R2ConfigController } from './r2-config.controller';
+import { AdminStorageController } from './storage.controller';
 
 import { ModelsModule } from '../models/models.module';
 import { Injectable, Logger } from '@nestjs/common';
@@ -40,6 +41,6 @@ export class AdminModuleLogger {
     ModelsModule,
   ],
   providers: [AdminService, ConfigService, BrandingService, AdminModuleLogger],
-  controllers: [AdminController, BrandingController, AdminPackagesController, R2ConfigController],
+  controllers: [AdminController, BrandingController, AdminPackagesController, R2ConfigController, AdminStorageController],
 })
 export class AdminModule {}

@@ -21,7 +21,7 @@ export interface CreativeDocument extends Document {
   };
   script: {
     hook?: string;
-    body?: string;
+    body?: string | string[];
     outro?: string;
     scenes?: Array<{
       description: string;
@@ -62,7 +62,7 @@ export const CreativeSchema = new Schema<CreativeDocument>({
   },
   script: {
     hook: { type: String },
-    body: { type: String },
+    body: { type: Schema.Types.Mixed },
     outro: { type: String },
     scenes: [{
       description: { type: String },

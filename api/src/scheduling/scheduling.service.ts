@@ -4,14 +4,44 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { AyrsharePublisher } from './social-publisher/ayrshare.publisher';
 import { CreativeDocument } from '../creatives/schemas/creative.schema';
+import { ScheduledItemDocument } from '../models/scheduledItem.schema';
 
 @Injectable()
 export class SchedulingService {
   constructor(
     private readonly ayrsharePublisher: AyrsharePublisher,
     @InjectModel('Creative') private readonly creativeModel: Model<CreativeDocument>,
-    @InjectModel('ScheduledItem') private readonly scheduledItemModel: Model<any>,
+    @InjectModel('ScheduledItem') private readonly scheduledItemModel: Model<ScheduledItemDocument>,
   ) {}
+
+  async listScheduledItems({
+    tenantId,
+    status,
+    from,
+    to,
+    limit = 50,
+  }: {
+    tenantId?: string;
+    status?: ScheduledItemDocument['status'];
+    from?: Date;
+    to?: Date;
+    limit?: number;
+  }) {
+    const query: any = {};
+    if (tenantId) query.tenantId = tenantId;
+    if (status) query.status = status;
+    if (from || to) {
+      query.scheduledAt = {};
+      if (from) query.scheduledAt.$gte = from;
+      if (to) query.scheduledAt.$lte = to;
+    }
+
+    return this.scheduledItemModel
+      .find(query)
+      .sort({ scheduledAt: 1 })
+      .limit(limit)
+      .lean();
+  }
 
   async scheduleCreative({ tenantId, creativeId, platforms, scheduledAt, publisher }: any) {
     return this.scheduledItemModel.create({

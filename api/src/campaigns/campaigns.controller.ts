@@ -1,10 +1,12 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Logger, UseGuards, Put, Req, BadRequestException } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Logger, UseGuards, Put, Req, BadRequestException, Query } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { CampaignsService } from './campaigns.service';
 import { StrategyService } from './services/strategy.service';
 import { ApprovalService } from './services/approval.service';
 import { ScheduleService } from './services/schedule.service';
 import { AssetService } from './services/asset.service';
+import { ContentService } from './services/content.service';
+import { PromptingService } from './services/prompting.service';
 import { CreateCampaignDto, AddStrategyVersionDto, AddContentVersionDto, ApproveDto, RejectDto, AddScheduleDto, UpdateScheduleSlotDto, LockScheduleSlotDto, CreateAssetDto, TagAssetDto, ReplaceAssetDto, LinkAssetToVersionDto, AssetType, UserJwt } from '../../../shared';
 import { CampaignDocument } from '../models/campaign.schema';
 import { SubscriptionGuard } from '../guards/subscription.guard';
@@ -19,6 +21,8 @@ export class CampaignsController {
     private readonly approvalService: ApprovalService,
     private readonly scheduleService: ScheduleService,
     private readonly assetService: AssetService,
+    private readonly contentService: ContentService,
+    private readonly promptingService: PromptingService,
   ) {}
 
   @Post()
@@ -354,7 +358,7 @@ export class CampaignsController {
     if (!user || !user.tenantId) {
       throw new BadRequestException('Authentication required: tenantId missing from token');
     }
-    return this.campaignsService.update(id, updateData, user.tenantId);
+    return this.campaignsService.update(id, updateData, user.tenantId, user.sub);
   }
 
   @Delete(':id')
@@ -366,4 +370,102 @@ export class CampaignsController {
     }
     return this.campaignsService.delete(id, user.tenantId);
   }
+
+  // Content Regeneration endpoints
+  @Post(':id/content/regenerate')
+  @UseGuards(AuthGuard('jwt'))
+  async regenerateContent(
+    @Param('id') id: string,
+    @Body() body: { regenerationType: 'all' | 'text' | 'images' | 'videos'; aiModel?: string; preserveExisting?: boolean },
+    @Req() req: any,
+  ) {
+    const user: UserJwt = req.user;
+    if (!user || !user.tenantId) {
+      throw new BadRequestException('Authentication required: tenantId missing from token');
+    }
+    return this.contentService.regenerateContent({
+      campaignId: id,
+      userId: user.sub,
+      tenantId: user.tenantId,
+      regenerationType: body.regenerationType,
+      aiModel: body.aiModel,
+      preserveExisting: body.preserveExisting,
+    });
+  }
+
+  @Post(':id/content/regenerate-selective')
+  @UseGuards(AuthGuard('jwt'))
+  async selectiveRegeneration(
+    @Param('id') id: string,
+    @Body() body: { textOnly?: boolean; imagesOnly?: boolean; videosOnly?: boolean; aiModel?: string },
+    @Req() req: any,
+  ) {
+    const user: UserJwt = req.user;
+    if (!user || !user.tenantId) {
+      throw new BadRequestException('Authentication required: tenantId missing from token');
+    }
+    return this.contentService.selectiveRegeneration({
+      campaignId: id,
+      userId: user.sub,
+      tenantId: user.tenantId,
+      textOnly: body.textOnly,
+      imagesOnly: body.imagesOnly,
+      videosOnly: body.videosOnly,
+      aiModel: body.aiModel,
+    });
+  }
+
+  @Get(':id/content/latest')
+  @UseGuards(AuthGuard('jwt'))
+  async getLatestContentVersion(@Param('id') id: string, @Req() req: any) {
+    const user: UserJwt = req.user;
+    if (!user || !user.tenantId) {
+      throw new BadRequestException('Authentication required: tenantId missing from token');
+    }
+    return this.contentService.getLatestContentVersion(id, user.tenantId);
+  }
+
+  @Post(':id/content/replace-assets')
+  @UseGuards(AuthGuard('jwt'))
+  async replaceAssets(
+    @Param('id') id: string,
+    @Body() body: { replacements: Array<{ old: string; new: string; type: 'text' | 'image' | 'video' }> },
+    @Req() req: any,
+  ) {
+    const user: UserJwt = req.user;
+    if (!user || !user.tenantId) {
+      throw new BadRequestException('Authentication required: tenantId missing from token');
+    }
+    return this.contentService.replaceAssets(id, user.tenantId, user.sub, body.replacements);
+  }
+
+  // Continuous Prompting endpoints
+  @Get(':id/prompts')
+  @UseGuards(AuthGuard('jwt'))
+  async getCampaignPrompts(@Param('id') id: string, @Req() req: any) {
+    const user: UserJwt = req.user;
+    if (!user || !user.tenantId) {
+      throw new BadRequestException('Authentication required: tenantId missing from token');
+    }
+    return this.promptingService.evaluateCampaign(id, user.tenantId);
+  }
+
+  @Post(':id/prompts/resolve')
+  @UseGuards(AuthGuard('jwt'))
+  async resolvePrompt(
+    @Param('id') id: string,
+    @Body() body: { field: string; action: 'provide' | 'accept' | 'skip'; value?: any },
+    @Req() req: any,
+  ) {
+    const user: UserJwt = req.user;
+    if (!user || !user.tenantId) {
+      throw new BadRequestException('Authentication required: tenantId missing from token');
+    }
+    return this.promptingService.resolvePrompt(id, user.tenantId, {
+      field: body.field,
+      action: body.action,
+      value: body.value,
+    });
+  }
 }
+

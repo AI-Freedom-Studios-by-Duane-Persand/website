@@ -1,6 +1,8 @@
 // frontend/app/app/calendar/page.tsx
 "use client";
 import React, { useEffect, useMemo, useState } from "react";
+import EarlyAccessGate from "../../components/EarlyAccessGate";
+import { useAuth } from "../../hooks/useAuth";
 
 interface ScheduledPost {
   _id: string;
@@ -19,6 +21,7 @@ function isVideo(url?: string) {
 }
 
 export default function CalendarPage() {
+  const { hasEarlyAccess } = useAuth();
   const [posts, setPosts] = useState<ScheduledPost[]>([]);
   const [content, setContent] = useState("");
   const [assetUrl, setAssetUrl] = useState("");
@@ -82,6 +85,7 @@ export default function CalendarPage() {
   }, [posts]);
 
   return (
+    <EarlyAccessGate hasAccess={hasEarlyAccess}>
     <main className="min-h-screen bg-gradient-to-br from-[#0f172a] via-[#020617] to-[#020617] pt-24 pb-12 px-4">
       <div className="max-w-6xl mx-auto space-y-8">
         {/* Header */}
@@ -369,5 +373,6 @@ export default function CalendarPage() {
         </section>
       </div>
     </main>
+    </EarlyAccessGate>
   );
 }

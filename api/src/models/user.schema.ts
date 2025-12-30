@@ -6,6 +6,7 @@ export interface UserDocument extends Document {
   email: string;
   passwordHash: string;
   roles: string[];
+  isEarlyAccess: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -15,6 +16,7 @@ export const UserSchema = new Schema<UserDocument>({
   email: { type: String, required: true },
   passwordHash: { type: String, required: true },
   roles: { type: [String], default: [], required: true },
+  isEarlyAccess: { type: Boolean, default: false },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
 });

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger, Inject, forwardRef } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { CampaignDocument } from '../models/campaign.schema';
@@ -7,6 +7,7 @@ import { StrategyEngine } from '../engines/strategy.engine';
 import { CopyEngine } from '../engines/copy.engine';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { StorageService } from '../storage/storage.service';
+import { ContentService } from './services/content.service';
 
 @Injectable()
 export class CampaignsService {
@@ -17,7 +18,9 @@ export class CampaignsService {
     private readonly strategyEngine: StrategyEngine,
     private readonly copyEngine: CopyEngine,
     private readonly subscriptionsService: SubscriptionsService, // Replaced SubscriptionsModule with SubscriptionsService
-    private readonly storageService: StorageService // Inject StorageService
+    private readonly storageService: StorageService, // Inject StorageService
+    @Inject(forwardRef(() => ContentService))
+    private readonly contentService: ContentService // Inject ContentService for asset generation
   ) {}
 
   async create(createCampaignDto: CreateCampaignDto & { createdBy: string; tenantId: string }): Promise<any> {
@@ -273,21 +276,135 @@ export class CampaignsService {
     return campaign;
   }
 
-  async update(id: string, updateData: Partial<CampaignDocument>, tenantId: string): Promise<CampaignDocument> {
+  async update(id: string, updateData: Partial<CampaignDocument>, tenantId: string, userId?: string): Promise<CampaignDocument> {
     try {
+      // Fetch the existing campaign first to detect strategy changes
+      const existingCampaign = await this.campaignModel.findOne({ _id: id, tenantId }).exec();
+      if (!existingCampaign) {
+        throw new NotFoundException(`Campaign with ID ${id} not found`);
+      }
+
+      // Detect if strategy-related fields are being updated
+      const strategyFieldsChanged = this.detectStrategyChanges(existingCampaign, updateData);
+      
+      // Apply the update
       const updatedCampaign = await this.campaignModel.findOneAndUpdate(
         { _id: id, tenantId },
         updateData,
         { new: true },
       ).exec();
+      
       if (!updatedCampaign) {
         throw new NotFoundException(`Campaign with ID ${id} not found`);
       }
+
+      // If strategy changed, automatically generate new content assets
+      if (strategyFieldsChanged && userId) {
+        this.logger.log(`Strategy changed for campaign ${id}, triggering asset regeneration`);
+        
+        // Trigger async asset generation (non-blocking)
+        this.regenerateAssetsAfterStrategyChange(id, tenantId, userId).catch(err => {
+          this.logger.error(`Failed to regenerate assets for campaign ${id}: ${err.message}`, err.stack);
+        });
+      }
+
       this.logger.log(`Campaign updated successfully with ID: ${id}`);
       return updatedCampaign;
     } catch (error) {
       this.logger.error('Error during campaign update', error instanceof Error ? error.stack : error);
       throw new Error('Failed to update campaign. Please try again later.');
+    }
+  }
+
+  /**
+   * Detect if strategy-related fields have changed
+   */
+  private detectStrategyChanges(existing: CampaignDocument, updates: Partial<CampaignDocument>): boolean {
+    const strategyFields = [
+      'name',
+      'platforms', 
+      'goals',
+      'targetAudience',
+      'contentPillars',
+      'brandTone',
+      'constraints',
+      'cadence',
+      'adsConfig'
+    ];
+
+    return strategyFields.some(field => {
+      if ((updates as any)[field] !== undefined) {
+        const existingValue = JSON.stringify((existing as any)[field]);
+        const newValue = JSON.stringify((updates as any)[field]);
+        return existingValue !== newValue;
+      }
+      return false;
+    });
+  }
+
+  /**
+   * Regenerate assets after strategy changes
+   */
+  private async regenerateAssetsAfterStrategyChange(campaignId: string, tenantId: string, userId: string): Promise<void> {
+    try {
+      this.logger.log(`[regenerateAssetsAfterStrategyChange] Starting for campaign ${campaignId}`);
+      
+      // Get the campaign to check if it has existing content
+      const campaign = await this.campaignModel.findOne({ _id: campaignId, tenantId }).exec();
+      if (!campaign) {
+        this.logger.warn(`Campaign ${campaignId} not found for asset regeneration`);
+        return;
+      }
+
+      // Check if campaign has any content versions
+      const hasExistingContent = campaign.contentVersions && campaign.contentVersions.length > 0;
+
+      if (hasExistingContent) {
+        // Regenerate images and videos (preserve text content)
+        this.logger.log(`Regenerating images and videos for campaign ${campaignId}`);
+        
+        await this.contentService.regenerateContent({
+          campaignId,
+          tenantId,
+          userId,
+          regenerationType: 'images',
+          aiModel: 'gpt-4o',
+          preserveExisting: false,
+        });
+
+        await this.contentService.regenerateContent({
+          campaignId,
+          tenantId,
+          userId,
+          regenerationType: 'videos',
+          aiModel: 'gpt-4o',
+          preserveExisting: false,
+        });
+
+        this.logger.log(`Asset regeneration completed for campaign ${campaignId}`);
+      } else {
+        // Generate initial content if no content exists
+        this.logger.log(`Generating initial content for campaign ${campaignId}`);
+        
+        await this.contentService.regenerateContent({
+          campaignId,
+          tenantId,
+          userId,
+          regenerationType: 'all',
+          aiModel: 'gpt-4o',
+          preserveExisting: false,
+        });
+
+        this.logger.log(`Initial content generation completed for campaign ${campaignId}`);
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(
+        `[regenerateAssetsAfterStrategyChange] Error for campaign ${campaignId}: ${errorMessage}`,
+        errorStack
+      );
+      throw error;
     }
   }
 

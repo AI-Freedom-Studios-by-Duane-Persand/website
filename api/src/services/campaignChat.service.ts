@@ -492,19 +492,65 @@ export class CampaignChatService {
       };
     }
     try {
+      // Generate assets in parallel with progress feedback
+      const tasks = [];
       if (wantsText) {
-        const text = await this.creativesService.generateTextCreative({ tenantId, campaignId, model, prompt: `${basePrompt}\nTask: Social captions + hashtags`, platforms: state.platforms || [], guidance });
-        generated.push(text);
+        tasks.push(
+          this.creativesService.generateTextCreative({ 
+            tenantId, campaignId, model, 
+            prompt: `${basePrompt}\nTask: Social captions + hashtags`, 
+            platforms: state.platforms || [], 
+            guidance 
+          })
+          .then(result => ({ type: 'text', result }))
+          .catch(err => {
+            this.logger.error('[handleAssetGeneration] Text generation failed', err);
+            return { type: 'text', result: null, error: err.message };
+          })
+        );
       }
       if (wantsImage) {
-        const image = await this.creativesService.generateImageCreative({ tenantId, campaignId, model, prompt: `${basePrompt}\nTask: Visual concept prompts`, layoutHint: 'social-first', platforms: state.platforms || [] });
-        generated.push(image);
+        tasks.push(
+          this.creativesService.generateImageCreative({ 
+            tenantId, campaignId, model, 
+            prompt: `${basePrompt}\nTask: Visual concept prompts`, 
+            layoutHint: 'social-first', 
+            platforms: state.platforms || [] 
+          })
+          .then(result => ({ type: 'image', result }))
+          .catch(err => {
+            this.logger.error('[handleAssetGeneration] Image generation failed', err);
+            return { type: 'image', result: null, error: err.message };
+          })
+        );
       }
       if (wantsVideo) {
-        const video = await this.creativesService.generateVideoCreative({ tenantId, campaignId, model, prompt: `${basePrompt}\nTask: Short social video script`, platforms: state.platforms || [] });
-        generated.push(video);
+        tasks.push(
+          this.creativesService.generateVideoCreative({ 
+            tenantId, campaignId, model, 
+            prompt: `${basePrompt}\nTask: Short social video script`, 
+            platforms: state.platforms || [] 
+          })
+          .then(result => ({ type: 'video', result }))
+          .catch(err => {
+            this.logger.error('[handleAssetGeneration] Video generation failed', err);
+            return { type: 'video', result: null, error: err.message };
+          })
+        );
       }
-      const summary = `Generated ${generated.length} creative${generated.length === 1 ? '' : 's'}. Open the creatives panel to review, attach uploads, or regenerate.`;
+      
+      const results = await Promise.all(tasks);
+      const successful = results.filter(r => r.result !== null);
+      const failed = results.filter(r => r.result === null);
+      
+      successful.forEach(r => generated.push(r.result));
+      
+      let summary = `Generated ${successful.length} creative${successful.length === 1 ? '' : 's'}`;
+      if (failed.length > 0) {
+        summary += ` (${failed.length} failed: ${failed.map(f => f.type).join(', ')})`;
+      }
+      summary += '. Open the creatives panel to review, attach uploads, or regenerate.';
+      
       await this.addMessage(String(session._id), 'system', summary, 'assetGeneration');
       return {
         prompt: 'Would you like to regenerate any asset with a prompt, or upload images/videos to attach? You can also generate more content.',
@@ -532,7 +578,10 @@ export class CampaignChatService {
   async listCreativesForSession(sessionId: string): Promise<any[]> {
     const session = await this.getSession(sessionId);
     if (!session?.campaignId) return [];
-    const list = await this.creativesService.findAll({ campaignId: String(session.campaignId) });
+    const campaignId = String(session.campaignId);
+    this.logger.log(`[listCreativesForSession] Querying creatives for campaignId=${campaignId}`);
+    const list = await this.creativesService.findAll({ campaignId });
+    this.logger.log(`[listCreativesForSession] Found ${list.length} creatives`);
     return list;
   }
 
@@ -545,17 +594,52 @@ export class CampaignChatService {
     const state = session.state ? JSON.parse(session.state) : {};
     const modelName = model || 'gpt-4o';
     const platforms = state.platforms || [];
-    const basePrompt = prompt || `Generate assets aligned to campaign: ${state.name || state.campaignName}`;
-    const out: any[] = [];
-    if (kind === 'text' || kind === 'all') {
-      out.push(await this.creativesService.generateTextCreative({ tenantId, campaignId, model: modelName, prompt: `${basePrompt}\nTask: Social captions + hashtags`, platforms, guidance: { brandTone: state.brandTone, targetAudience: state.targetAudience, contentPillars: state.contentPillars } }));
-    }
-    if (kind === 'image' || kind === 'all') {
-      out.push(await this.creativesService.generateImageCreative({ tenantId, campaignId, model: modelName, prompt: `${basePrompt}\nTask: Visual concept prompts`, layoutHint: 'social-first', platforms }));
-    }
-    if (kind === 'video' || kind === 'all') {
-      out.push(await this.creativesService.generateVideoCreative({ tenantId, campaignId, model: modelName, prompt: `${basePrompt}\nTask: Short social video script`, platforms }));
-    }
+    const basePrompt = prompt || `Generate assets aligned to the campaign strategy.\nName: ${state.name || state.campaignName}\nGoals: ${state.objective || state.businessGoals || 'Brand Awareness'}\nAudience: ${state.targetAudience || 'Digital Marketers'}\nTone: ${state.brandTone || 'professional'}\nPillars: ${(state.contentPillars || []).join(', ')}`;
+    
+    // Generate in parallel with individual error handling to prevent one failure from blocking others
+    const results = await Promise.allSettled([
+      kind === 'text' || kind === 'all' 
+        ? this.creativesService.generateTextCreative({ 
+            tenantId, campaignId, model: modelName, 
+            prompt: `${basePrompt}\nTask: Social captions + hashtags`, 
+            platforms, 
+            guidance: { brandTone: state.brandTone, targetAudience: state.targetAudience, contentPillars: state.contentPillars } 
+          }).catch(err => {
+            this.logger.error('[generateAssetsViaSession] Text generation failed', err);
+            return null;
+          })
+        : Promise.resolve(null),
+      
+      kind === 'image' || kind === 'all'
+        ? this.creativesService.generateImageCreative({ 
+            tenantId, campaignId, model: modelName, 
+            prompt: `${basePrompt}\nTask: Visual concept prompts`, 
+            layoutHint: 'social-first', 
+            platforms 
+          }).catch(err => {
+            this.logger.error('[generateAssetsViaSession] Image generation failed', err);
+            return null;
+          })
+        : Promise.resolve(null),
+      
+      kind === 'video' || kind === 'all'
+        ? this.creativesService.generateVideoCreative({ 
+            tenantId, campaignId, model: modelName, 
+            prompt: `${basePrompt}\nTask: Short social video script`, 
+            platforms 
+          }).catch(err => {
+            this.logger.error('[generateAssetsViaSession] Video generation failed', err);
+            return null;
+          })
+        : Promise.resolve(null),
+    ]);
+    
+    // Filter out nulls and failed promises
+    const out = results
+      .map(result => result.status === 'fulfilled' ? result.value : null)
+      .filter(value => value !== null);
+    
+    this.logger.log(`[generateAssetsViaSession] Generated ${out.length} assets successfully`);
     return out;
   }
 

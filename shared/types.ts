@@ -20,6 +20,7 @@ export interface User {
   email: string;
   passwordHash: string;
   roles: string[];
+  isEarlyAccess?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -169,9 +170,42 @@ export interface Creative {
   _id: string;
   campaignId: string;
   tenantId: string;
-  type: 'image' | 'video' | 'text';
+  type: 'text' | 'image' | 'video';
+  angleId?: string | null;
+  platforms?: string[];
+  copy?: {
+    headline?: string;
+    body?: string;
+    cta?: string;
+    caption?: string;
+  };
+  visual?: {
+    prompt?: string;
+    layoutHint?: string;
+    imageUrl?: string;
+    thumbnailUrl?: string;
+  };
+  script?: {
+    hook?: string;
+    body?: string | string[];
+    outro?: string;
+    scenes?: Array<{
+      description: string;
+      durationSeconds?: number;
+    }>;
+  };
+  assets?: {
+    imageUrls?: string[];
+    videoUrl?: string;
+  };
+  status?: 'draft' | 'needsReview' | 'approved' | 'scheduled' | 'published';
+  metadata?: {
+    tags?: string[];
+    derivedFrom?: string;
+    funnelStage?: 'TOFU' | 'MOFU' | 'BOFU';
+  };
+  // Legacy fields for backward compatibility
   assetUrl?: string;
-  metadata?: Record<string, any>;
   createdAt: Date;
   updatedAt: Date;
 }

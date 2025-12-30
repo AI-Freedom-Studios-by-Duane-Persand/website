@@ -3,6 +3,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import SubscriptionPanel from "./SubscriptionPanel";
 import CampaignsPanel from "./CampaignsPanel";
+import SocialConnectionsCard from "../components/SocialConnectionsCard";
+import EarlyAccessGate from "../../components/EarlyAccessGate";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -73,10 +75,13 @@ export default function DashboardPage() {
       ? "bg-rose-50 text-rose-700 border-rose-200"
       : "bg-amber-50 text-amber-700 border-amber-200";
 
+  const hasEarlyAccess = user?.isEarlyAccess === true;
+
   return (
-    <main className="min-h-screen bg-gradient-to-br from-[#0f172a] via-[#020617] to-[#020617] pt-24 pb-16 px-4">
-      <div className="max-w-6xl mx-auto space-y-8">
-        {/* Page header */}
+    <EarlyAccessGate hasAccess={hasEarlyAccess}>
+      <main className="min-h-screen bg-gradient-to-br from-[#0f172a] via-[#020617] to-[#020617] pt-24 pb-16 px-4">
+        <div className="max-w-6xl mx-auto space-y-8">
+          {/* Page header */}
         <header className="text-white">
           <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">
             Welcome to your studio
@@ -133,6 +138,13 @@ export default function DashboardPage() {
             </div>
           </div>
         </section>
+
+        {/* Social connections quick card */}
+        <SocialConnectionsCard
+          title="Connect accounts for publishing"
+          subtitle="Link your social profiles once and reuse them across campaigns and scheduling."
+          compact
+        />
 
         {/* Main layout */}
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] items-start">
@@ -212,5 +224,6 @@ export default function DashboardPage() {
         </div>
       </div>
     </main>
+    </EarlyAccessGate>
   );
 }

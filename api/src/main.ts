@@ -13,7 +13,15 @@ async function bootstrap() {
   console.log('[main.ts] Bootstrapping NestJS API...');
   const app = await NestFactory.create(AppModule, {
     logger: WinstonModule.createLogger(winstonConfig),
+    bodyParser: true,
   });
+  
+  // Increase timeout for long-running AI generation requests
+  const server = app.getHttpServer();
+  server.timeout = 120000; // 2 minutes
+  server.keepAliveTimeout = 121000; // Slightly higher than timeout
+  server.headersTimeout = 122000; // Slightly higher than keepAliveTimeout
+  
   // Add cookie-parser middleware before any auth logic
   app.use(cookieParser());
   // Add global fallback handler for OPTIONS requests FIRST

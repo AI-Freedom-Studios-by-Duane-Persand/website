@@ -9,6 +9,7 @@
     "build": "nest build"
   },
   "dependencies": {
+    "@aws-sdk/s3-request-presigner": "^3.958.0",
     "@nestjs/axios": "^3.0.0",
     "@nestjs/common": "^10.0.0",
     "@nestjs/core": "^10.0.0",

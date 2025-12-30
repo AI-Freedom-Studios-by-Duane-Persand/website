@@ -3,6 +3,7 @@ import { CreativesService } from './creatives.service';
 import { CreateCreativeDto, UpdateCreativeDto } from '../../../shared/creative.dto';
 import { SubscriptionRequired } from '../auth/subscription-required.decorator';
 import { SubscriptionRequiredGuard } from '../auth/subscription-required.guard';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { UseGuards } from '@nestjs/common';
 
 @Controller('creatives')
@@ -89,5 +90,42 @@ export class CreativesController {
   @Put(':id/edit-prompt')
   async editPrompt(@Param('id') id: string, @Body() body: { prompt: string }) {
     return this.creativesService.editPrompt(id, body.prompt);
+  }
+
+  // Trigger actual media generation for existing creatives
+  @Post(':id/render')
+  @UseGuards(JwtAuthGuard, SubscriptionRequiredGuard)
+  @SubscriptionRequired('creative-engine')
+  async renderMedia(
+    @Param('id') id: string,
+    @Body() body: { model?: string }
+  ) {
+    const creative = await this.creativesService.findOne(id);
+    const model = body.model || 'gpt-4o';
+    
+    if (creative.type === 'image' && creative.visual?.prompt) {
+      await this.creativesService.generateActualImage(
+        id,
+        creative.visual.prompt,
+        model,
+        creative.tenantId
+      );
+      return { message: 'Image generation started', status: 'processing' };
+    } else if (creative.type === 'video' && creative.script) {
+      const prompt = creative.visual?.prompt || 
+        (typeof creative.script.body === 'string' ? creative.script.body : 
+         Array.isArray(creative.script.body) ? creative.script.body.join(' ') : 'video');
+      
+      await this.creativesService.generateActualVideo(
+        id,
+        prompt,
+        creative.script,
+        model,
+        creative.tenantId
+      );
+      return { message: 'Video generation started', status: 'processing' };
+    }
+    
+    return { message: 'No prompt or script available for rendering', status: 'error' };
   }
 }

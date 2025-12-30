@@ -1,5 +1,5 @@
 
-import { Controller, Post, UploadedFile, UseInterceptors, Req, BadRequestException, UseGuards } from '@nestjs/common';
+import { Body, Controller, Post, UploadedFile, UseInterceptors, Req, BadRequestException, UseGuards } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { StorageService } from './storage.service';
 import { Request } from 'express';
@@ -38,5 +38,13 @@ export class StorageController {
     const url = await this.storageService.uploadFile(file.buffer, undefined, file.mimetype);
     // Optionally: increment assetCount in DB here
     return { url };
+  }
+
+  @Post('sign-url')
+  async signUrl(@Body() body: { url: string; expiresInSeconds?: number; tenantId?: string }) {
+    if (!body?.url) throw new BadRequestException('url is required');
+    const expiresIn = body.expiresInSeconds ?? 3600;
+    const viewUrl = await this.storageService.getViewUrlForExisting(body.url, body.tenantId, expiresIn);
+    return { viewUrl, expiresIn }; // Return signed URL (or canonical fallback)
   }
 }

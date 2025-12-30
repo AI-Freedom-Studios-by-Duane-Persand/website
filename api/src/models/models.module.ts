@@ -17,6 +17,8 @@ import { AssetSchema } from './asset.model';
 import { ExperimentSchema } from './experiment.schema';
 import { AngleSchema } from './angle.schema';
 import { BrandingConfigSchema } from '../admin/branding.model';
+import { StrategySchema } from './strategy.model';
+import { ApprovalSchema } from './approval.model';
 
 @Module({
   imports: [
@@ -38,6 +40,8 @@ import { BrandingConfigSchema } from '../admin/branding.model';
       { name: 'Experiment', schema: ExperimentSchema },
       { name: 'Angle', schema: AngleSchema },
       { name: 'BrandingConfig', schema: BrandingConfigSchema },
+      { name: 'Strategy', schema: StrategySchema },
+      { name: 'Approval', schema: ApprovalSchema },
     ]),
   ],
   exports: [MongooseModule],

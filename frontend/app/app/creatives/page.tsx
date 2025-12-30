@@ -1,7 +1,19 @@
 "use client";
 import React, { useEffect, useMemo, useState } from "react";
+import EarlyAccessGate from "../../components/EarlyAccessGate";
+import { useAuth } from "../../hooks/useAuth";
 
-type Creative = { _id: string; type: 'text' | 'image' | 'video'; status: string; copy?: { caption?: string }; visual?: { imageUrl?: string }; assets?: { videoUrl?: string }; updatedAt: string };
+type Creative = { 
+  _id: string; 
+  type: 'text' | 'image' | 'video'; 
+  status: string; 
+  copy?: { caption?: string }; 
+  visual?: { imageUrl?: string; prompt?: string }; 
+  assets?: { videoUrl?: string }; 
+  script?: { hook?: string; body?: string | string[]; outro?: string }; 
+  tenantId?: string;
+  updatedAt: string;
+};
 
 function isImage(url: string | undefined) {
   if (!url) return false;
@@ -22,6 +34,7 @@ function getAuthHeaders(): Record<string, string> {
 }
 
 export default function CreativesPage() {
+  const { hasEarlyAccess } = useAuth();
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [url, setUrl] = useState("");
@@ -29,6 +42,7 @@ export default function CreativesPage() {
   const [creatives, setCreatives] = useState<Creative[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editCaption, setEditCaption] = useState("");
+  const [renderingMedia, setRenderingMedia] = useState<Set<string>>(new Set());
 
   const apiUrl = useMemo(
     () =>
@@ -38,7 +52,7 @@ export default function CreativesPage() {
 
   async function fetchCreatives() {
     try {
-      const res = await fetch(`${apiUrl}/creatives`, {
+      const res = await fetch(`${apiUrl}/api/creatives`, {
         headers: getAuthHeaders(),
       });
       if (!res.ok) throw new Error("Failed to fetch creatives");
@@ -90,7 +104,7 @@ export default function CreativesPage() {
 
     setError("");
     try {
-      const res = await fetch(`${apiUrl}/creatives/${editingId}/edit-caption`, {
+      const res = await fetch(`${apiUrl}/api/creatives/${editingId}/edit-caption`, {
         method: "PUT",
         headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
         body: JSON.stringify({ caption: editCaption }),
@@ -105,12 +119,51 @@ export default function CreativesPage() {
     }
   }
 
+  async function handleRenderMedia(creativeId: string, type: 'image' | 'video') {
+    setError("");
+    setRenderingMedia(prev => {
+      const next = new Set(prev);
+      next.add(creativeId);
+      return next;
+    });
+
+    try {
+      const res = await fetch(`${apiUrl}/api/creatives/${creativeId}/render`, {
+        method: "POST",
+        headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
+        body: JSON.stringify({ model: "gpt-4o" }),
+      });
+
+      if (!res.ok) throw new Error(`Failed to start ${type} generation`);
+      const data = await res.json();
+      
+      // Poll for updates (simple approach - refresh after delay)
+      setTimeout(() => {
+        fetchCreatives();
+        setRenderingMedia(prev => {
+          const next = new Set(prev);
+          next.delete(creativeId);
+          return next;
+        });
+      }, type === 'image' ? 15000 : 60000); // 15s for images, 60s for videos
+      
+    } catch (err: any) {
+      setError(err.message || `Error generating ${type}`);
+      setRenderingMedia(prev => {
+        const next = new Set(prev);
+        next.delete(creativeId);
+        return next;
+      });
+    }
+  }
+
   useEffect(() => {
     fetchCreatives();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
+    <EarlyAccessGate hasAccess={hasEarlyAccess}>
     <main className="min-h-screen bg-gradient-to-br from-[#0f172a] via-[#020617] to-[#020617] pt-24 pb-12 px-4">
       <div className="max-w-6xl mx-auto space-y-8">
         {/* Header */}
@@ -262,6 +315,8 @@ export default function CreativesPage() {
                 {creatives.map((creative) => {
                   const active = editingId === creative._id;
                   const previewUrl = creative.type === 'text' ? null : (creative.type === 'image' ? creative.visual?.imageUrl : creative.assets?.videoUrl);
+                  const imagePrompt = creative.type === 'image' ? creative.visual?.prompt : null;
+                  const videoScript = creative.type === 'video' ? creative.script : null;
 
                   return (
                     <div
@@ -285,6 +340,26 @@ export default function CreativesPage() {
                             alt="Creative preview"
                             className="h-full w-full object-cover"
                           />
+                        ) : creative.type === 'image' && imagePrompt ? (
+                          <div className="text-xs text-slate-600 px-4 text-center space-y-2">
+                            <div className="text-4xl">🎨</div>
+                            <div className="font-semibold text-slate-700">Image Concept</div>
+                            <div className="text-[11px] line-clamp-3">{imagePrompt}</div>
+                            <div className="text-[10px] text-slate-400 italic">Media rendering pending</div>
+                          </div>
+                        ) : creative.type === 'video' && videoScript ? (
+                          <div className="text-xs text-slate-600 px-4 text-center space-y-2">
+                            <div className="text-4xl">🎬</div>
+                            <div className="font-semibold text-slate-700">Video Script</div>
+                            <div className="text-[11px] line-clamp-3">
+                              {typeof videoScript.body === 'string' 
+                                ? videoScript.body 
+                                : Array.isArray(videoScript.body) 
+                                  ? videoScript.body.join(' • ') 
+                                  : 'Script ready'}
+                            </div>
+                            <div className="text-[10px] text-slate-400 italic">Media rendering pending</div>
+                          </div>
                         ) : (
                           <div className="text-sm text-slate-500 px-4 text-center">
                             {creative.type === 'text' ? '📝 Text Creative' : 'Preview not available'}
@@ -358,6 +433,64 @@ export default function CreativesPage() {
                               </button>
                             </div>
 
+                            {/* Show image prompt if no URL */}
+                            {creative.type === 'image' && !previewUrl && imagePrompt && (
+                              <div className="mt-3 space-y-2">
+                                <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+                                  <div className="text-[10px] font-semibold text-slate-600 uppercase mb-1">Image Prompt</div>
+                                  <div className="text-xs text-slate-700">{imagePrompt}</div>
+                                </div>
+                                <button
+                                  onClick={() => handleRenderMedia(creative._id, 'image')}
+                                  disabled={renderingMedia.has(creative._id)}
+                                  className="
+                                    w-full inline-flex items-center justify-center px-3 py-2 rounded-lg text-xs font-semibold
+                                    bg-gradient-to-r from-purple-500 to-blue-500 text-white
+                                    hover:opacity-90 transition
+                                    disabled:opacity-50 disabled:cursor-not-allowed
+                                  "
+                                >
+                                  {renderingMedia.has(creative._id) ? '🎨 Generating Image...' : '🎨 Generate Image'}
+                                </button>
+                              </div>
+                            )}
+
+                            {/* Show video script if no URL */}
+                            {creative.type === 'video' && !previewUrl && videoScript && (
+                              <div className="mt-3 space-y-2">
+                                <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+                                  <div className="text-[10px] font-semibold text-slate-600 uppercase mb-1">Video Script</div>
+                                  <div className="text-xs text-slate-700 space-y-1">
+                                    {videoScript.hook && <div><strong>Hook:</strong> {videoScript.hook}</div>}
+                                    {videoScript.body && (
+                                      <div>
+                                        <strong>Body:</strong> {
+                                          typeof videoScript.body === 'string' 
+                                            ? videoScript.body 
+                                            : Array.isArray(videoScript.body) 
+                                              ? videoScript.body.map((line, i) => <div key={i}>• {line}</div>)
+                                              : 'Script ready'
+                                        }
+                                      </div>
+                                    )}
+                                    {videoScript.outro && <div><strong>Outro:</strong> {videoScript.outro}</div>}
+                                  </div>
+                                </div>
+                                <button
+                                  onClick={() => handleRenderMedia(creative._id, 'video')}
+                                  disabled={renderingMedia.has(creative._id)}
+                                  className="
+                                    w-full inline-flex items-center justify-center px-3 py-2 rounded-lg text-xs font-semibold
+                                    bg-gradient-to-r from-red-500 to-purple-500 text-white
+                                    hover:opacity-90 transition
+                                    disabled:opacity-50 disabled:cursor-not-allowed
+                                  "
+                                >
+                                  {renderingMedia.has(creative._id) ? '🎬 Generating Video...' : '🎬 Generate Video'}
+                                </button>
+                              </div>
+                            )}
+
                             {previewUrl && (
                               <div className="mt-3">
                                 <a
@@ -367,8 +500,8 @@ export default function CreativesPage() {
                                   className="text-xs font-semibold text-slate-700 underline hover:text-slate-900 break-all"
                                 >
                                   View {creative.type === 'image' ? 'image' : 'video'}
-                              </a>
-                            </div>
+                                </a>
+                              </div>
                             )}
                           </>
                         )}
@@ -382,5 +515,6 @@ export default function CreativesPage() {
         </section>
       </div>
     </main>
+    </EarlyAccessGate>
   );
 }

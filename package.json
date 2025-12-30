@@ -57,6 +57,7 @@
     "nest-winston": "^1.10.2",
     "passport-jwt": "^4.0.1",
     "react-hot-toast": "^2.6.0",
+    "replicate": "^1.4.0",
     "winston": "^3.19.0"
   }
 }

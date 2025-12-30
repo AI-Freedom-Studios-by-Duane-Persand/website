@@ -109,7 +109,7 @@ export interface Creative {
     };
     script: {
         hook?: string;
-        body?: string;
+        body?: string | string[];
         outro?: string;
         scenes?: Array<{
             description: string;

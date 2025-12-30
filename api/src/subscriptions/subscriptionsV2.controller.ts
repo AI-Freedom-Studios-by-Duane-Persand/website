@@ -10,13 +10,8 @@ import winston, { Logger } from 'winston';
 import { ConfigService } from '@nestjs/config';
 import { TenantDocument } from '../tenants/schemas/tenant.schema';
 
-// Load environment variables from .env file
-const result = dotenv.config();
-if (result.error) {
-  winston.error('Failed to load .env file', { error: result.error });
-} else {
-  winston.info('.env file loaded successfully');
-}
+// Load environment variables from .env file (only log in constructor, not at module load)
+dotenv.config();
 
 @Controller('subscriptions')
 export class SubscriptionsController {
@@ -40,7 +35,7 @@ export class SubscriptionsController {
     });
 
     // Test log to confirm logger is functioning
-    this.loggerWinston.info('Winston logger initialized directly in SubscriptionsController');
+    this.loggerWinston.info('SubscriptionsController initialized');
   }
 
   private getUserId(req: { user: any }): string {

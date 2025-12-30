@@ -24,13 +24,30 @@ export class SubscriptionRequiredGuard implements CanActivate {
     if (!requiredFeatures || requiredFeatures.length === 0) return true;
     const req = context.switchToHttp().getRequest();
     const user = req.user;
-    if (!user || !user.userId) throw new ForbiddenException('User not authenticated');
+    // Use 'sub' from JWT payload (user ID) - from JwtStrategy validate method
+    const userId = user?.sub || user?.userId;
+    if (!user || !userId) throw new ForbiddenException('User not authenticated');
     // Admin bypass
     if (user.roles && (user.roles.includes('admin') || user.roles.includes('superadmin'))) return true;
-    // Find active subscription
-    const sub = await this.subscriptionModel.findOne({ userId: user.userId, status: 'active', validUntil: { $gte: new Date() } }).populate('packageId');
+    // Development mode: bypass if NODE_ENV is development (for testing)
+    if (process.env.NODE_ENV === 'development' || process.env.SKIP_SUBSCRIPTION_CHECK === 'true') {
+      this.logger?.warn?.('[SubscriptionRequiredGuard] Skipping subscription check in development mode', { userId: userId });
+      return true;
+    }
+    // Find active subscription - allow subscriptions without validUntil OR with validUntil >= now
+    const sub = await this.subscriptionModel.findOne({ 
+      userId: userId, 
+      status: 'active', 
+      $or: [
+        { validUntil: { $gte: new Date() } },
+        { validUntil: null }
+      ]
+    }).populate('packageId');
     if (!sub) {
-      this.logger?.warn?.('[SubscriptionRequiredGuard] No active subscription', { userId: user.userId });
+      this.logger?.warn?.('[SubscriptionRequiredGuard] No active subscription', { userId: userId });
+      // Debug: check what subscriptions exist for this user
+      const allSubs = await this.subscriptionModel.find({ userId: userId }).lean();
+      this.logger?.warn?.('[SubscriptionRequiredGuard] All subscriptions for user', { userId: userId, subs: allSubs });
       throw new ForbiddenException('No active subscription. Please subscribe to access this feature.');
     }
     let pkg: PackageDocument | null = null;
@@ -46,7 +63,7 @@ export class SubscriptionRequiredGuard implements CanActivate {
     // Check if all required features are present
     const hasAll = requiredFeatures.every(f => pkg!.features.includes(f));
     if (!hasAll) {
-      this.logger?.warn?.('[SubscriptionRequiredGuard] Subscription missing required features', { userId: user.userId, requiredFeatures, pkgFeatures: pkg.features });
+      this.logger?.warn?.('[SubscriptionRequiredGuard] Subscription missing required features', { userId: userId, requiredFeatures, pkgFeatures: pkg.features });
       throw new ForbiddenException('Your subscription does not include access to this feature.');
     }
     return true;

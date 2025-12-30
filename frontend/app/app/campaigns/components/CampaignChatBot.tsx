@@ -394,7 +394,7 @@ export default function CampaignChatBot({ userId, editCampaignId = null, onCampa
       return;
     }
     try {
-      const res = await fetch(`${API_BASE_URL}/creatives/${creativeId}/assets`, {
+      const res = await fetch(`${API_BASE_URL}/api/creatives/${creativeId}/assets`, {
         method: 'PUT',
         headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: last.url, type }),
@@ -415,7 +415,7 @@ export default function CampaignChatBot({ userId, editCampaignId = null, onCampa
       return;
     }
     try {
-      const res = await fetch(`${API_BASE_URL}/creatives/${creativeId}/regenerate`, {
+      const res = await fetch(`${API_BASE_URL}/api/creatives/${creativeId}/regenerate`, {
         method: 'PUT',
         headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ model: selectedModel, prompt, scope }),
@@ -432,7 +432,7 @@ export default function CampaignChatBot({ userId, editCampaignId = null, onCampa
     const caption = inlineEditText;
     if (!caption) return;
     try {
-      const res = await fetch(`${API_BASE_URL}/creatives/${creativeId}/edit-caption`, {
+      const res = await fetch(`${API_BASE_URL}/api/creatives/${creativeId}/edit-caption`, {
         method: 'PUT',
         headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ caption }),
@@ -451,7 +451,7 @@ export default function CampaignChatBot({ userId, editCampaignId = null, onCampa
     const hashtags = inlineEditText;
     if (!hashtags) return;
     try {
-      const res = await fetch(`${API_BASE_URL}/creatives/${creativeId}/edit-hashtags`, {
+      const res = await fetch(`${API_BASE_URL}/api/creatives/${creativeId}/edit-hashtags`, {
         method: 'PUT',
         headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ hashtags }),
@@ -470,7 +470,7 @@ export default function CampaignChatBot({ userId, editCampaignId = null, onCampa
     const prompt = inlineEditText;
     if (!prompt) return;
     try {
-      const res = await fetch(`${API_BASE_URL}/creatives/${creativeId}/edit-prompt`, {
+      const res = await fetch(`${API_BASE_URL}/api/creatives/${creativeId}/edit-prompt`, {
         method: 'PUT',
         headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt }),

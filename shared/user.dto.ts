@@ -6,6 +6,7 @@ export interface CreateUserDto {
 	password: string;
 	role: 'superadmin' | 'tenantOwner' | 'manager' | 'editor';
 	tenantId?: string;
+	isEarlyAccess?: boolean;
 }
 
 export type UpdateUserDto = Partial<CreateUserDto>;

@@ -64,7 +64,7 @@ export interface CampaignDocument extends Document {
     regeneratedAt?: Date;
     regeneratedBy?: string;
   }>;
-  approvalStates: Record<string, string>;
+  approvalStates: Record<string, any>;
   revisionHistory: Array<{
     revision: number;
     changedAt: Date;
@@ -72,6 +72,15 @@ export interface CampaignDocument extends Document {
     changes: any;
     note?: string;
   }>;
+  metadata?: {
+    promptResponses?: Array<{
+      promptId: string;
+      response: 'skip' | 'accept' | 'provide' | 'later';
+      value?: any;
+      respondedAt: Date;
+    }>;
+    [key: string]: any;
+  };
   createdAt: Date;
   updatedAt: Date;
 }
@@ -87,6 +96,7 @@ export const CampaignSchema = new Schema<CampaignDocument>({
   schedule: { type: [Object], default: [] },
   approvalStates: { type: Object, default: {} },
   revisionHistory: { type: [Object], default: [] },
+  metadata: { type: Object, default: {} },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
 });

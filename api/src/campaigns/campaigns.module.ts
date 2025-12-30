@@ -11,6 +11,8 @@ import { StrategyService } from './services/strategy.service';
 import { ApprovalService } from './services/approval.service';
 import { ScheduleService } from './services/schedule.service';
 import { AssetService } from './services/asset.service';
+import { ContentService } from './services/content.service';
+import { PromptingService } from './services/prompting.service';
 
 @Module({
   imports: [
@@ -26,6 +28,8 @@ import { AssetService } from './services/asset.service';
     ApprovalService,
     ScheduleService,
     AssetService,
+    ContentService,
+    PromptingService,
   ],
   exports: [
     CampaignsService,
@@ -33,6 +37,8 @@ import { AssetService } from './services/asset.service';
     ApprovalService,
     ScheduleService,
     AssetService,
+    ContentService,
+    PromptingService,
   ],
 })
 export class CampaignsModule {}
