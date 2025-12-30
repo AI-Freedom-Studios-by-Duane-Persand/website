@@ -96,55 +96,45 @@ export default function MetaOAuthCallback() {
 
         const pages = await pagesRes.json();
 
-        // Store tokens and pages in user's account
-        // TODO: Send to backend to store in database
-        setMessage("Checking for Instagram Business accounts...");
+        setMessage("Saving connected accounts...");
 
-        // Check each page for Instagram Business account
-        const connectedAccounts: any[] = [];
-        for (const page of pages) {
-          try {
-            const igRes = await fetch(
-              `${API_BASE_URL}/api/meta/pages/${page.id}/instagram?accessToken=${page.access_token}`,
-              {
-                headers: getAuthHeaders(),
-              }
-            );
+        // Get user info from token (you should have userId and tenantId in your auth context)
+        // For now, we'll get it from localStorage or auth context
+        const userId = localStorage.getItem("userId") || localStorage.getItem("user_id");
+        const tenantId = localStorage.getItem("tenantId") || localStorage.getItem("tenant_id");
 
-            if (igRes.ok) {
-              const igAccount = await igRes.json();
-              if (igAccount) {
-                connectedAccounts.push({
-                  type: "instagram",
-                  pageId: page.id,
-                  pageName: page.name,
-                  instagramId: igAccount.id,
-                  instagramUsername: igAccount.username,
-                  accessToken: page.access_token,
-                });
-              }
-            }
-          } catch (err) {
-            console.error(`Failed to get Instagram for page ${page.id}:`, err);
-          }
-
-          connectedAccounts.push({
-            type: "facebook",
-            pageId: page.id,
-            pageName: page.name,
-            accessToken: page.access_token,
-          });
+        if (!userId || !tenantId) {
+          throw new Error("User not authenticated");
         }
 
-        // Store connected accounts (in localStorage for now - should be in backend database)
-        localStorage.setItem("meta_connected_accounts", JSON.stringify(connectedAccounts));
-        localStorage.setItem("meta_user_token", longLivedData.access_token);
+        // Save all accounts to database via backend
+        const saveRes = await fetch(`${API_BASE_URL}/api/social-accounts-manager/connect`, {
+          method: "POST",
+          headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userId,
+            tenantId,
+            userAccessToken: longLivedData.access_token,
+            scopes: ["pages_manage_posts", "pages_manage_engagement", "instagram_basic", "instagram_content_publish"],
+          }),
+        });
+
+        if (!saveRes.ok) {
+          throw new Error(`Failed to save accounts (${saveRes.status})`);
+        }
+
+        const saveData = await saveRes.json();
+        
+        setMessage("Successfully connected accounts!");
+
+        // The backend already checked for Instagram accounts and saved everything
+        const connectedAccounts = saveData.accounts || [];
 
         // Clean up
         sessionStorage.removeItem("meta_oauth_state");
 
         setStatus("success");
-        setMessage(`Successfully connected ${connectedAccounts.length} account(s)!`);
+        setMessage(`Successfully connected ${saveData.connectedAccounts} account(s)!`);
 
         // Redirect back to app after 2 seconds
         setTimeout(() => {
