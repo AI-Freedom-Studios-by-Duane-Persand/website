@@ -64,7 +64,8 @@ export class ReplicateClient {
       baseURL: this.apiUrl,
       timeout: 120000, // 2 minutes for video generation
       headers: {
-        'Authorization': `Token ${this.apiKey}`,
+        // Replicate HTTP API expects Bearer token per official docs
+        'Authorization': `Bearer ${this.apiKey}`,
         'Content-Type': 'application/json',
       },
     });
@@ -80,15 +81,33 @@ export class ReplicateClient {
   /**
    * Generate image using Replicate
    */
-  async generateImage(prompt: string, width = 1024, height = 1024): Promise<string> {
+  async generateImage(
+    prompt: string,
+    options: {
+      width?: number;
+      height?: number;
+      negativePrompt?: string;
+      numInferenceSteps?: number;
+      guidanceScale?: number;
+      scheduler?: string;
+    } = {},
+  ): Promise<string> {
     if (!this.apiKey) {
       throw new Error('Replicate API key is required for image generation. Please configure REPLICATE_API_KEY in your environment.');
     }
 
     try {
+      const width = options.width ?? 1024;
+      const height = options.height ?? 1024;
+      const negative_prompt = options.negativePrompt ?? 'blurry, low quality, watermark, distorted, artifacts';
+      const num_inference_steps = options.numInferenceSteps ?? 28;
+      const guidance_scale = options.guidanceScale ?? 7.5;
+
       this.logger.info('[ReplicateClient] Generating image', {
-        prompt: prompt.substring(0, 100),
+        prompt: prompt.substring(0, 120),
         size: `${width}x${height}`,
+        guidance_scale,
+        num_inference_steps,
       });
 
       // Use Flux Schnell (fast, high-quality)
@@ -96,9 +115,13 @@ export class ReplicateClient {
         version: '5599ed30703defd1d160a25a63321b4dec97101d98b4674bcc56e41f62f35637',
         input: {
           prompt,
+          negative_prompt,
           width,
           height,
           num_outputs: 1,
+          num_inference_steps,
+          guidance_scale,
+          scheduler: options.scheduler ?? 'DPM++ 2M',
         },
       });
 
@@ -131,15 +154,35 @@ export class ReplicateClient {
   /**
    * Generate video using Replicate
    */
-  async generateVideo(prompt: string, duration = 3): Promise<string> {
+  async generateVideo(
+    prompt: string,
+    options: {
+      durationSeconds?: number;
+      fps?: number;
+      negativePrompt?: string;
+      numInferenceSteps?: number;
+      guidanceScale?: number;
+    } = {},
+  ): Promise<string> {
     if (!this.apiKey) {
       throw new Error('Replicate API key is required for video generation. Please configure REPLICATE_API_KEY in your environment.');
     }
 
     try {
+      const durationSeconds = options.durationSeconds ?? 10;
+      const fps = options.fps ?? 24;
+      const num_frames = durationSeconds * fps;
+      const negative_prompt = options.negativePrompt ?? 'blurry, low quality, watermark, distorted, artifacts';
+      const num_inference_steps = options.numInferenceSteps ?? 24;
+      const guidance_scale = options.guidanceScale ?? 6.0;
+
       this.logger.info('[ReplicateClient] Generating video', {
-        prompt: prompt.substring(0, 100),
-        duration,
+        prompt: prompt.substring(0, 120),
+        durationSeconds,
+        fps,
+        num_frames,
+        guidance_scale,
+        num_inference_steps,
       });
 
       // Use Zeroscope (text-to-video)
@@ -147,7 +190,11 @@ export class ReplicateClient {
         version: '9f747673945c62801b13b84701c783929c0ee784e4748ec062204894dda1a351',
         input: {
           prompt,
-          num_frames: duration * 24, // 24 fps
+          negative_prompt,
+          num_frames,
+          fps,
+          num_inference_steps,
+          guidance_scale,
         },
       });
 
@@ -161,7 +208,7 @@ export class ReplicateClient {
         url: videoUrl.substring(0, 50) + '...',
       });
 
-      return JSON.stringify({ url: videoUrl, prompt, duration, provider: 'replicate' });
+      return JSON.stringify({ url: videoUrl, prompt, durationSeconds, fps, provider: 'replicate' });
     } catch (error: any) {
       const status = error.response?.status;
       this.logger.error('[ReplicateClient] Error generating video', {

@@ -4,9 +4,10 @@
 
 export const EARLY_ACCESS_WHITELIST: string[] = [
   // Add whitelisted emails here
-  'admin@aifreedomstudios.com',
+  'aifreedomstudios@gmail.com',
   'waali.azmi@gmail.com',
-  'irum@gmail.com'
+  'irum@gmail.com',
+  'test@example.com'
 ];
 
 /**

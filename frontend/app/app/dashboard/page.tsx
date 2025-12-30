@@ -5,6 +5,7 @@ import SubscriptionPanel from "./SubscriptionPanel";
 import CampaignsPanel from "./CampaignsPanel";
 import SocialConnectionsCard from "../components/SocialConnectionsCard";
 import EarlyAccessGate from "../../components/EarlyAccessGate";
+import SubscriptionGate from "../../components/SubscriptionGate";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -79,6 +80,7 @@ export default function DashboardPage() {
 
   return (
     <EarlyAccessGate hasAccess={hasEarlyAccess}>
+      <SubscriptionGate>
       <main className="min-h-screen bg-gradient-to-br from-[#0f172a] via-[#020617] to-[#020617] pt-24 pb-16 px-4">
         <div className="max-w-6xl mx-auto space-y-8">
           {/* Page header */}
@@ -224,6 +226,7 @@ export default function DashboardPage() {
         </div>
       </div>
     </main>
+      </SubscriptionGate>
     </EarlyAccessGate>
   );
 }

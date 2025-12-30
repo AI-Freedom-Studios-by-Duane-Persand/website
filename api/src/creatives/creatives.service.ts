@@ -121,6 +121,14 @@ export class CreativesService {
     platforms?: string[];
     angleId?: string | null;
     generateActual?: boolean;
+    quality?: {
+      width?: number;
+      height?: number;
+      negativePrompt?: string;
+      numInferenceSteps?: number;
+      guidanceScale?: number;
+      scheduler?: string;
+    };
   }): Promise<Creative> {
     if (!params.tenantId || !params.campaignId) throw new BadRequestException('tenantId and campaignId are required');
     
@@ -141,7 +149,13 @@ export class CreativesService {
     
     // Optionally generate actual image in background
     if (params.generateActual !== false) {
-      this.generateActualImage(creativeDoc._id.toString(), result, params.model, params.tenantId)
+      this.generateActualImage(
+        creativeDoc._id.toString(),
+        result,
+        params.model,
+        params.tenantId,
+        params.quality,
+      )
         .catch(err => this.logger.error('[generateImageCreative] Failed to generate actual image', err));
     }
     
@@ -156,6 +170,13 @@ export class CreativesService {
     platforms?: string[];
     angleId?: string | null;
     generateActual?: boolean;
+    quality?: {
+      durationSeconds?: number;
+      fps?: number;
+      negativePrompt?: string;
+      numInferenceSteps?: number;
+      guidanceScale?: number;
+    };
   }): Promise<Creative> {
     if (!params.tenantId || !params.campaignId) throw new BadRequestException('tenantId and campaignId are required');
     
@@ -195,7 +216,14 @@ export class CreativesService {
     
     // Optionally generate actual video in background
     if (params.generateActual !== false) {
-      this.generateActualVideo(creativeDoc._id.toString(), params.prompt, script, params.model, params.tenantId)
+      this.generateActualVideo(
+        creativeDoc._id.toString(),
+        params.prompt,
+        script,
+        params.model,
+        params.tenantId,
+        params.quality,
+      )
         .catch(err => this.logger.error('[generateVideoCreative] Failed to generate actual video', err));
     }
     
@@ -406,13 +434,33 @@ export class CreativesService {
    * Generate actual image file from prompt using AI
    * This runs asynchronously in the background
    */
-  async generateActualImage(creativeId: string, prompt: string, model: string, tenantId: string): Promise<void> {
+  async generateActualImage(
+    creativeId: string,
+    prompt: string,
+    model: string,
+    tenantId: string,
+    quality?: {
+      width?: number;
+      height?: number;
+      negativePrompt?: string;
+      numInferenceSteps?: number;
+      guidanceScale?: number;
+      scheduler?: string;
+    },
+  ): Promise<void> {
     try {
       this.logger.log(`[generateActualImage] Starting image generation for creative ${creativeId}`);
       
       // Always use Replicate for image generation (per plan)
       this.logger.log(`[generateActualImage] Using replicate for image generation`);
-      const result: string = await this.replicateClient.generateImage(prompt, 1024, 1024);
+      const result: string = await this.replicateClient.generateImage(prompt, {
+        width: quality?.width ?? 1280,
+        height: quality?.height ?? 720,
+        negativePrompt: quality?.negativePrompt,
+        numInferenceSteps: quality?.numInferenceSteps,
+        guidanceScale: quality?.guidanceScale,
+        scheduler: quality?.scheduler,
+      });
 
       // Parse result - could be URL or base64
       let imageUrl = result;
@@ -466,14 +514,33 @@ export class CreativesService {
    * Generate actual video file from script using AI
    * This runs asynchronously in the background
    */
-  async generateActualVideo(creativeId: string, prompt: string, script: any, model: string, tenantId: string): Promise<void> {
+  async generateActualVideo(
+    creativeId: string,
+    prompt: string,
+    script: any,
+    model: string,
+    tenantId: string,
+    quality?: {
+      durationSeconds?: number;
+      fps?: number;
+      negativePrompt?: string;
+      numInferenceSteps?: number;
+      guidanceScale?: number;
+    },
+  ): Promise<void> {
     try {
       this.logger.log(`[generateActualVideo] Starting video generation for creative ${creativeId}`);
       
       // Always use Replicate for video generation (per plan)
-      const duration = 15;
+      const duration = quality?.durationSeconds ?? 12;
       this.logger.log(`[generateActualVideo] Using replicate for video generation`);
-      const result: string = await this.replicateClient.generateVideo(prompt, duration);
+      const result: string = await this.replicateClient.generateVideo(prompt, {
+        durationSeconds: duration,
+        fps: quality?.fps,
+        negativePrompt: quality?.negativePrompt,
+        numInferenceSteps: quality?.numInferenceSteps,
+        guidanceScale: quality?.guidanceScale,
+      });
 
       // Parse result - could be URL
       let videoUrl = result;

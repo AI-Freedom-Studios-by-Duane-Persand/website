@@ -6,6 +6,7 @@ import CampaignList from "./components/CampaignList";
 import Stepper from "./components/Stepper";
 import SocialConnectionsCard from "../components/SocialConnectionsCard";
 import EarlyAccessGate from "../../components/EarlyAccessGate";
+import SubscriptionGate from "../../components/SubscriptionGate";
 import { useAuth } from "../../hooks/useAuth";
 
 const API_BASE_URL =
@@ -339,6 +340,7 @@ export default function CampaignsPage() {
 
   return (
     <EarlyAccessGate hasAccess={hasEarlyAccess}>
+      <SubscriptionGate>
     <main className="min-h-screen bg-gradient-to-br from-[#0f172a] via-[#020617] to-[#020617] px-4 py-6 text-white">
       {showConnectModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
@@ -657,6 +659,7 @@ export default function CampaignsPage() {
         </div>
       </div>
     </main>
+      </SubscriptionGate>
     </EarlyAccessGate>
   );
 }

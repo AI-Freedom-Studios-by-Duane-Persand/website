@@ -52,7 +52,7 @@ export interface AyrshareProfile {
 @Injectable()
 export class AyrshareService {
   private readonly logger = new Logger(AyrshareService.name);
-  private readonly apiUrl = 'https://app.ayrshare.com/api';
+  private readonly apiUrl = 'https://api.ayrshare.com/api';
   private readonly apiKey: string;
   private readonly axiosInstance: AxiosInstance;
 

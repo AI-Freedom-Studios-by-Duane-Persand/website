@@ -2,6 +2,7 @@
 import React from "react";
 import SocialConnectionsCard from "../components/SocialConnectionsCard";
 import EarlyAccessGate from "../../components/EarlyAccessGate";
+import SubscriptionGate from "../../components/SubscriptionGate";
 import { useAuth } from "../../hooks/useAuth";
 
 export default function SocialAccounts() {
@@ -9,7 +10,8 @@ export default function SocialAccounts() {
   
   return (
     <EarlyAccessGate hasAccess={hasEarlyAccess}>
-    <main className="min-h-screen bg-gradient-to-br from-[#0f172a] via-[#020617] to-[#020617] px-4 py-8 text-white">
+      <SubscriptionGate>
+        <main className="min-h-screen bg-gradient-to-br from-[#0f172a] via-[#020617] to-[#020617] px-4 py-8 text-white">
       <div className="max-w-5xl mx-auto space-y-6">
         <header className="space-y-1">
           <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Settings</p>
@@ -21,7 +23,8 @@ export default function SocialAccounts() {
 
         <SocialConnectionsCard />
       </div>
-    </main>
+        </main>
+      </SubscriptionGate>
     </EarlyAccessGate>
   );
 }

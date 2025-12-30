@@ -98,7 +98,17 @@ export class CreativesController {
   @SubscriptionRequired('creative-engine')
   async renderMedia(
     @Param('id') id: string,
-    @Body() body: { model?: string }
+    @Body() body: {
+      model?: string;
+      width?: number;
+      height?: number;
+      negativePrompt?: string;
+      numInferenceSteps?: number;
+      guidanceScale?: number;
+      scheduler?: string;
+      durationSeconds?: number;
+      fps?: number;
+    }
   ) {
     const creative = await this.creativesService.findOne(id);
     const model = body.model || 'gpt-4o';
@@ -108,7 +118,15 @@ export class CreativesController {
         id,
         creative.visual.prompt,
         model,
-        creative.tenantId
+        creative.tenantId,
+        {
+          width: body.width,
+          height: body.height,
+          negativePrompt: body.negativePrompt,
+          numInferenceSteps: body.numInferenceSteps,
+          guidanceScale: body.guidanceScale,
+          scheduler: body.scheduler,
+        },
       );
       return { message: 'Image generation started', status: 'processing' };
     } else if (creative.type === 'video' && creative.script) {
@@ -121,7 +139,14 @@ export class CreativesController {
         prompt,
         creative.script,
         model,
-        creative.tenantId
+        creative.tenantId,
+        {
+          durationSeconds: body.durationSeconds,
+          fps: body.fps,
+          negativePrompt: body.negativePrompt,
+          numInferenceSteps: body.numInferenceSteps,
+          guidanceScale: body.guidanceScale,
+        },
       );
       return { message: 'Video generation started', status: 'processing' };
     }

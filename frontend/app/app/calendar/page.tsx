@@ -2,6 +2,7 @@
 "use client";
 import React, { useEffect, useMemo, useState } from "react";
 import EarlyAccessGate from "../../components/EarlyAccessGate";
+import SubscriptionGate from "../../components/SubscriptionGate";
 import { useAuth } from "../../hooks/useAuth";
 
 interface ScheduledPost {
@@ -86,6 +87,7 @@ export default function CalendarPage() {
 
   return (
     <EarlyAccessGate hasAccess={hasEarlyAccess}>
+      <SubscriptionGate>
     <main className="min-h-screen bg-gradient-to-br from-[#0f172a] via-[#020617] to-[#020617] pt-24 pb-12 px-4">
       <div className="max-w-6xl mx-auto space-y-8">
         {/* Header */}
@@ -373,6 +375,7 @@ export default function CalendarPage() {
         </section>
       </div>
     </main>
+      </SubscriptionGate>
     </EarlyAccessGate>
   );
 }

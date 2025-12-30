@@ -100,16 +100,29 @@ export class AIModelsService {
       } catch {}
 
       const prompt = parsed.prompt || input.contents;
-      const width = parsed.width || 1024;
-      const height = parsed.height || 1024;
+      const width = parsed.width || parsed.quality?.width || 1280;
+      const height = parsed.height || parsed.quality?.height || 720;
+      const negativePrompt = parsed.negativePrompt || parsed.quality?.negativePrompt;
+      const numInferenceSteps = parsed.numInferenceSteps || parsed.quality?.numInferenceSteps;
+      const guidanceScale = parsed.guidanceScale || parsed.quality?.guidanceScale;
+      const scheduler = parsed.scheduler || parsed.quality?.scheduler;
 
       this.logger.info('[AIModelsService] Generating image with Replicate', {
         prompt: prompt.substring(0, 100),
         width,
         height,
+        numInferenceSteps,
+        guidanceScale,
       });
 
-      return await this.replicateClient.generateImage(prompt, width, height);
+      return await this.replicateClient.generateImage(prompt, {
+        width,
+        height,
+        negativePrompt,
+        numInferenceSteps,
+        guidanceScale,
+        scheduler,
+      });
     } catch (error) {
       this.logger.error('[AIModelsService] Replicate image generation failed', {
         error: error instanceof Error ? error.message : error,
@@ -129,14 +142,27 @@ export class AIModelsService {
       } catch {}
 
       const prompt = parsed.prompt || input.contents;
-      const duration = parsed.duration || 3;
+      const durationSeconds = parsed.durationSeconds || parsed.duration || parsed.quality?.durationSeconds || 8;
+      const fps = parsed.fps || parsed.quality?.fps || 24;
+      const negativePrompt = parsed.negativePrompt || parsed.quality?.negativePrompt;
+      const numInferenceSteps = parsed.numInferenceSteps || parsed.quality?.numInferenceSteps;
+      const guidanceScale = parsed.guidanceScale || parsed.quality?.guidanceScale;
 
       this.logger.info('[AIModelsService] Generating video with Replicate', {
         prompt: prompt.substring(0, 100),
-        duration,
+        durationSeconds,
+        fps,
+        numInferenceSteps,
+        guidanceScale,
       });
 
-      return await this.replicateClient.generateVideo(prompt, duration);
+      return await this.replicateClient.generateVideo(prompt, {
+        durationSeconds,
+        fps,
+        negativePrompt,
+        numInferenceSteps,
+        guidanceScale,
+      });
     } catch (error) {
       this.logger.error('[AIModelsService] Replicate video generation failed', {
         error: error instanceof Error ? error.message : error,

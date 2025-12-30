@@ -1,6 +1,7 @@
 "use client";
 import React, { useEffect, useMemo, useState } from "react";
 import EarlyAccessGate from "../../components/EarlyAccessGate";
+import SubscriptionGate from "../../components/SubscriptionGate";
 import { useAuth } from "../../hooks/useAuth";
 
 type Creative = { 
@@ -128,10 +129,30 @@ export default function CreativesPage() {
     });
 
     try {
+      // Provide higher-quality defaults per media type
+      const qualityPayload = type === 'image'
+        ? {
+            model: 'flux-schnell',
+            width: 1280,
+            height: 720,
+            negativePrompt: 'low quality, blurry, artifacts, watermark, distorted anatomy',
+            numInferenceSteps: 32,
+            guidanceScale: 8,
+            scheduler: 'DPM++ 2M',
+          }
+        : {
+            model: 'zeroscope',
+            durationSeconds: 12,
+            fps: 24,
+            negativePrompt: 'blurry, artifacts, watermark, choppy motion, distorted faces',
+            numInferenceSteps: 28,
+            guidanceScale: 7,
+          };
+
       const res = await fetch(`${apiUrl}/api/creatives/${creativeId}/render`, {
         method: "POST",
         headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
-        body: JSON.stringify({ model: "gpt-4o" }),
+        body: JSON.stringify(qualityPayload),
       });
 
       if (!res.ok) throw new Error(`Failed to start ${type} generation`);
@@ -164,6 +185,7 @@ export default function CreativesPage() {
 
   return (
     <EarlyAccessGate hasAccess={hasEarlyAccess}>
+      <SubscriptionGate>
     <main className="min-h-screen bg-gradient-to-br from-[#0f172a] via-[#020617] to-[#020617] pt-24 pb-12 px-4">
       <div className="max-w-6xl mx-auto space-y-8">
         {/* Header */}
@@ -333,6 +355,7 @@ export default function CreativesPage() {
                             src={previewUrl}
                             className="h-full w-full object-cover"
                             controls
+                            preload="metadata"
                           />
                         ) : previewUrl && isImage(previewUrl) ? (
                           <img
@@ -515,6 +538,7 @@ export default function CreativesPage() {
         </section>
       </div>
     </main>
+      </SubscriptionGate>
     </EarlyAccessGate>
   );
 }
