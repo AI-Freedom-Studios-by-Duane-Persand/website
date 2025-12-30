@@ -20,6 +20,7 @@ export class UsersService {
       passwordHash: doc.passwordHash,
       tenantId: doc.tenantId,
       roles: doc.roles || [],
+      isEarlyAccess: doc.isEarlyAccess ?? false,
       createdAt: doc.createdAt,
       updatedAt: doc.updatedAt,
     }));
@@ -35,6 +36,7 @@ export class UsersService {
       passwordHash: user.passwordHash,
       tenantId: user.tenantId,
       roles: user.roles || [],
+      isEarlyAccess: user.isEarlyAccess ?? false,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
     };
@@ -59,6 +61,7 @@ export class UsersService {
       passwordHash: user.passwordHash,
       tenantId: user.tenantId,
       roles: user.roles || [],
+      isEarlyAccess: user.isEarlyAccess ?? false,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
     };
@@ -74,6 +77,7 @@ export class UsersService {
       passwordHash: user.passwordHash,
       tenantId: user.tenantId,
       roles: user.roles || [],
+      isEarlyAccess: user.isEarlyAccess ?? false,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
     };
