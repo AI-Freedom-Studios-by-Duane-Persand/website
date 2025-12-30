@@ -273,6 +273,112 @@ export class AyrshareService {
   }
 
   /**
+   * Generate JWT token for account connection flow (Business Plan)
+   * Creates a new profile and generates JWT in one call for convenience
+   * Per Ayrshare Business Plan docs: flow is create profile → POST /generateJWT with profile key
+   */
+  async generateJWTForNewProfile(): Promise<{ jwt: string; url: string; profileKey: string }> {
+    try {
+      this.logger.log('Creating new profile and generating JWT for account linking...');
+      
+      // Step 1: Create a new profile to get profile key
+      const profileResponse = await this.axiosInstance.post('/create-profile', {
+        title: `Profile ${Date.now()}`,
+      });
+      
+      const profileKey = profileResponse.data?.profileKey;
+      if (!profileKey) {
+        throw new Error('No profile key returned from profile creation');
+      }
+      
+      this.logger.log(`Profile created with key: ${profileKey}`);
+      
+      // Step 2: Generate JWT using the profile key
+      const jwtResponse = await this.axiosInstance.post(
+        '/generateJWT',
+        {},
+        {
+          headers: {
+            'Profile-Key': profileKey,
+          },
+        }
+      );
+      
+      const jwt = jwtResponse.data?.jwt;
+      if (!jwt) {
+        throw new Error('No JWT returned from Ayrshare');
+      }
+      
+      // Build authorization URL for frontend to open in new tab/window
+      const url = `https://app.ayrshare.com/authorize?jwt=${jwt}`;
+      
+      this.logger.log('JWT generated successfully for account linking');
+      return { jwt, url, profileKey };
+    } catch (error: any) {
+      this.handleError('Failed to create profile or generate JWT', error);
+    }
+  }
+
+  /**
+   * Generate JWT token for account connection flow using Business Plan profile key
+   * Per Ayrshare Business Plan docs: POST /generateJWT requires profile key header
+   * Returns JWT and authorization URL for user to link social accounts
+   */
+  async generateJWTWithProfileKey(profileKey: string): Promise<{ jwt: string; url: string }> {
+    try {
+      this.logger.log(`Generating JWT for account linking with profile key: ${profileKey}`);
+      
+      // POST /generateJWT with profile key in header
+      // This returns a JWT and authorization URL for the user
+      const response = await this.axiosInstance.post(
+        '/generateJWT',
+        {}, // Empty body, all data in headers
+        {
+          headers: {
+            'Profile-Key': profileKey,
+          },
+        }
+      );
+      
+      const jwt = response.data?.jwt;
+      if (!jwt) {
+        throw new Error('No JWT returned from Ayrshare');
+      }
+      
+      // Build authorization URL for frontend to open in new tab/window
+      const url = `https://app.ayrshare.com/authorize?jwt=${jwt}`;
+      
+      this.logger.log('JWT generated successfully for account linking');
+      return { jwt, url };
+    } catch (error: any) {
+      this.handleError('Failed to generate JWT for account linking', error);
+    }
+  }
+
+  /**
+   * Create a new user profile for Business Plan multi-user setup
+   */
+  async createProfile(title?: string): Promise<{ profileKey: string }> {
+    try {
+      this.logger.log('Creating new user profile...');
+      
+      const response = await this.axiosInstance.post('/create-profile', {
+        title: title || `Profile ${Date.now()}`,
+      });
+      
+      const profileKey = response.data?.profileKey;
+      if (!profileKey) {
+        throw new Error('No profile key returned from profile creation');
+      }
+      
+      this.logger.log(`Profile created with key: ${profileKey}`);
+      return { profileKey };
+    } catch (error: any) {
+      this.handleError('Failed to create profile', error);
+    }
+  }
+
+  /**
    * Upload media file to Ayrshare
    */
   async uploadMedia(file: { url?: string; fileName?: string }): Promise<{ url: string }> {
@@ -330,7 +436,6 @@ export class AyrshareService {
   private handleError(message: string, error: any): never {
     const status = error.response?.status;
     const data = error.response?.data as any;
-
     const errorMsg =
       data?.message ||
       data?.error ||
@@ -339,7 +444,6 @@ export class AyrshareService {
       'Unknown error';
 
     this.logger.error(`${message} (${status ?? 'no-status'}): ${errorMsg}`);
-
     throw new BadRequestException(`${message}: ${errorMsg}`);
   }
 }

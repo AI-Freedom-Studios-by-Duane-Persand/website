@@ -38,6 +38,32 @@ export class SocialAccountsController {
   }
 
   /**
+   * Generate JWT for new account connection (creates profile + JWT in one call)
+   */
+  @Post('connect/jwt-new')
+  async generateJWTForNewProfile() {
+    return this.ayrshareService.generateJWTForNewProfile();
+  }
+
+  /**
+   * Create a new user profile for Business Plan multi-user setup
+   */
+  @Post('profiles/create')
+  async createProfile(@Body() body: { title?: string }) {
+    return this.ayrshareService.createProfile(body.title);
+  }
+
+  /**
+   * Generate JWT token using an existing profile key
+   */
+  @Post('profiles/:profileKey/jwt')
+  async generateJWTWithProfileKey(
+    @Param('profileKey') profileKey: string,
+  ) {
+    return this.ayrshareService.generateJWTWithProfileKey(profileKey);
+  }
+
+  /**
    * Get user account information
    */
   @Get('user')

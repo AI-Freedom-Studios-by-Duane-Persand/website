@@ -1,7 +1,6 @@
 "use client";
 import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import SubscriptionPanel from "./SubscriptionPanel";
 import CampaignsPanel from "./CampaignsPanel";
 import SocialConnectionsCard from "../components/SocialConnectionsCard";
 import EarlyAccessGate from "../../components/EarlyAccessGate";
@@ -147,83 +146,6 @@ export default function DashboardPage() {
           subtitle="Link your social profiles once and reuse them across campaigns and scheduling."
           compact
         />
-
-        {/* Main layout */}
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] items-start">
-          {/* Campaigns (emphasized, modern) */}
-          <section className="relative rounded-3xl border border-white/10 bg-white/5 backdrop-blur shadow-2xl overflow-hidden">
-            {/* glow */}
-            <div className="absolute inset-x-0 -top-28 h-56 bg-gradient-to-r from-[#ef4444]/25 via-[#f97316]/20 to-[#2563eb]/25 blur-3xl" />
-
-            <div className="relative p-6 md:p-8">
-              <div className="flex items-start justify-between gap-4 flex-col sm:flex-row">
-                <div>
-                  <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-slate-200">
-                    <span className="h-2 w-2 rounded-full bg-gradient-to-r from-[#ef4444] via-[#f97316] to-[#2563eb]" />
-                    Campaigns
-                  </div>
-
-                  <h2 className="mt-3 text-xl md:text-2xl font-extrabold text-white tracking-tight">
-                    Create and manage campaigns
-                  </h2>
-                  <p className="mt-1 text-sm text-slate-300 max-w-2xl">
-                    Launch a new campaign, update objectives, and track status — all from one place.
-                  </p>
-                </div>
-
-                {/* visual CTA (pure UI; no logic changes) */}
-                <div className="shrink-0 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-                  <div className="text-xs text-slate-300">Quick action</div>
-                  <div className="mt-1 text-sm font-semibold text-white">
-                    Create Campaign ↓
-                  </div>
-                </div>
-              </div>
-
-              {/* Panel content */}
-              <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-4 md:p-5">
-                <CampaignsPanel />
-              </div>
-
-              {/* helper row */}
-              <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-slate-300">
-                <span className="inline-flex items-center px-3 py-1 rounded-full border border-white/10 bg-white/5">
-                  Tip: Use clear objectives
-                </span>
-                <span className="inline-flex items-center px-3 py-1 rounded-full border border-white/10 bg-white/5">
-                  Keep names consistent
-                </span>
-                <span className="inline-flex items-center px-3 py-1 rounded-full border border-white/10 bg-white/5">
-                  Iterate fast
-                </span>
-              </div>
-            </div>
-          </section>
-
-          {/* Subscription */}
-          <section className="rounded-3xl border border-white/10 bg-white/5 backdrop-blur shadow-2xl overflow-hidden">
-            <div className="p-6 md:p-8">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <h2 className="text-lg md:text-xl font-extrabold text-white tracking-tight">
-                    Subscription & Billing
-                  </h2>
-                  <p className="mt-1 text-sm text-slate-300">
-                    Review your plan, billing status, and upgrade options.
-                  </p>
-                </div>
-
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border border-white/10 bg-white/5 text-slate-200">
-                  Billing
-                </span>
-              </div>
-
-              <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-4 md:p-5">
-                <SubscriptionPanel />
-              </div>
-            </div>
-          </section>
-        </div>
       </div>
     </main>
       </SubscriptionGate>

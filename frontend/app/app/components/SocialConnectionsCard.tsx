@@ -70,11 +70,11 @@ export default function SocialConnectionsCard({
     setConnecting(true);
     setError(null);
     try {
-      const domain = typeof window !== "undefined" ? window.location.hostname : undefined;
-      const res = await fetch(`${API_BASE_URL}/api/social-accounts/connect/jwt`, {
+      // Call endpoint that creates profile + generates JWT in one step
+      // Per Ayrshare Business Plan docs: POST /generateJWT requires profile key header
+      const res = await fetch(`${API_BASE_URL}/api/social-accounts/connect/jwt-new`, {
         method: "POST",
         headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
-        body: JSON.stringify({ domain }),
       });
       if (!res.ok) throw new Error(`Failed to start connection (${res.status})`);
       const data = await res.json();
