@@ -44,60 +44,25 @@ export default function EarlyAccessGate({ children, hasAccess }: EarlyAccessGate
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#0f172a] via-[#020617] to-[#020617] flex items-center justify-center px-4 py-16">
-      <div className="max-w-2xl w-full">
-        <div className="bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 p-8 md:p-12 shadow-2xl">
-          {/* Icon */}
-          <div className="flex justify-center mb-6">
-            <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
-              <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-              </svg>
-            </div>
-          </div>
-
+    <div className="min-h-screen  bg-gradient-to-b from-[#fff5eb] to-[#e0f2ff]  flex items-center justify-center px-4 py-16 mt-16">
+      <div className="max-w-5xl w-full">
+        <div className="bg-white backdrop-blur-xl rounded-2xl border border-white/10 p-8 md:p-12 shadow-2xl">
+        
           {/* Heading */}
-          <h1 className="text-3xl md:text-4xl font-bold text-center text-white mb-4">
+          <h1 className="text-3xl md:text-4xl font-bold text-center text-#252524 mb-4">
             Coming Soon
           </h1>
           
-          <p className="text-lg text-gray-300 text-center mb-8">
+          <p className="text-lg text-#a29e89 text-center mb-8">
             We're launching soon! Get early access to our AI-powered social media automation platform.
           </p>
 
-          {/* Features List */}
-          <div className="grid md:grid-cols-2 gap-4 mb-8">
-            <div className="flex items-start space-x-3">
-              <svg className="w-6 h-6 text-green-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-              <span className="text-gray-300">AI-Generated Content</span>
-            </div>
-            <div className="flex items-start space-x-3">
-              <svg className="w-6 h-6 text-green-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-              <span className="text-gray-300">Multi-Platform Publishing</span>
-            </div>
-            <div className="flex items-start space-x-3">
-              <svg className="w-6 h-6 text-green-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-              <span className="text-gray-300">Smart Scheduling</span>
-            </div>
-            <div className="flex items-start space-x-3">
-              <svg className="w-6 h-6 text-green-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-              <span className="text-gray-300">Analytics & Insights</span>
-            </div>
-          </div>
-
+         
           {/* Email Form */}
           {!submitted ? (
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
+                <label htmlFor="email" className="block text-sm font-medium #a29e89 mb-2">
                   Get notified when we launch
                 </label>
                 <input
@@ -106,7 +71,7 @@ export default function EarlyAccessGate({ children, hasAccess }: EarlyAccessGate
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="your@email.com"
-                  className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                  className="w-full px-4 py-3 bg-white/20 border border border-white-200 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                   required
                 />
                 {error && (
@@ -116,7 +81,7 @@ export default function EarlyAccessGate({ children, hasAccess }: EarlyAccessGate
               
               <button
                 type="submit"
-                className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                className="w-full bg-gradient-to-r from-[#ef4444] via-[#f97316] to-[#2563eb] hover:opacity-95 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
               >
                 Request Early Access
               </button>
