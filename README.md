@@ -1,105 +1,210 @@
+# AI Freedom Studios - Campaign Automation Platform
 
-# AI Freedom Studios: Production-Ready Multi-Tenant SaaS Platform
+A production-ready multi-tenant SaaS platform for campaign management, creative generation, and social media publishing.
 
-## Overview
-AI Freedom Studios is a modular, production-grade, multi-tenant SaaS platform for campaign management, built with a monorepo structure. It features:
-- Next.js frontend
-- NestJS backend
-- MongoDB (Atlas or self-hosted)
-- Redis (BullMQ) or Agenda for job queues
-- Cloudflare R2 for media storage
-- Stripe for one-time payments (no webhooks)
-- Gemini (Google AI) and Ayrshare integrations
-- Secure, extensible, and fully subscription-gated
+## 🚀 Quick Links
 
+- **Getting Started**: See [QUICK_START.md](./QUICK_START.md) or [Getting Started Guide](./docs/guides/GETTING_STARTED.md)
+- **Documentation**: See [/docs/](./docs/) for complete documentation
+- **API Reference**: See [/docs/api/](./docs/api/) for endpoint details
+- **Social Integration**: 
+  - [Meta (Facebook/Instagram)](./docs/integrations/meta.md) - Free, recommended
+  - [Ayrshare](./docs/integrations/ayrshare.md) - Multi-platform, paid
 
-## Monorepo Structure
+## 📋 Project Structure
+
 ```
-/frontend   # Next.js (App Router, public/tenant/admin routes)
-/api        # NestJS (all backend modules, integrations)
-/shared     # TypeScript types, DTOs, interfaces
-/docs       # Documentation, deployment, operational guides
-package.json # Root, manages all dependencies via npm workspaces
+├── /frontend/          Next.js frontend application
+├── /api/               NestJS backend API
+├── /shared/            TypeScript types and DTOs
+├── /docs/              Complete documentation
+│   ├── /integrations/  Social media & platform setup guides
+│   ├── /architecture/  System design and architecture
+│   ├── /guides/        Implementation guides and how-tos
+│   └── /api/           API reference documentation
+├── QUICK_START.md      Quick start guide for new users
+├── SUBSCRIPTIONS.md    Subscription plans and pricing
+└── README.md           This file
 ```
 
-## Centralized Dependency Management
-This monorepo uses **npm workspaces** for unified dependency management and setup.
+## 🛠️ Tech Stack
 
-### Install All Dependencies
-From the root of the repo:
+- **Frontend**: Next.js 14+ with TypeScript
+- **Backend**: NestJS with MongoDB
+- **Database**: MongoDB (Atlas or self-hosted)
+- **Job Queue**: Redis + BullMQ
+- **Storage**: Cloudflare R2 (S3-compatible)
+- **Payments**: Stripe
+- **AI**: Gemini & Replicate
+- **Social**: Meta Graph APIs & Ayrshare
 
-```sh
+## 🚀 Getting Started
+
+### Prerequisites
+- Node.js 18+
+- npm or pnpm
+- MongoDB connection
+- Stripe API keys (for payments)
+- Meta App credentials (for social posting)
+
+### Installation
+
+```bash
+# Install all dependencies
 npm install
+
+# Start development servers
+npm run dev:api      # Backend on port 3001
+npm run dev:frontend # Frontend on port 3000
 ```
 
-This will install all dependencies for `/api`, `/frontend`, and `/shared`.
+### Configuration
 
-### Useful Scripts
-- `npm run dev:api` – Start NestJS backend in dev mode
-- `npm run dev:frontend` – Start Next.js frontend in dev mode
-- `npm run build:all` – Build both backend and frontend
+1. Copy `.env.example` to `.env` in `/api` and `/frontend`
+2. Configure environment variables:
+   - Database: `MONGODB_URI`
+   - Stripe: `STRIPE_SECRET_KEY`, `STRIPE_PUBLIC_KEY`
+   - Meta: `META_APP_ID`, `META_APP_SECRET`
+   - Storage: `R2_BUCKET`, `R2_ACCOUNT_ID`, `R2_ACCESS_KEY`
 
-You can also run scripts in each workspace using `npm --workspace <name> run <script>`.
+3. See [/docs/guides/](./docs/guides/) for detailed setup
+
+## 📚 Documentation Guide
+
+### For First-Time Users
+1. Read [QUICK_START.md](./QUICK_START.md)
+2. Complete environment setup
+3. Run development servers
+4. Create first campaign
+
+### For Deploying to Production
+1. See [/docs/guides/POST_IMPLEMENTATION_CHECKLIST.md](./docs/guides/IMPLEMENTATION_CHECKLIST.md)
+2. Configure all environment variables
+3. Set up SSL certificates
+4. Configure reverse proxy (Nginx)
+5. Start services with pm2 or systemd
+
+### For Understanding Architecture
+1. Read [/docs/architecture/system-overview.md](./docs/architecture/system-overview.md)
+2. Review [/docs/architecture/campaign-management.md](./docs/architecture/campaign-management.md)
+3. Check [/docs/api/](./docs/api/) for endpoint details
+
+### For Connecting Social Accounts
+- **Facebook/Instagram**: [/docs/integrations/meta.md](./docs/integrations/meta.md)
+- **Multi-platform**: [/docs/integrations/ayrshare.md](./docs/integrations/ayrshare.md)
+- **Subscription Details**: [SUBSCRIPTIONS.md](./SUBSCRIPTIONS.md)
+
+## 🎯 Core Features
+
+### Campaign Management
+- Strategy versioning and planning
+- Multi-step approval workflow
+- Content creation (AI, manual, hybrid)
+- Asset management and Cloudflare R2 integration
+- Automatic scheduling with conflict detection
+
+### Social Publishing
+- **Meta APIs**: Direct Facebook Pages & Instagram posting (free)
+- **Ayrshare**: Multi-platform publishing (13+ networks, paid)
+- OAuth-based account connection
+- Scheduled and instant publishing
+- Media handling and optimization
+
+### Creative Generation
+- AI-powered content creation
+- Image and video generation
+- Caption and hashtag generation
+- Multiple AI provider support (Poe, Replicate)
+- Fallback mechanisms for reliability
+
+### Content Management
+- Multi-tenant isolation
+- Role-based access control
+- Audit trails and revision history
+- Subscription-based feature gating
+- Early access system
+
+## 💰 Subscription Plans
+
+See [SUBSCRIPTIONS.md](./SUBSCRIPTIONS.md) for:
+- Starter: $29/month
+- Pro: $99/month
+- Enterprise: Custom pricing
+
+## 🔐 Security
+
+- JWT-based authentication
+- OAuth 2.0 for social platforms
+- Encrypted token storage
+- Environment-based secrets
+- Multi-tenant data isolation
+- Rate limiting and input validation
+
+## 🚢 Deployment
+
+### Development
+```bash
+npm run dev:api
+npm run dev:frontend
+```
+
+### Production
+```bash
+npm run build:all
+npm start:api
+npm start:frontend
+```
+
+See [/docs/guides/IMPLEMENTATION_CHECKLIST.md](./docs/guides/IMPLEMENTATION_CHECKLIST.md) for complete deployment checklist.
+
+## 🐛 Troubleshooting
+
+See [/docs/guides/](./docs/guides/) for:
+- MongoDB connection issues
+- Stripe integration troubleshooting
+- Social media authentication issues
+- Media generation problems
+- API errors and solutions
+
+## 📖 API Documentation
+
+Complete API reference: [/docs/api/api_endpoints.md](./docs/api/api_endpoints.md)
+
+Example endpoints:
+- `POST /auth/signup` - User registration
+- `POST /campaigns` - Create campaign
+- `POST /creatives` - Generate creative
+- `POST /meta/facebook/post` - Post to Facebook
+- `POST /meta/instagram/post` - Post to Instagram
+
+## 🔗 External Resources
+
+- [Meta Developers](https://developers.facebook.com/)
+- [Ayrshare Documentation](https://docs.ayrshare.com/)
+- [Stripe Documentation](https://stripe.com/docs)
+- [Next.js Documentation](https://nextjs.org/docs)
+- [NestJS Documentation](https://docs.nestjs.com/)
+- [MongoDB Documentation](https://docs.mongodb.com/)
+
+## 🤝 Contributing
+
+1. Create a feature branch
+2. Make your changes
+3. Update documentation if needed
+4. Commit with clear messages
+5. Push and create a pull request
+
+## 📄 License
+
+Copyright © 2024 AI Freedom Studios. All rights reserved.
+
+## 📞 Support
+
+For issues, questions, or suggestions:
+1. Check [/docs/guides/](./docs/guides/) for existing solutions
+2. Review API documentation in [/docs/api/](./docs/api/)
+3. Contact support team
 
 ---
 
-## Key Features
-- Multi-tenant architecture: tenants, users, roles, and permissions
-- JWT authentication, role-based guards
-- Stripe billing: one-time payments, subscription gating
-- Encrypted integration configs (AES-256-GCM)
-- Modular AI engines (Gemini, etc.)
-- Scheduling and social publishing (Ayrshare)
-- S3-compatible media storage (Cloudflare R2)
-- User asset uploads (images, videos, etc.)
-- Admin dashboard for config and tenant management
-
-## Backend Modules
-- **AuthModule**: JWT login/signup, guards
-- **UsersModule**: CRUD, roles, tenant linkage
-- **TenantsModule**: CRUD, plan management
-- **SubscriptionsModule**: Stripe integration, subscription state
-- **CampaignsModule**: Campaign CRUD, plan enforcement
-- **CreativesModule**: Creative CRUD, asset linking
-- **StorageModule**: S3/R2 upload, retrieval, plan limits
-- **EnginesModule**: Modular AI micro-agents, Gemini integration
-- **SchedulingModule**: BullMQ/Agenda, Ayrshare publishing
-- **AdminModule**: Integration config, tenant management
-
-## Frontend
-- Next.js App Router
-- Auth, billing, dashboard, campaign, creative, and admin UIs
-- File upload UI for creatives (drag-and-drop/file picker)
-- Route guards for auth and subscription
-
-## Integrations
-- **Stripe**: One-time payment, no webhooks, billing endpoints
-- **Gemini**: AI engine, modular runners
-- **Ayrshare**: Social publishing
-- **Cloudflare R2**: S3-compatible media storage
-
-## Security & Best Practices
-- All secrets via environment variables
-- Encrypted configs (ConfigService)
-- Plan limits enforced on all resource usage
-- Input validation, error handling, and security hardening
-
-## Deployment
-- Use pm2 or systemd for process management
-- Nginx as reverse proxy for Next.js and NestJS
-- Environment files for MongoDB, Redis, Stripe, R2, Gemini, etc.
-
-## Testing
-- Unit/integration tests for backend/frontend modules (recommended)
-- e2e tests for key user flows (recommended)
-
-## Extensibility
-- Add new engines, integrations, or plans by extending modules and types in `/shared`
-- Modular service structure for easy feature addition
-
-## Operational Procedures
-- See `/docs` for deployment, environment setup, and operational guides
-- All configuration via environment variables and admin dashboard
-
----
-For detailed step-by-step implementation, see `.github/prompts/plan-campaignOs.prompt.md` and `.github/prompts/plan-campaignOs-nextSteps.prompt.md`.
+**Last Updated**: December 31, 2024
