@@ -48,7 +48,7 @@ export class EncryptionService {
       
       // Combine iv, authTag, and encrypted data
       return `${iv.toString(this.encoding)}:${authTag.toString(this.encoding)}:${encrypted}`;
-    } catch (error) {
+    } catch (error: any) {
       throw new Error(`Encryption failed: ${error.message}`);
     }
   }
