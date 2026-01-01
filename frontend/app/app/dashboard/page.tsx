@@ -11,6 +11,37 @@ export default function DashboardPage() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [isSubscribed, setIsSubscribed] = useState(false);
+
+async function checkSubscription() {
+  try {
+    const apiUrl =
+      process.env.NEXT_PUBLIC_API_URL ||
+      process.env.NEXT_PUBLIC_API_BASE_URL ||
+      "";
+
+    const token =
+      typeof window !== "undefined" ? localStorage.getItem("token") : null;
+
+    const res = await fetch(
+      `${apiUrl}/api/subscriptions/subscription-status`,
+      {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      }
+    );
+
+    if (!res.ok) return;
+
+    const data = await res.json();
+
+    setIsSubscribed(
+      Boolean(data?.isSubscribed ?? data?.active ?? data?.status === "active")
+    );
+  } catch (err) {
+    console.error("Subscription check failed", err);
+    setIsSubscribed(false);
+  }
+}
 
   useEffect(() => {
     const token =
@@ -45,6 +76,8 @@ export default function DashboardPage() {
         console.log("DEBUG: User data received:", data);
         setUser(data);
         setLoading(false);
+
+         checkSubscription(); 
       })
       .catch((err) => {
         console.error("ERROR: Failed to fetch user info:", err);
@@ -57,11 +90,10 @@ export default function DashboardPage() {
     console.log("DEBUG: Calculating role label:", user?.role);
     return user?.role || "Standard";
   }, [user]);
-
-  const subLabel = useMemo(() => {
-    console.log("DEBUG: Calculating subscription label:", user?.subscriptionStatus);
-    return user?.subscriptionStatus || "Not active";
-  }, [user]);
+  
+const subLabel = useMemo(() => {
+  return isSubscribed ? "active" : "inactive";
+}, [isSubscribed]);
 
   const emailLabel = useMemo(() => {
     console.log("DEBUG: Calculating email label:", user?.email);
@@ -80,7 +112,7 @@ export default function DashboardPage() {
   return (
     <EarlyAccessGate hasAccess={hasEarlyAccess}>
       <SubscriptionGate>
-      <main className="min-h-screen bg-gradient-to-br from-[#0f172a] via-[#020617] to-[#020617] pt-24 pb-16 px-4">
+      <main className="min-h-screen bg-gradient-to-br from-[#0c1f24] via-[#0a262b] to-[#0f2e35] pt-24 pb-16 px-4">
         <div className="max-w-6xl mx-auto space-y-8">
           {/* Page header */}
         <header className="text-white">

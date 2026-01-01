@@ -341,7 +341,7 @@ export default function CampaignsPage() {
   return (
     <EarlyAccessGate hasAccess={hasEarlyAccess}>
       <SubscriptionGate>
-    <main className="min-h-screen bg-gradient-to-br from-[#0f172a] via-[#020617] to-[#020617] px-4 py-6 text-white">
+    <main className="min-h-screen bg-gradient-to-br from-[#0c1f24] via-[#0a262b] to-[#0f2e35] px-4 py-6 text-white">
       {showConnectModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
           <div className="w-full max-w-lg rounded-3xl bg-slate-900 border border-white/10 p-6 shadow-2xl">
@@ -386,8 +386,8 @@ export default function CampaignsPage() {
       )}
 
       <div className="max-w-7xl mx-auto w-full">
-        <header className="relative overflow-hidden rounded-3xl border border-white/10 bg-white/5 px-5 py-6 md:px-8 md:py-8 shadow-2xl shrink-0 mb-6">
-          <div className="absolute inset-0 bg-gradient-to-r from-[#ef4444]/15 via-[#f97316]/12 to-[#2563eb]/15 blur-3xl" />
+        <header className="relative overflow-hidden rounded-3xl bg-white/5 px-5 py-4 md:px-6 md:py-6 shadow-2xl shrink-0 mb-6 mt-32 md:mt-24">
+          <div className="absolute inset-0 bg-gradient-to-r from-[#ef4444]/15 via-[#f97316]/12 to-[#2563eb]/15 blur-3xl " />
           <div className="relative flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5">
             <div className="flex items-start gap-3">
               <div className="h-11 w-11 rounded-2xl bg-gradient-to-br from-[#ef4444] via-[#f97316] to-[#2563eb] shadow-xl flex items-center justify-center font-extrabold">
