@@ -8,12 +8,19 @@ type Creative = {
   _id: string; 
   type: 'text' | 'image' | 'video'; 
   status: string; 
-  copy?: { caption?: string }; 
+  copy?: { caption?: string; hashtags?: string[] }; 
   visual?: { imageUrl?: string; prompt?: string }; 
   assets?: { videoUrl?: string }; 
   script?: { hook?: string; body?: string | string[]; outro?: string }; 
   tenantId?: string;
+  campaignId?: string;
   updatedAt: string;
+};
+
+type Campaign = {
+  _id: string;
+  name: string;
+  status: string;
 };
 
 function isImage(url: string | undefined) {
@@ -41,9 +48,36 @@ export default function CreativesPage() {
   const [url, setUrl] = useState("");
   const [error, setError] = useState("");
   const [creatives, setCreatives] = useState<Creative[]>([]);
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editCaption, setEditCaption] = useState("");
   const [renderingMedia, setRenderingMedia] = useState<Set<string>>(new Set());
+  
+  // New creative creation state
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [createType, setCreateType] = useState<'text' | 'image' | 'video'>('text');
+  const [creating, setCreating] = useState(false);
+  
+  // Text creation
+  const [textCaption, setTextCaption] = useState("");
+  const [textHashtags, setTextHashtags] = useState("");
+  
+  // Image creation
+  const [imagePrompt, setImagePrompt] = useState("");
+  const [imageCaption, setImageCaption] = useState("");
+  const [imageHashtags, setImageHashtags] = useState("");
+  const [generateImageNow, setGenerateImageNow] = useState(true);
+  
+  // Video creation
+  const [videoPrompt, setVideoPrompt] = useState("");
+  const [videoCaption, setVideoCaption] = useState("");
+  const [videoHashtags, setVideoHashtags] = useState("");
+  const [videoDuration, setVideoDuration] = useState(10);
+  const [generateVideoNow, setGenerateVideoNow] = useState(false);
+  
+  // Campaign attachment
+  const [attachToCampaign, setAttachToCampaign] = useState(false);
+  const [selectedCampaignId, setSelectedCampaignId] = useState("");
 
   const apiUrl = useMemo(
     () =>
@@ -61,6 +95,95 @@ export default function CreativesPage() {
       setError("");
     } catch (err: any) {
       setError(err.message || "Error loading creatives");
+    }
+  }
+
+  async function fetchCampaigns() {
+    try {
+      const res = await fetch(`${apiUrl}/api/campaigns`, {
+        headers: getAuthHeaders(),
+      });
+      if (!res.ok) throw new Error("Failed to fetch campaigns");
+      setCampaigns(await res.json());
+    } catch (err: any) {
+      console.error("Error loading campaigns:", err);
+    }
+  }
+
+  async function handleCreateCreative() {
+    setCreating(true);
+    setError("");
+
+    try {
+      let payload: any = {
+        type: createType,
+      };
+
+      if (attachToCampaign && selectedCampaignId) {
+        payload.campaignId = selectedCampaignId;
+      }
+
+      if (createType === 'text') {
+        payload.copy = {
+          caption: textCaption,
+          hashtags: textHashtags.split(',').map(h => h.trim()).filter(Boolean),
+        };
+      } else if (createType === 'image') {
+        payload.visual = {
+          prompt: imagePrompt,
+        };
+        payload.copy = {
+          caption: imageCaption,
+          hashtags: imageHashtags.split(',').map(h => h.trim()).filter(Boolean),
+        };
+        if (generateImageNow) {
+          payload.generateNow = true;
+        }
+      } else if (createType === 'video') {
+        payload.script = {
+          hook: videoPrompt,
+          body: videoPrompt,
+        };
+        payload.copy = {
+          caption: videoCaption,
+          hashtags: videoHashtags.split(',').map(h => h.trim()).filter(Boolean),
+        };
+        payload.durationSeconds = videoDuration;
+        if (generateVideoNow) {
+          payload.generateNow = true;
+        }
+      }
+
+      const res = await fetch(`${apiUrl}/api/creatives`, {
+        method: "POST",
+        headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.message || "Failed to create creative");
+      }
+
+      // Reset form
+      setShowCreateModal(false);
+      setTextCaption("");
+      setTextHashtags("");
+      setImagePrompt("");
+      setImageCaption("");
+      setImageHashtags("");
+      setVideoPrompt("");
+      setVideoCaption("");
+      setVideoHashtags("");
+      setVideoDuration(10);
+      setAttachToCampaign(false);
+      setSelectedCampaignId("");
+      
+      fetchCreatives();
+    } catch (err: any) {
+      setError(err.message || "Error creating creative");
+    } finally {
+      setCreating(false);
     }
   }
 
@@ -180,6 +303,7 @@ export default function CreativesPage() {
 
   useEffect(() => {
     fetchCreatives();
+    fetchCampaigns();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -196,21 +320,35 @@ export default function CreativesPage() {
                 Creatives
               </h1>
               <p className="mt-1 text-sm text-slate-300">
-                Upload assets and manage names/descriptions.
+                Create images, videos, and text content for your campaigns.
               </p>
             </div>
 
-            <button
-              onClick={() => fetchCreatives()}
-              className="
-                inline-flex items-center justify-center px-4 py-2 rounded-full text-sm font-semibold
-                border border-white/10 bg-white/5 text-white
-                hover:bg-white/10 transition
-              "
-              type="button"
-            >
-              Refresh
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="
+                  inline-flex items-center justify-center px-5 py-2.5 rounded-full text-sm font-semibold
+                  bg-gradient-to-r from-[#ef4444] via-[#f97316] to-[#2563eb] text-white
+                  shadow-lg hover:shadow-xl hover:opacity-95 transition
+                "
+                type="button"
+              >
+                + Create New
+              </button>
+              
+              <button
+                onClick={() => fetchCreatives()}
+                className="
+                  inline-flex items-center justify-center px-4 py-2 rounded-full text-sm font-semibold
+                  border border-white/10 bg-white/5 text-white
+                  hover:bg-white/10 transition
+                "
+                type="button"
+              >
+                Refresh
+              </button>
+            </div>
           </div>
         </header>
 
@@ -536,6 +674,287 @@ export default function CreativesPage() {
             )}
           </div>
         </section>
+
+        {/* Create Modal */}
+        {showCreateModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-6 border-b border-slate-200 sticky top-0 bg-white z-10">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-bold text-slate-900">Create New Creative</h2>
+                  <button
+                    onClick={() => setShowCreateModal(false)}
+                    className="text-slate-400 hover:text-slate-600 transition"
+                  >
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              <div className="p-6 space-y-6">
+                {/* Type Selection */}
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                    Creative Type
+                  </label>
+                  <div className="grid grid-cols-3 gap-3">
+                    {(['text', 'image', 'video'] as const).map(type => (
+                      <button
+                        key={type}
+                        onClick={() => setCreateType(type)}
+                        className={`
+                          px-4 py-3 rounded-xl border-2 text-sm font-semibold transition
+                          ${createType === type
+                            ? 'border-blue-500 bg-blue-50 text-blue-700'
+                            : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
+                          }
+                        `}
+                      >
+                        {type === 'text' ? '📝 Text' : type === 'image' ? '🖼️ Image' : '🎥 Video'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Text Creative */}
+                {createType === 'text' && (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">
+                        Caption <span className="text-red-500">*</span>
+                      </label>
+                      <textarea
+                        className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                        value={textCaption}
+                        onChange={(e) => setTextCaption(e.target.value)}
+                        rows={4}
+                        placeholder="Enter your post caption..."
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">
+                        Hashtags (comma-separated)
+                      </label>
+                      <input
+                        type="text"
+                        className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                        value={textHashtags}
+                        onChange={(e) => setTextHashtags(e.target.value)}
+                        placeholder="marketing, socialmedia, content"
+                      />
+                      <p className="mt-1 text-xs text-slate-500">
+                        Separate with commas. Don't include # symbols.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Image Creative */}
+                {createType === 'image' && (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">
+                        Image Prompt <span className="text-red-500">*</span>
+                      </label>
+                      <textarea
+                        className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                        value={imagePrompt}
+                        onChange={(e) => setImagePrompt(e.target.value)}
+                        rows={3}
+                        placeholder="Describe the image you want to generate..."
+                        required
+                      />
+                      <p className="mt-1 text-xs text-slate-500">
+                        Be specific about style, colors, mood, and composition.
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">
+                        Caption
+                      </label>
+                      <textarea
+                        className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                        value={imageCaption}
+                        onChange={(e) => setImageCaption(e.target.value)}
+                        rows={2}
+                        placeholder="Caption for this image..."
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">
+                        Hashtags (comma-separated)
+                      </label>
+                      <input
+                        type="text"
+                        className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                        value={imageHashtags}
+                        onChange={(e) => setImageHashtags(e.target.value)}
+                        placeholder="art, design, creative"
+                      />
+                    </div>
+
+                    <div className="flex items-center gap-3 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+                      <input
+                        type="checkbox"
+                        id="generateImageNow"
+                        checked={generateImageNow}
+                        onChange={(e) => setGenerateImageNow(e.target.checked)}
+                        className="w-4 h-4 rounded border-blue-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <label htmlFor="generateImageNow" className="text-sm text-slate-700">
+                        Generate image immediately (takes ~15 seconds)
+                      </label>
+                    </div>
+                  </div>
+                )}
+
+                {/* Video Creative */}
+                {createType === 'video' && (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">
+                        Video Concept/Script <span className="text-red-500">*</span>
+                      </label>
+                      <textarea
+                        className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                        value={videoPrompt}
+                        onChange={(e) => setVideoPrompt(e.target.value)}
+                        rows={4}
+                        placeholder="Describe the video concept or provide a script..."
+                        required
+                      />
+                      <p className="mt-1 text-xs text-slate-500">
+                        Describe scenes, actions, mood, and visual style.
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">
+                        Duration (seconds)
+                      </label>
+                      <input
+                        type="number"
+                        min="5"
+                        max="60"
+                        className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                        value={videoDuration}
+                        onChange={(e) => setVideoDuration(parseInt(e.target.value) || 10)}
+                      />
+                      <p className="mt-1 text-xs text-slate-500">
+                        Between 5-60 seconds. Longer videos take more time to generate.
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">
+                        Caption
+                      </label>
+                      <textarea
+                        className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                        value={videoCaption}
+                        onChange={(e) => setVideoCaption(e.target.value)}
+                        rows={2}
+                        placeholder="Caption for this video..."
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">
+                        Hashtags (comma-separated)
+                      </label>
+                      <input
+                        type="text"
+                        className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                        value={videoHashtags}
+                        onChange={(e) => setVideoHashtags(e.target.value)}
+                        placeholder="video, content, storytelling"
+                      />
+                    </div>
+
+                    <div className="flex items-center gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+                      <input
+                        type="checkbox"
+                        id="generateVideoNow"
+                        checked={generateVideoNow}
+                        onChange={(e) => setGenerateVideoNow(e.target.checked)}
+                        className="w-4 h-4 rounded border-amber-300 text-amber-600 focus:ring-amber-500"
+                      />
+                      <label htmlFor="generateVideoNow" className="text-sm text-slate-700">
+                        Generate video immediately (takes 1-3 minutes)
+                      </label>
+                    </div>
+                  </div>
+                )}
+
+                {/* Campaign Attachment */}
+                <div className="border-t border-slate-200 pt-4">
+                  <div className="flex items-center gap-3 mb-3">
+                    <input
+                      type="checkbox"
+                      id="attachToCampaign"
+                      checked={attachToCampaign}
+                      onChange={(e) => setAttachToCampaign(e.target.checked)}
+                      className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <label htmlFor="attachToCampaign" className="text-sm font-semibold text-slate-700">
+                      Attach to campaign (optional)
+                    </label>
+                  </div>
+
+                  {attachToCampaign && (
+                    <select
+                      className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                      value={selectedCampaignId}
+                      onChange={(e) => setSelectedCampaignId(e.target.value)}
+                    >
+                      <option value="">Select a campaign...</option>
+                      {campaigns.map(campaign => (
+                        <option key={campaign._id} value={campaign._id}>
+                          {campaign.name} ({campaign.status})
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+
+                {/* Actions */}
+                <div className="flex gap-3 pt-4 border-t border-slate-200">
+                  <button
+                    onClick={handleCreateCreative}
+                    disabled={creating || (createType === 'text' && !textCaption) || (createType === 'image' && !imagePrompt) || (createType === 'video' && !videoPrompt)}
+                    className="
+                      flex-1 inline-flex items-center justify-center px-6 py-3 rounded-xl text-sm font-semibold
+                      text-white bg-gradient-to-r from-[#ef4444] via-[#f97316] to-[#2563eb]
+                      shadow-md hover:shadow-lg hover:opacity-95 transition
+                      disabled:opacity-50 disabled:cursor-not-allowed
+                    "
+                  >
+                    {creating ? 'Creating...' : 'Create Creative'}
+                  </button>
+                  
+                  <button
+                    onClick={() => setShowCreateModal(false)}
+                    disabled={creating}
+                    className="
+                      px-6 py-3 rounded-xl text-sm font-semibold
+                      border border-slate-200 bg-white text-slate-800
+                      hover:bg-slate-50 transition
+                      disabled:opacity-50 disabled:cursor-not-allowed
+                    "
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </main>
       </SubscriptionGate>
