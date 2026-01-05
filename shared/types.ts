@@ -168,7 +168,7 @@ export interface Angle {
 // Creative
 export interface Creative {
   _id: string;
-  campaignId: string;
+  campaignId: string | null;
   tenantId: string;
   type: 'text' | 'image' | 'video';
   angleId?: string | null;

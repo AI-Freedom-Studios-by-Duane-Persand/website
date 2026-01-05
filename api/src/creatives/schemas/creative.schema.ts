@@ -2,7 +2,7 @@
 import { Schema, Document, Types } from 'mongoose';
 
 export interface CreativeDocument extends Document {
-  campaignId: Types.ObjectId;
+  campaignId: Types.ObjectId | null;
   tenantId: Types.ObjectId;
   type: 'text' | 'image' | 'video';
   angleId: Types.ObjectId | null;
@@ -43,7 +43,7 @@ export interface CreativeDocument extends Document {
 }
 
 export const CreativeSchema = new Schema<CreativeDocument>({
-  campaignId: { type: Schema.Types.ObjectId, ref: 'Campaign', required: true },
+  campaignId: { type: Schema.Types.ObjectId, ref: 'Campaign', required: false, default: null },
   tenantId: { type: Schema.Types.ObjectId, ref: 'Tenant', required: true },
   type: { type: String, enum: ['text', 'image', 'video'], required: true },
   angleId: { type: Schema.Types.ObjectId, ref: 'Angle', default: null },

@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import EarlyAccessGate from "../../components/EarlyAccessGate";
 import SubscriptionGate from "../../components/SubscriptionGate";
 import { useAuth } from "../../hooks/useAuth";
+import { parseJwt } from "../../../lib/parseJwt";
 
 type Creative = { 
   _id: string; 
@@ -115,8 +116,23 @@ export default function CreativesPage() {
     setError("");
 
     try {
+      // Get tenantId from JWT token
+      const token = localStorage.getItem("token") || localStorage.getItem("auth_token");
+      if (!token) {
+        throw new Error("No authentication token found");
+      }
+      
+      const payload_jwt = parseJwt(token);
+      const tenantId = payload_jwt?.tenantId;
+      
+      if (!tenantId) {
+        throw new Error("Tenant ID not found in token");
+      }
+
       let payload: any = {
         type: createType,
+        tenantId: tenantId,
+        status: 'draft',
       };
 
       if (attachToCampaign && selectedCampaignId) {
