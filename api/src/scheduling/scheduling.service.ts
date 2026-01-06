@@ -69,7 +69,7 @@ export class SchedulingService {
       try {
         const result = await this.ayrsharePublisher.publishOrganicPost({
           tenantId: item.tenantId,
-          creative,
+          creative: creative as any,
           platforms: [item.platform],
         });
         item.status = 'published';

@@ -26,6 +26,14 @@ export class CreativesService {
 
   private readonly logger = new Logger(CreativesService.name);
 
+  private toCreativeResponse(doc: CreativeDocument): Creative {
+    const obj = doc.toObject();
+    return {
+      ...obj,
+      campaignId: obj.campaignId ? obj.campaignId.toString() : null,
+    };
+  }
+
   async findAll(query: any): Promise<Creative[]> {
     // Convert campaignId string to ObjectId for proper MongoDB querying
     if (query.campaignId && typeof query.campaignId === 'string') {
@@ -34,19 +42,13 @@ export class CreativesService {
     this.logger.log(`[findAll] Query: ${JSON.stringify(query)}`);
     const creatives = await this.creativeModel.find(query).exec();
     this.logger.log(`[findAll] Found ${creatives.length} creatives`);
-    return creatives.map((creative) => ({
-      ...creative.toObject(),
-      campaignId: creative.campaignId.toString(),
-    }));
+    return creatives.map((creative) => this.toCreativeResponse(creative));
   }
 
   async findOne(id: string): Promise<Creative> {
     const creative = await this.creativeModel.findById(id).exec();
     if (!creative) throw new NotFoundException('Creative not found');
-    return {
-      ...creative.toObject(),
-      campaignId: creative.campaignId.toString(),
-    };
+    return this.toCreativeResponse(creative);
   }
 
   async create(createCreativeDto: CreateCreativeDto): Promise<Creative> {
@@ -58,10 +60,7 @@ export class CreativesService {
     }
     const createdCreative = new this.creativeModel(createCreativeDto);
     const savedCreative = await createdCreative.save();
-    return {
-      ...savedCreative.toObject(),
-      campaignId: savedCreative.campaignId.toString(),
-    };
+    return this.toCreativeResponse(savedCreative);
   }
 
   async generateTextCreative(params: {
@@ -109,7 +108,7 @@ export class CreativesService {
       })().catch(err => this.logger.error('[generateTextCreative] R2 upload failed', err)),
     ]);
     
-    return { ...creativeDoc.toObject(), campaignId: creativeDoc.campaignId.toString() } as any;
+    return this.toCreativeResponse(creativeDoc);
   }
 
   async generateImageCreative(params: {
@@ -159,7 +158,7 @@ export class CreativesService {
         .catch(err => this.logger.error('[generateImageCreative] Failed to generate actual image', err));
     }
     
-    return { ...creativeDoc.toObject(), campaignId: creativeDoc.campaignId.toString() } as any;
+    return this.toCreativeResponse(creativeDoc);
   }
 
   async generateVideoCreative(params: {
@@ -228,7 +227,7 @@ export class CreativesService {
     }
     
     this.logger.log(`[generateVideoCreative] Video creative saved with ID: ${creativeDoc._id}`);
-    return { ...creativeDoc.toObject(), campaignId: creativeDoc.campaignId.toString() } as any;
+    return this.toCreativeResponse(creativeDoc);
   }
 
   async linkUploadedAsset(creativeId: string, assetUrl: string, type: 'image' | 'video'): Promise<Creative> {
@@ -240,15 +239,15 @@ export class CreativesService {
       list.push(assetUrl);
       creative.assets.imageUrls = list;
       creative.visual = { ...(creative.visual || {}), imageUrl: assetUrl };
-      await this.attachAssetToCampaign(creative.campaignId.toString(), 'image', assetUrl);
+      if (creative.campaignId) { await this.attachAssetToCampaign(creative.campaignId.toString(), 'image', assetUrl); };
     } else {
       creative.assets = { ...(creative.assets || {}), videoUrl: assetUrl };
-      await this.attachAssetToCampaign(creative.campaignId.toString(), 'video', assetUrl);
+      if (creative.campaignId) { await this.attachAssetToCampaign(creative.campaignId.toString(), 'video', assetUrl); };
     }
     creative.status = 'needsReview';
     creative.updatedAt = new Date();
     await creative.save();
-    return { ...creative.toObject(), campaignId: creative.campaignId.toString() } as any;
+    return this.toCreativeResponse(creative);
   }
 
   async regenerateWithPrompt(creativeId: string, model: string, prompt: string, scope?: 'caption' | 'hashtags' | 'prompt' | 'script' | 'all'): Promise<Creative> {
@@ -282,7 +281,7 @@ export class CreativesService {
     creative.status = 'needsReview';
     creative.updatedAt = new Date();
     await creative.save();
-    return { ...creative.toObject(), campaignId: creative.campaignId.toString() } as any;
+    return this.toCreativeResponse(creative);
   }
 
   /**
@@ -302,10 +301,10 @@ export class CreativesService {
     await creative.save();
 
     // Update campaign asset refs
-    await this.attachAssetToCampaign(creative.campaignId.toString(), 'image', newImageUrl);
+    if (creative.campaignId) { await this.attachAssetToCampaign(creative.campaignId.toString(), 'image', newImageUrl); };
 
     this.logger.log(`[replaceImage] Image replaced for creative ${creativeId}`);
-    return { ...creative.toObject(), campaignId: creative.campaignId.toString() } as any;
+    return this.toCreativeResponse(creative);
   }
 
   /**
@@ -326,10 +325,10 @@ export class CreativesService {
     await creative.save();
 
     // Update campaign asset refs
-    await this.attachAssetToCampaign(creative.campaignId.toString(), 'video', newVideoUrl);
+    if (creative.campaignId) { await this.attachAssetToCampaign(creative.campaignId.toString(), 'video', newVideoUrl); };
 
     this.logger.log(`[replaceVideo] Video replaced for creative ${creativeId}`);
-    return { ...creative.toObject(), campaignId: creative.campaignId.toString() } as any;
+    return this.toCreativeResponse(creative);
   }
 
   /**
@@ -350,7 +349,7 @@ export class CreativesService {
     await creative.save();
 
     this.logger.log(`[linkToStrategy] Creative linked to strategy v${strategyVersion}`);
-    return { ...creative.toObject(), campaignId: creative.campaignId.toString() } as any;
+    return this.toCreativeResponse(creative);
   }
 
   private async attachAssetToCampaign(campaignId: string, kind: 'text' | 'image' | 'video', url: string) {
@@ -386,10 +385,7 @@ export class CreativesService {
   async update(id: string, updateCreativeDto: UpdateCreativeDto): Promise<Creative> {
     const creative = await this.creativeModel.findByIdAndUpdate(id, updateCreativeDto, { new: true }).exec();
     if (!creative) throw new NotFoundException('Creative not found');
-    return {
-      ...creative.toObject(),
-      campaignId: creative.campaignId.toString(),
-    };
+    return this.toCreativeResponse(creative);
   }
 
   async remove(id: string): Promise<{ deleted: boolean }> {
@@ -405,7 +401,7 @@ export class CreativesService {
     creative.status = 'needsReview';
     creative.updatedAt = new Date();
     await creative.save();
-    return { ...creative.toObject(), campaignId: creative.campaignId.toString() } as any;
+    return this.toCreativeResponse(creative);
   }
 
   async editHashtags(creativeId: string, hashtags: string[]): Promise<Creative> {
@@ -416,7 +412,7 @@ export class CreativesService {
     creative.status = 'needsReview';
     creative.updatedAt = new Date();
     await creative.save();
-    return { ...creative.toObject(), campaignId: creative.campaignId.toString() } as any;
+    return this.toCreativeResponse(creative);
   }
 
   async editPrompt(creativeId: string, prompt: string): Promise<Creative> {
@@ -427,7 +423,7 @@ export class CreativesService {
     creative.status = 'needsReview';
     creative.updatedAt = new Date();
     await creative.save();
-    return { ...creative.toObject(), campaignId: creative.campaignId.toString() } as any;
+    return this.toCreativeResponse(creative);
   }
 
   /**
@@ -494,7 +490,7 @@ export class CreativesService {
           await creative.save();
           
           // Attach to campaign
-          await this.attachAssetToCampaign(creative.campaignId.toString(), 'image', r2Url);
+          if (creative.campaignId) { await this.attachAssetToCampaign(creative.campaignId.toString(), 'image', r2Url); };
           
           this.logger.log(`[generateActualImage] Creative ${creativeId} updated with image URL`);
         }
@@ -601,7 +597,7 @@ export class CreativesService {
           await creative.save();
           
           // Attach to campaign
-          await this.attachAssetToCampaign(creative.campaignId.toString(), 'video', r2Url);
+          if (creative.campaignId) { await this.attachAssetToCampaign(creative.campaignId.toString(), 'video', r2Url); };
           
           this.logger.log(`[generateActualVideo] Creative ${creativeId} updated with video URL`);
         }
