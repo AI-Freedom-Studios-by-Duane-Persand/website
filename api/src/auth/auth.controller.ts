@@ -57,6 +57,12 @@ export class AuthController {
       throw new BadRequestException('Missing required fields');
     }
 
+    // Check if user with this email already exists
+    const existingUser = await this.usersService.findByEmail(body.email);
+    if (existingUser) {
+      throw new BadRequestException('Email already registered. Please use a different email or sign in.');
+    }
+
     let session;
     try {
       // Check if transactions are supported

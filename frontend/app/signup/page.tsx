@@ -65,7 +65,12 @@ export default function SignupPage() {
         }),
       });
 
-      if (!res.ok) throw new Error("Signup failed");
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        const errorMessage = errorData.message || "Signup failed";
+        throw new Error(errorMessage);
+      }
+      
       router.push("/app/dashboard");
     } catch (err: any) {
       setError(err?.message || "Signup failed");
