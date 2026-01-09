@@ -111,7 +111,11 @@ Response: {
 
 ### AssetImage Component
 ```tsx
+// Using path alias (if configured in tsconfig.json)
 import { AssetImage } from '@/components/AssetImage';
+
+// Or using relative path
+import { AssetImage } from '../../components/AssetImage';
 
 <AssetImage
   src={imageUrl}
@@ -129,7 +133,11 @@ Features:
 
 ### AssetVideo Component
 ```tsx
+// AssetVideo is exported from the same module as AssetImage
 import { AssetVideo } from '@/components/AssetImage';
+
+// Or using relative path
+import { AssetVideo } from '../../components/AssetImage';
 
 <AssetVideo
   src={videoUrl}
@@ -145,7 +153,11 @@ Features:
 
 ### useAssetUrl Hook
 ```tsx
+// useAssetUrl is exported from the same module as AssetImage and AssetVideo
 import { useAssetUrl } from '@/components/AssetImage';
+
+// Or using relative path
+import { useAssetUrl } from '../../components/AssetImage';
 
 function MyComponent({ assetUrl }) {
   const { url, isRefreshing, refreshUrl, checkStatus } = useAssetUrl(assetUrl);
