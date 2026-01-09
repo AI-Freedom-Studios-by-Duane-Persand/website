@@ -65,14 +65,14 @@ export class CreativesService {
 
   async generateTextCreative(params: {
     tenantId: string;
-    campaignId: string;
+    campaignId?: string | null;
     model: string;
     prompt: string;
     platforms?: string[];
     angleId?: string | null;
     guidance?: { brandTone?: string; targetAudience?: string; contentPillars?: string[]; hashtagCount?: number };
   }): Promise<Creative> {
-    if (!params.tenantId || !params.campaignId) throw new BadRequestException('tenantId and campaignId are required');
+    if (!params.tenantId) throw new BadRequestException('tenantId is required');
     
     const contents = JSON.stringify({ type: 'text', task: 'caption_hashtags', ...params });
     
@@ -88,11 +88,13 @@ export class CreativesService {
       hashtags = Array.isArray(parsed.hashtags) ? parsed.hashtags : hashtags;
     } catch {}
     
-    // Run DB save and R2 upload in parallel
+    const campaignObjectId = params.campaignId ? new Types.ObjectId(params.campaignId) : null;
+    
+    // Run DB save and optional R2 upload in parallel
     const [creativeDoc] = await Promise.all([
       this.creativeModel.create({
         tenantId: new Types.ObjectId(params.tenantId),
-        campaignId: new Types.ObjectId(params.campaignId),
+        campaignId: campaignObjectId,
         type: 'text',
         angleId: params.angleId ? new Types.ObjectId(params.angleId) : null,
         platforms: params.platforms ?? [],
@@ -101,11 +103,17 @@ export class CreativesService {
         status: 'needsReview',
       }),
       // Upload to R2 and attach in background (non-blocking)
-      (async () => {
-        const payload = JSON.stringify({ caption, hashtags });
-        const url = await this.storageService.uploadFile(Buffer.from(payload, 'utf-8'), `${params.campaignId}-caption-${Date.now()}.json`, 'application/json');
-        await this.attachAssetToCampaign(params.campaignId, 'text', url);
-      })().catch(err => this.logger.error('[generateTextCreative] R2 upload failed', err)),
+      params.campaignId
+        ? (async () => {
+            const payload = JSON.stringify({ caption, hashtags });
+            const url = await this.storageService.uploadFile(
+              Buffer.from(payload, 'utf-8'),
+              `${params.campaignId}-caption-${Date.now()}.json`,
+              'application/json',
+            );
+            await this.attachAssetToCampaign(params.campaignId!, 'text', url);
+          })().catch(err => this.logger.error('[generateTextCreative] R2 upload failed', err))
+        : Promise.resolve(),
     ]);
     
     return this.toCreativeResponse(creativeDoc);
@@ -113,7 +121,7 @@ export class CreativesService {
 
   async generateImageCreative(params: {
     tenantId: string;
-    campaignId: string;
+    campaignId?: string | null;
     model: string;
     prompt: string;
     layoutHint?: string;
@@ -129,15 +137,14 @@ export class CreativesService {
       scheduler?: string;
     };
   }): Promise<Creative> {
-    if (!params.tenantId || !params.campaignId) throw new BadRequestException('tenantId and campaignId are required');
+    if (!params.tenantId) throw new BadRequestException('tenantId is required');
     
     const contents = JSON.stringify({ type: 'image', task: 'prompt', ...params });
     const result = await this.aiModelsService.generateContent('creative-image', { model: params.model, contents });
     
-    // Create creative document immediately
     const creativeDoc = await this.creativeModel.create({
       tenantId: new Types.ObjectId(params.tenantId),
-      campaignId: new Types.ObjectId(params.campaignId),
+      campaignId: params.campaignId ? new Types.ObjectId(params.campaignId) : null,
       type: 'image',
       angleId: params.angleId ? new Types.ObjectId(params.angleId) : null,
       platforms: params.platforms ?? [],
@@ -163,7 +170,7 @@ export class CreativesService {
 
   async generateVideoCreative(params: {
     tenantId: string;
-    campaignId: string;
+    campaignId?: string | null;
     model: string;
     prompt: string;
     platforms?: string[];
@@ -177,9 +184,9 @@ export class CreativesService {
       guidanceScale?: number;
     };
   }): Promise<Creative> {
-    if (!params.tenantId || !params.campaignId) throw new BadRequestException('tenantId and campaignId are required');
+    if (!params.tenantId) throw new BadRequestException('tenantId is required');
     
-    this.logger.log(`[generateVideoCreative] Starting video generation for campaign ${params.campaignId}`);
+    this.logger.log(`[generateVideoCreative] Starting video generation${params.campaignId ? ` for campaign ${params.campaignId}` : ''}`);
     const contents = JSON.stringify({ type: 'video', task: 'script', ...params });
     const result = await this.aiModelsService.generateContent('creative-video', { model: params.model, contents });
     
@@ -191,7 +198,7 @@ export class CreativesService {
     const [creativeDoc] = await Promise.all([
       this.creativeModel.create({
         tenantId: new Types.ObjectId(params.tenantId),
-        campaignId: new Types.ObjectId(params.campaignId),
+        campaignId: params.campaignId ? new Types.ObjectId(params.campaignId) : null,
         type: 'video',
         angleId: params.angleId ? new Types.ObjectId(params.angleId) : null,
         platforms: params.platforms ?? [],
@@ -200,17 +207,19 @@ export class CreativesService {
         metadata: { derivedFrom: 'ai:creative-video' },
       }),
       // Upload script to R2 and attach in background (non-blocking)
-      (async () => {
-        const scriptPayload = Buffer.from(JSON.stringify(script, null, 2), 'utf-8');
-        const scriptUrl = await this.storageService.uploadFile(
-          scriptPayload,
-          `${params.campaignId}-video-script-${Date.now()}.json`,
-          'application/json',
-          params.tenantId,
-        );
-        this.logger.log(`[generateVideoCreative] Script uploaded to R2: ${scriptUrl}`);
-        await this.attachAssetToCampaign(params.campaignId, 'video', scriptUrl);
-      })().catch(err => this.logger.error('[generateVideoCreative] R2 upload failed', err)),
+      params.campaignId
+        ? (async () => {
+            const scriptPayload = Buffer.from(JSON.stringify(script, null, 2), 'utf-8');
+            const scriptUrl = await this.storageService.uploadFile(
+              scriptPayload,
+              `${params.campaignId}-video-script-${Date.now()}.json`,
+              'application/json',
+              params.tenantId,
+            );
+            this.logger.log(`[generateVideoCreative] Script uploaded to R2: ${scriptUrl}`);
+            await this.attachAssetToCampaign(params.campaignId!, 'video', scriptUrl);
+          })().catch(err => this.logger.error('[generateVideoCreative] R2 upload failed', err))
+        : Promise.resolve(),
     ]);
     
     // Optionally generate actual video in background
@@ -449,9 +458,13 @@ export class CreativesService {
       
       // Always use Replicate for image generation (per plan)
       this.logger.log(`[generateActualImage] Using replicate for image generation`);
-      const result: string = await this.replicateClient.generateImage(prompt, {
-        width: quality?.width ?? 1280,
-        height: quality?.height ?? 720,
+      
+      // Enhance prompt with quality descriptors for better results
+      const enhancedPrompt = `${prompt}. Professional quality, high detail, sharp focus, vibrant colors, well-composed, 8K quality`;
+      
+      const result: string = await this.replicateClient.generateImage(enhancedPrompt, {
+        width: quality?.width ?? 1536,
+        height: quality?.height ?? 864,
         negativePrompt: quality?.negativePrompt,
         numInferenceSteps: quality?.numInferenceSteps,
         guidanceScale: quality?.guidanceScale,

@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "";
@@ -11,7 +11,7 @@ function getAuthHeaders(): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-export default function MetaOAuthCallback() {
+function MetaOAuthCallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [status, setStatus] = useState<"processing" | "success" | "error">("processing");
@@ -46,7 +46,7 @@ export default function MetaOAuthCallback() {
         // Exchange code for access token
         const appId = process.env.NEXT_PUBLIC_META_APP_ID;
         const appSecret = process.env.NEXT_PUBLIC_META_APP_SECRET;
-        const redirectUri = `${window.location.origin}/auth/meta/callback`;
+        const redirectUri = `${window.location.origin}/api/auth/meta/callback`;
 
         if (!appId || !appSecret) {
           throw new Error("Meta App credentials not configured");
@@ -199,5 +199,23 @@ export default function MetaOAuthCallback() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function MetaOAuthCallback() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
+          <div className="max-w-md w-full bg-white/5 backdrop-blur border border-white/10 rounded-3xl p-8 text-center">
+            <div className="w-16 h-16 mx-auto mb-4 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+            <h1 className="text-2xl font-bold text-white mb-2">Loading...</h1>
+            <p className="text-slate-300">Processing OAuth callback...</p>
+          </div>
+        </div>
+      }
+    >
+      <MetaOAuthCallbackContent />
+    </Suspense>
   );
 }

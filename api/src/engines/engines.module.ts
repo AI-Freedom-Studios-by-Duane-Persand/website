@@ -6,6 +6,7 @@ import { EnginesService } from './engines.service';
 import { EnginesController } from './engines.controller';
 import { ConfigService } from '../integrations/config.service';
 import { PoeClient } from './poe.client';
+import { PoeController } from './poe.controller';
 import { ReplicateClient } from './replicate.client';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ModelsModule } from '../models/models.module';
@@ -39,7 +40,7 @@ import { AIExtractorService } from './ai-extractor.service'; // AI-powered conve
     AIModelsService, // Added AIModelsService to providers
     AIExtractorService, // AI conversation extractor
   ],
-  controllers: [EnginesController, AIModelsController],
+  controllers: [EnginesController, AIModelsController, PoeController],
   exports: [
     EnginesService,
     StrategyEngine, // Exported StrategyEngine

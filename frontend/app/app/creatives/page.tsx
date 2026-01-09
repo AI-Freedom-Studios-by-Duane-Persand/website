@@ -4,6 +4,7 @@ import EarlyAccessGate from "../../components/EarlyAccessGate";
 import SubscriptionGate from "../../components/SubscriptionGate";
 import { useAuth } from "../../hooks/useAuth";
 import { parseJwt } from "../../../lib/parseJwt";
+import { VideoCreationWizard } from "../components/VideoCreationWizard";
 
 type Creative = { 
   _id: string; 
@@ -56,6 +57,7 @@ export default function CreativesPage() {
   
   // New creative creation state
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showVideoWizard, setShowVideoWizard] = useState(false);
   const [createType, setCreateType] = useState<'text' | 'image' | 'video'>('text');
   const [creating, setCreating] = useState(false);
   
@@ -79,6 +81,19 @@ export default function CreativesPage() {
   // Campaign attachment
   const [attachToCampaign, setAttachToCampaign] = useState(false);
   const [selectedCampaignId, setSelectedCampaignId] = useState("");
+  
+  // Prompt improvement modal state
+  const [showImprovePromptModal, setShowImprovePromptModal] = useState(false);
+  const [improvePromptId, setImprovePromptId] = useState<string | null>(null);
+  const [improvePromptText, setImprovePromptText] = useState("");
+  const [improvedPrompt, setImprovedPrompt] = useState("");
+  const [improvingPrompt, setImprovingPrompt] = useState(false);
+  
+  // Recreate modal state
+  const [showRecreateModal, setShowRecreateModal] = useState(false);
+  const [recreateId, setRecreateId] = useState<string | null>(null);
+  const [recreateWithChanges, setRecreateWithChanges] = useState(false);
+  const [recreatingAsset, setRecreatingAsset] = useState(false);
 
   const apiUrl = useMemo(
     () =>
@@ -272,8 +287,8 @@ export default function CreativesPage() {
       const qualityPayload = type === 'image'
         ? {
             model: 'flux-schnell',
-            width: 1280,
-            height: 720,
+              width: 1536,
+              height: 864,
             negativePrompt: 'low quality, blurry, artifacts, watermark, distorted anatomy',
             numInferenceSteps: 32,
             guidanceScale: 8,
@@ -314,6 +329,115 @@ export default function CreativesPage() {
         next.delete(creativeId);
         return next;
       });
+    }
+  }
+
+  async function handleImprovePrompt(creativeId: string, currentPrompt: string) {
+    setImprovePromptId(creativeId);
+    setImprovePromptText(currentPrompt);
+    setImprovedPrompt("");
+    setShowImprovePromptModal(true);
+  }
+
+  async function submitImprovePrompt() {
+    if (!improvePromptId || !improvePromptText) return;
+    
+    setError("");
+    setImprovingPrompt(true);
+    
+    try {
+      const res = await fetch(`${apiUrl}/api/poe/improve-prompt`, {
+        method: "POST",
+        headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: improvePromptText,
+          context: 'professional creative asset generation for social media and marketing campaigns',
+        }),
+      });
+
+      if (!res.ok) throw new Error("Failed to improve prompt");
+      const data = await res.json();
+      setImprovedPrompt(data.improved_prompt ?? data.improvedPrompt ?? "");
+    } catch (err: any) {
+      setError(err.message || "Error improving prompt");
+    } finally {
+      setImprovingPrompt(false);
+    }
+  }
+
+  async function confirmRecreateWithImprovedPrompt() {
+    if (!improvePromptId || !improvedPrompt) return;
+    
+    setError("");
+    setRecreatingAsset(true);
+    
+    try {
+      const creative = creatives.find(c => c._id === improvePromptId);
+      if (!creative) throw new Error("Creative not found");
+      
+      if (creative.type === 'image' || creative.type === 'video') {
+        const res = await fetch(`${apiUrl}/api/creatives/${improvePromptId}/edit-prompt`, {
+          method: "PUT",
+          headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt: improvedPrompt }),
+        });
+        if (!res.ok) throw new Error("Failed to update prompt");
+        
+        // Auto-regenerate with new prompt
+        await handleRenderMedia(improvePromptId, creative.type as 'image' | 'video');
+      }
+      
+      setShowImprovePromptModal(false);
+      setImprovePromptId(null);
+      setImprovePromptText("");
+      setImprovedPrompt("");
+      setError("");
+      fetchCreatives();
+    } catch (err: any) {
+      setError(err.message || "Error recreating asset");
+    } finally {
+      setRecreatingAsset(false);
+    }
+  }
+
+  async function handleRecreateAsset(creativeId: string, type: 'text' | 'image' | 'video') {
+    setRecreateId(creativeId);
+    setShowRecreateModal(true);
+  }
+
+  async function confirmRecreateAsset() {
+    if (!recreateId) return;
+    
+    setError("");
+    setRecreatingAsset(true);
+    
+    try {
+      const creative = creatives.find(c => c._id === recreateId);
+      if (!creative) throw new Error("Creative not found");
+      
+      if (creative.type === 'image') {
+        await handleRenderMedia(recreateId, 'image');
+      } else if (creative.type === 'video') {
+        await handleRenderMedia(recreateId, 'video');
+      } else if (creative.type === 'text') {
+        // For text creatives, regenerate with the same prompt
+        const prompt = creative.copy?.caption || "Regenerate caption";
+        const res = await fetch(`${apiUrl}/api/creatives/${recreateId}/regenerate`, {
+          method: "PUT",
+          headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
+          body: JSON.stringify({ model: 'gpt-4o', prompt, scope: 'all' }),
+        });
+        if (!res.ok) throw new Error("Failed to regenerate creative");
+      }
+      
+      setShowRecreateModal(false);
+      setRecreateId(null);
+      setRecreateWithChanges(false);
+      fetchCreatives();
+    } catch (err: any) {
+      setError(err.message || "Error recreating asset");
+    } finally {
+      setRecreatingAsset(false);
     }
   }
 
@@ -642,9 +766,9 @@ export default function CreativesPage() {
                                     {videoScript.body && (
                                       <div>
                                         <strong>Body:</strong> {
-                                          typeof videoScript.body === 'string' 
-                                            ? videoScript.body 
-                                            : Array.isArray(videoScript.body) 
+                                          typeof videoScript.body === 'string'
+                                            ? videoScript.body
+                                            : Array.isArray(videoScript.body)
                                               ? videoScript.body.map((line, i) => <div key={i}>• {line}</div>)
                                               : 'Script ready'
                                         }
@@ -678,6 +802,57 @@ export default function CreativesPage() {
                                 >
                                   View {creative.type === 'image' ? 'image' : 'video'}
                                 </a>
+                              </div>
+                            )}
+
+                            {(creative.type === 'image' || creative.type === 'video') && (
+                              <div className="mt-4 flex flex-col gap-2">
+                                <button
+                                  onClick={() =>
+                                    handleImprovePrompt(
+                                      creative._id,
+                                      creative.type === 'image'
+                                        ? creative.visual?.prompt || ''
+                                        : typeof creative.script?.body === 'string'
+                                          ? creative.script.body
+                                          : Array.isArray(creative.script?.body)
+                                            ? creative.script.body.join(' ')
+                                            : ''
+                                    )
+                                  }
+                                  className="
+                                    w-full inline-flex items-center justify-center px-3 py-2 rounded-lg text-xs font-semibold
+                                    bg-gradient-to-r from-amber-500 to-orange-500 text-white
+                                    hover:opacity-90 transition
+                                  "
+                                >
+                                  ✨ Improve Prompt
+                                </button>
+                                <button
+                                  onClick={() => handleRecreateAsset(creative._id, creative.type)}
+                                  className="
+                                    w-full inline-flex items-center justify-center px-3 py-2 rounded-lg text-xs font-semibold
+                                    bg-gradient-to-r from-cyan-500 to-blue-500 text-white
+                                    hover:opacity-90 transition
+                                  "
+                                >
+                                  🔄 Recreate Asset
+                                </button>
+                              </div>
+                            )}
+
+                            {creative.type === 'text' && (
+                              <div className="mt-4 flex flex-col gap-2">
+                                <button
+                                  onClick={() => handleRecreateAsset(creative._id, 'text')}
+                                  className="
+                                    w-full inline-flex items-center justify-center px-3 py-2 rounded-lg text-xs font-semibold
+                                    bg-gradient-to-r from-green-500 to-emerald-500 text-white
+                                    hover:opacity-90 transition
+                                  "
+                                >
+                                  🔄 Regenerate Caption
+                                </button>
                               </div>
                             )}
                           </>
@@ -833,6 +1008,34 @@ export default function CreativesPage() {
                 {/* Video Creative */}
                 {createType === 'video' && (
                   <div className="space-y-4">
+                    <div className="p-4 bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-xl">
+                      <div className="flex items-center justify-between mb-2">
+                        <h3 className="text-sm font-bold text-slate-900">✨ AI-Powered Video Creation</h3>
+                        <span className="text-xs bg-purple-600 text-white px-2 py-1 rounded-full">NEW</span>
+                      </div>
+                      <p className="text-xs text-slate-600 mb-3">
+                        Use our advanced workflow: AI refinement → Sample frames → Review → Final video
+                      </p>
+                      <button
+                        onClick={() => {
+                          setShowCreateModal(false);
+                          setShowVideoWizard(true);
+                        }}
+                        className="w-full px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg text-sm font-semibold hover:from-purple-700 hover:to-blue-700 transition"
+                      >
+                        🎬 Open Video Wizard
+                      </button>
+                    </div>
+
+                    <div className="relative">
+                      <div className="absolute inset-0 flex items-center">
+                        <div className="w-full border-t border-slate-200" />
+                      </div>
+                      <div className="relative flex justify-center">
+                        <span className="bg-white px-3 text-xs text-slate-500">OR</span>
+                      </div>
+                    </div>
+
                     <div>
                       <label className="block text-sm font-semibold text-slate-700 mb-2">
                         Video Concept/Script <span className="text-red-500">*</span>
@@ -959,6 +1162,180 @@ export default function CreativesPage() {
                     disabled={creating}
                     className="
                       px-6 py-3 rounded-xl text-sm font-semibold
+                      border border-slate-200 bg-white text-slate-800
+                      hover:bg-slate-50 transition
+                      disabled:opacity-50 disabled:cursor-not-allowed
+                    "
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Video Creation Wizard */}
+        <VideoCreationWizard
+          open={showVideoWizard}
+          onClose={() => {
+            setShowVideoWizard(false);
+            fetchCreatives(); // Refresh creatives list
+          }}
+          campaignId={attachToCampaign ? selectedCampaignId : undefined}
+        />
+
+        {/* Improve Prompt Modal */}
+        {showImprovePromptModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-6 border-b border-slate-200 sticky top-0 bg-white z-10">
+                <h2 className="text-xl font-bold text-slate-900">✨ Improve Prompt with AI</h2>
+                <p className="mt-1 text-sm text-slate-600">Let ChatGPT-4 enhance your prompt for better results</p>
+              </div>
+              
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">Current Prompt</label>
+                  <textarea
+                    className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-amber-500 bg-slate-50"
+                    value={improvePromptText}
+                    onChange={(e) => setImprovePromptText(e.target.value)}
+                    rows={4}
+                    placeholder="Your current prompt..."
+                  />
+                  <p className="mt-2 text-xs text-slate-500">
+                    This will be sent to ChatGPT-4 for enhancement with professional quality descriptors
+                  </p>
+                </div>
+
+                {!improvedPrompt && (
+                  <button
+                    onClick={submitImprovePrompt}
+                    disabled={improvingPrompt || !improvePromptText}
+                    className="
+                      w-full inline-flex items-center justify-center px-6 py-3 rounded-xl text-sm font-semibold
+                      text-white bg-gradient-to-r from-amber-500 to-orange-500
+                      shadow-md hover:shadow-lg hover:opacity-95 transition
+                      disabled:opacity-50 disabled:cursor-not-allowed
+                    "
+                  >
+                    {improvingPrompt ? '🤖 Improving with AI...' : '✨ Improve Prompt'}
+                  </button>
+                )}
+
+                {improvedPrompt && (
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">Improved Prompt</label>
+                      <textarea
+                        className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none bg-slate-50"
+                        value={improvedPrompt}
+                        readOnly
+                        rows={4}
+                      />
+                    </div>
+                    
+                    <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+                      <p className="text-sm text-green-800">
+                        ✓ This improved prompt will be automatically applied and your asset will be regenerated with the new prompt.
+                      </p>
+                    </div>
+
+                    <div className="flex gap-3">
+                      <button
+                        onClick={confirmRecreateWithImprovedPrompt}
+                        disabled={recreatingAsset}
+                        className="
+                          flex-1 inline-flex items-center justify-center px-6 py-3 rounded-xl text-sm font-semibold
+                          text-white bg-gradient-to-r from-green-500 to-emerald-500
+                          shadow-md hover:shadow-lg hover:opacity-95 transition
+                          disabled:opacity-50 disabled:cursor-not-allowed
+                        "
+                      >
+                        {recreatingAsset ? '🔄 Regenerating...' : '🎬 Apply & Regenerate'}
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowImprovePromptModal(false);
+                          setImprovePromptId(null);
+                          setImprovePromptText("");
+                          setImprovedPrompt("");
+                        }}
+                        disabled={recreatingAsset}
+                        className="
+                          flex-1 px-6 py-3 rounded-xl text-sm font-semibold
+                          border border-slate-200 bg-white text-slate-800
+                          hover:bg-slate-50 transition
+                          disabled:opacity-50 disabled:cursor-not-allowed
+                        "
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {!improvedPrompt && (
+                  <button
+                    onClick={() => {
+                      setShowImprovePromptModal(false);
+                      setImprovePromptId(null);
+                      setImprovePromptText("");
+                    }}
+                    className="
+                      w-full px-6 py-3 rounded-xl text-sm font-semibold
+                      border border-slate-200 bg-white text-slate-800
+                      hover:bg-slate-50 transition
+                    "
+                  >
+                    Close
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Recreate Asset Modal */}
+        {showRecreateModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full">
+              <div className="p-6 border-b border-slate-200">
+                <h2 className="text-lg font-bold text-slate-900">🔄 Recreate Asset</h2>
+                <p className="mt-1 text-sm text-slate-600">Generate a new version of this asset</p>
+              </div>
+              
+              <div className="p-6 space-y-4">
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                  <p className="text-sm text-blue-800">
+                    {recreateId && creatives.find(c => c._id === recreateId)?.type === 'text' 
+                      ? '📝 This will regenerate the caption and hashtags with the same prompt.'
+                      : '🎨 This will generate a new version of your asset with the existing prompt.'}
+                  </p>
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={confirmRecreateAsset}
+                    disabled={recreatingAsset}
+                    className="
+                      flex-1 inline-flex items-center justify-center px-6 py-3 rounded-xl text-sm font-semibold
+                      text-white bg-gradient-to-r from-cyan-500 to-blue-500
+                      shadow-md hover:shadow-lg hover:opacity-95 transition
+                      disabled:opacity-50 disabled:cursor-not-allowed
+                    "
+                  >
+                    {recreatingAsset ? '🔄 Recreating...' : '🔄 Recreate'}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowRecreateModal(false);
+                      setRecreateId(null);
+                    }}
+                    disabled={recreatingAsset}
+                    className="
+                      flex-1 px-6 py-3 rounded-xl text-sm font-semibold
                       border border-slate-200 bg-white text-slate-800
                       hover:bg-slate-50 transition
                       disabled:opacity-50 disabled:cursor-not-allowed

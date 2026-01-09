@@ -97,31 +97,33 @@ export class ReplicateClient {
     }
 
     try {
-      const width = options.width ?? 1024;
-      const height = options.height ?? 1024;
-      const negative_prompt = options.negativePrompt ?? 'blurry, low quality, watermark, distorted, artifacts';
-      const num_inference_steps = options.numInferenceSteps ?? 28;
-      const guidance_scale = options.guidanceScale ?? 7.5;
+      // Normalize dimensions to multiples of 16 (required by Flux Schnell)
+      const normalizeToMultiple = (value: number, multiple: number) => {
+        return Math.round(value / multiple) * multiple;
+      };
+
+      const width = normalizeToMultiple(options.width ?? 1536, 16);
+      const height = normalizeToMultiple(options.height ?? 864, 16);
 
       this.logger.info('[ReplicateClient] Generating image', {
         prompt: prompt.substring(0, 120),
         size: `${width}x${height}`,
-        guidance_scale,
-        num_inference_steps,
       });
 
-      // Use Flux Schnell (fast, high-quality)
+      // Flux Schnell: doesn't support guidance_scale, num_inference_steps, or scheduler
+      // These parameters will be silently ignored if sent
+      // Using simplified input for reliability
       const response = await this.axiosInstance.post('/predictions', {
-        version: '5599ed30703defd1d160a25a63321b4dec97101d98b4674bcc56e41f62f35637',
+        version: '5599ed30703defd1d160a25a63321b4dec97101d98b4674bcc56e41f62f35637', // Flux Schnell
         input: {
           prompt,
-          negative_prompt,
           width,
           height,
           num_outputs: 1,
-          num_inference_steps,
-          guidance_scale,
-          scheduler: options.scheduler ?? 'DPM++ 2M',
+          // Note: Flux Schnell doesn't support these - removed to prevent 422 errors
+          // num_inference_steps: removed
+          // guidance_scale: removed
+          // scheduler: removed
         },
       });
 
@@ -141,10 +143,15 @@ export class ReplicateClient {
       this.logger.error('[ReplicateClient] Error generating image', {
         error: error.message,
         status,
+        responseData: error.response?.data,
       });
       
       if (status === 402) {
         throw new Error('Replicate account has insufficient credits. Please add credits at https://replicate.com/account/billing');
+      }
+
+      if (status === 422) {
+        throw new Error(`Invalid parameters for image generation: ${error.response?.data?.detail || error.message}`);
       }
       
       throw new Error(`Failed to generate image: ${error.message}`);

@@ -100,28 +100,29 @@ export class AIModelsService {
       } catch {}
 
       const prompt = parsed.prompt || input.contents;
-      const width = parsed.width || parsed.quality?.width || 1280;
-      const height = parsed.height || parsed.quality?.height || 720;
-      const negativePrompt = parsed.negativePrompt || parsed.quality?.negativePrompt;
-      const numInferenceSteps = parsed.numInferenceSteps || parsed.quality?.numInferenceSteps;
-      const guidanceScale = parsed.guidanceScale || parsed.quality?.guidanceScale;
-      const scheduler = parsed.scheduler || parsed.quality?.scheduler;
+      const width = parsed.width || parsed.quality?.width || 1536;
+      const height = parsed.height || parsed.quality?.height || 864;
+      // Note: Flux Schnell doesn't support these parameters, so we extract them but don't pass to Replicate
+      // const negativePrompt = parsed.negativePrompt || parsed.quality?.negativePrompt;
+      // const numInferenceSteps = parsed.numInferenceSteps || parsed.quality?.numInferenceSteps;
+      // const guidanceScale = parsed.guidanceScale || parsed.quality?.guidanceScale;
+      // const scheduler = parsed.scheduler || parsed.quality?.scheduler;
 
       this.logger.info('[AIModelsService] Generating image with Replicate', {
         prompt: prompt.substring(0, 100),
         width,
         height,
-        numInferenceSteps,
-        guidanceScale,
       });
 
+      // Pass only supported parameters for Flux Schnell
       return await this.replicateClient.generateImage(prompt, {
         width,
         height,
-        negativePrompt,
-        numInferenceSteps,
-        guidanceScale,
-        scheduler,
+        // Flux Schnell ignores these, but don't pass them to avoid 422 errors
+        // negativePrompt,
+        // numInferenceSteps,
+        // guidanceScale,
+        // scheduler,
       });
     } catch (error) {
       this.logger.error('[AIModelsService] Replicate image generation failed', {

@@ -516,4 +516,61 @@ export class PoeClient {
       throw new Error('Failed to fetch models');
     }
   }
+
+  /**
+   * Improve a prompt using GPT-4o
+   */
+  async improvePrompt(prompt: string, context?: { targetAudience?: string; tone?: string; style?: string }): Promise<string> {
+    const systemPrompt = `You are an expert creative prompt engineer. Your task is to enhance and improve creative prompts.
+
+When given a creative prompt, you should:
+1. Enhance it with more vivid, descriptive language
+2. Add professional quality descriptors
+3. Make it more specific and actionable
+4. Suggest improvements that would result in higher-quality outputs
+5. Keep the core intent while elevating the language
+
+${context ? `Consider this context:
+- Target Audience: ${context.targetAudience || 'General'}
+- Tone: ${context.tone || 'Professional'}
+- Style: ${context.style || 'Modern'}` : ''}
+
+Return ONLY the improved prompt, nothing else. Do not include explanations.`;
+
+    try {
+      this.logger.info('[improvePrompt] Improving prompt', {
+        promptLength: prompt.length,
+      });
+
+      const response = await this.axiosInstance.post('/chat/completions', {
+        model: 'gpt-4o',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: prompt },
+        ],
+        max_tokens: 1000,
+        temperature: 0.7,
+      });
+
+      if (!response.data?.choices?.[0]?.message?.content) {
+        throw new Error('Invalid response from Poe API');
+      }
+
+      const improvedPrompt = response.data.choices[0].message.content.trim();
+      this.logger.info('[improvePrompt] Prompt improved successfully', {
+        originalLength: prompt.length,
+        improvedLength: improvedPrompt.length,
+      });
+
+      return improvedPrompt;
+    } catch (error: any) {
+      this.logger.error('[improvePrompt] Error improving prompt', {
+        error: error?.message,
+        status: error?.response?.status,
+      });
+
+      // Fallback: return enhanced version of the original prompt
+      return `${prompt}. High quality, professional, detailed, well-composed, trending aesthetic`;
+    }
+  }
 }

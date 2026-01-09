@@ -30,6 +30,7 @@ import { CampaignChatModule } from './campaignChat.module';
 import { ApprovalsModule } from './approvals/approvals.module';
 import { StrategiesModule } from './strategies/strategies.module';
 import { PromptingModule } from './prompting/prompting.module';
+import { VideoWorkflowModule } from './video-workflow/video-workflow.module';
 
 const logger = new Logger('AppModule');
 
@@ -104,6 +105,7 @@ export class AppModuleLogger {
     ApprovalsModule,
     StrategiesModule,
     PromptingModule,
+    VideoWorkflowModule,
   ],
   controllers: [PlatformsController],
   providers: [AppModuleLogger],
