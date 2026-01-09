@@ -108,14 +108,16 @@ export class StorageService {
     const canonicalUrl = this.publicBaseUrl ? `${this.publicBaseUrl}/${fileKey}` : `${this.bucket}/${fileKey}`;
     let viewUrl = canonicalUrl;
 
-    // Prefer signed URLs when bucket is not publicly readable
-    // (R2 often requires presigned GET unless a public domain/policy is configured)
-    try {
-      viewUrl = await this.generateSignedGetUrl(fileKey, 60 * 60); // 1 hour
-    } catch (err: any) {
-      this.logger.warn('[uploadFile] Failed to generate signed URL, falling back to canonical', {
-        errorMessage: err?.message,
-      });
+    // If publicBaseUrl is configured and ACL is public-read, use direct public URL
+    // Otherwise, generate signed URL with 7-day expiration (max for R2/S3)
+    if (!this.publicBaseUrl) {
+      try {
+        viewUrl = await this.generateSignedGetUrl(fileKey, 7 * 24 * 60 * 60); // 7 days
+      } catch (err: any) {
+        this.logger.warn('[uploadFile] Failed to generate signed URL, falling back to canonical', {
+          errorMessage: err?.message,
+        });
+      }
     }
 
     this.logger.log(`[uploadFile] Upload successful canonical=${canonicalUrl}`);
@@ -142,22 +144,36 @@ export class StorageService {
     return viewUrl;
   }
 
-  private async generateSignedGetUrl(key: string, expiresInSeconds = 3600): Promise<string> {
+  private async generateSignedGetUrl(key: string, expiresInSeconds = 604800): Promise<string> {
     if (!this.s3) throw new InternalServerErrorException('S3 client not initialized');
+    // Max expiration is 7 days (604800 seconds) for R2/S3
+    const maxExpiration = 7 * 24 * 60 * 60; // 7 days
+    const expiration = Math.min(expiresInSeconds, maxExpiration);
     const command = new GetObjectCommand({ Bucket: this.bucket, Key: key });
-    return getSignedUrl(this.s3, command, { expiresIn: expiresInSeconds });
+    return getSignedUrl(this.s3, command, { expiresIn: expiration });
   }
 
   /**
    * Generate a view URL (presigned when bucket is private) for an existing asset URL or key
    */
-  async getViewUrlForExisting(urlOrKey: string, tenantId?: string, expiresInSeconds = 3600): Promise<string> {
+  async getViewUrlForExisting(urlOrKey: string, tenantId?: string, expiresInSeconds = 604800): Promise<string> {
     if (!urlOrKey) {
       throw new BadRequestException('urlOrKey is required');
     }
 
     if (!this.s3) await this.init(tenantId);
+    
+    // If publicBaseUrl is configured, return public URL directly
+    if (this.publicBaseUrl && urlOrKey.includes(this.publicBaseUrl)) {
+      return urlOrKey; // Already a public URL
+    }
+    
     const key = this.extractKey(urlOrKey);
+    
+    // If publicBaseUrl is configured, construct and return public URL
+    if (this.publicBaseUrl) {
+      return `${this.publicBaseUrl}/${key}`;
+    }
 
     try {
       return await this.generateSignedGetUrl(key, expiresInSeconds);
