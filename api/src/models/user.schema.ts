@@ -21,5 +21,8 @@ export const UserSchema = new Schema<UserDocument>({
   updatedAt: { type: Date, default: Date.now },
 });
 
-UserSchema.index({ email: 1, tenantId: 1 }, { unique: true });
+// Global unique index on email (prevents same email across all tenants)
+UserSchema.index({ email: 1 }, { unique: true });
+// Composite index for email + tenant lookup optimization
+UserSchema.index({ email: 1, tenantId: 1 });
 // Do not export a compiled model here. Use MongooseModule.forFeature in modules.

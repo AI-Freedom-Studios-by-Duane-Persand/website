@@ -1,5 +1,5 @@
 // api/src/auth/auth.controller.ts
-import { Controller, Post, Body, UnauthorizedException, BadRequestException, Options, Logger, Get, Req, UseGuards, Res, InternalServerErrorException, NotFoundException } from '@nestjs/common';
+import { Controller, Post, Body, UnauthorizedException, BadRequestException, Options, Logger, Get, Req, UseGuards, Res, InternalServerErrorException, NotFoundException, ConflictException } from '@nestjs/common';
 import { Response } from 'express';
 import * as bcrypt from 'bcryptjs';
 import { UsersService } from '../users/users.service';
@@ -57,10 +57,10 @@ export class AuthController {
       throw new BadRequestException('Missing required fields');
     }
 
-    // Check if user with this email already exists
+    // Early optimization check - avoid transaction overhead if email already exists
     const existingUser = await this.usersService.findByEmail(body.email);
     if (existingUser) {
-      throw new BadRequestException('Email already registered. Please use a different email or sign in.');
+      throw new ConflictException('Email already registered. Please use a different email or sign in.');
     }
 
     let session;
@@ -80,48 +80,71 @@ export class AuthController {
 
       // Create user with tenantId
       const passwordHash = await bcrypt.hash(body.password, 10);
-      const user = await this.usersService.create(
-        {
-          email: body.email,
-          password: body.password, // Include the original password
-          passwordHash,
-          name: body.email.split('@')[0],
-          role: 'tenantOwner',
-          roles: ['tenantOwner'], // Ensure roles include tenantOwner by default
-          tenantId: tenant._id.toString(),
-          isEarlyAccess: hasEarlyAccess,
-        },
-        session
-      );
+      
+      try {
+        const user = await this.usersService.create(
+          {
+            email: body.email,
+            password: body.password, // Include the original password
+            passwordHash,
+            name: body.email.split('@')[0],
+            role: 'tenantOwner',
+            roles: ['tenantOwner'], // Ensure roles include tenantOwner by default
+            tenantId: tenant._id.toString(),
+            isEarlyAccess: hasEarlyAccess,
+          },
+          session
+        );
 
-      // Update tenant with user ID for ownerId and userIds
-      await this.tenantsService.update(
-        tenant._id.toString(),
-        {
-          ownerId: user._id.toString(),
-          userIds: [user._id.toString()],
-        },
-        session
-      );
+        // Update tenant with user ID for ownerId and userIds
+        await this.tenantsService.update(
+          tenant._id.toString(),
+          {
+            ownerId: user._id.toString(),
+            userIds: [user._id.toString()],
+          },
+          session
+        );
 
-      // Update tenant subscription status
-      await this.tenantsService.update(
-        tenant._id.toString(),
-        {
-          subscriptionStatus: 'active',
-        },
-        session
-      );
+        // Update tenant subscription status
+        await this.tenantsService.update(
+          tenant._id.toString(),
+          {
+            subscriptionStatus: 'active',
+          },
+          session
+        );
 
-      if (session) {
-        await session.commitTransaction();
+        if (session) {
+          await session.commitTransaction();
+        }
+        return { user, tenant };
+      } catch (userCreationError: any) {
+        // Handle MongoDB duplicate key error (E11000)
+        if (userCreationError.code === 11000 || userCreationError.message?.includes('E11000') || userCreationError.message?.includes('duplicate key')) {
+          this.logger.warn(`Duplicate email detected in database: ${body.email}`);
+          throw new ConflictException('Email already registered. Please use a different email or sign in.');
+        }
+        // Re-throw other errors
+        throw userCreationError;
       }
-      return { user, tenant };
     } catch (error) {
       if (session) {
         await session.abortTransaction();
       }
+      
+      // If it's already a ConflictException, re-throw it
+      if (error instanceof ConflictException) {
+        throw error;
+      }
+      
+      // Handle other duplicate key errors that might have been missed
+      if (error instanceof Error && (error.message?.includes('E11000') || error.message?.includes('duplicate key'))) {
+        throw new ConflictException('Email already registered. Please use a different email or sign in.');
+      }
+      
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error('Signup failed', error);
       throw new InternalServerErrorException('Signup failed: ' + errorMessage);
     } finally {
       if (session) {
