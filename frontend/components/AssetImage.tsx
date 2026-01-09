@@ -1,7 +1,7 @@
 // frontend/components/AssetImage.tsx
 import { useState, useEffect, useCallback } from 'react';
 import Image, { ImageProps } from 'next/image';
-import AssetUrlManager from '@/lib/asset-url-manager';
+import AssetUrlManager from '../lib/asset-url-manager';
 
 interface AssetImageProps extends Omit<ImageProps, 'src'> {
   src: string; // Original asset URL
@@ -143,7 +143,7 @@ export function AssetVideo({
 
   if (error) {
     return (
-      <div className="bg-gray-100 rounded flex items-center justify-center" {...props}>
+      <div className="bg-gray-100 rounded flex items-center justify-center" style={{ width: props.width, height: props.height }}>
         <span className="text-gray-500">Failed to load video</span>
       </div>
     );

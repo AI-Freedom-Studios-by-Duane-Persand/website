@@ -151,7 +151,7 @@ class AssetUrlManager {
    * Setup automatic refresh interval for all assets
    * Useful for long-running pages
    */
-  static startAutoRefresh(intervalHours: number = 6): NodeJS.Timer {
+  static startAutoRefresh(intervalHours: number = 6): ReturnType<typeof setInterval> {
     return setInterval(async () => {
       try {
         const refreshedCount = await this.batchRefreshUrls(6);
@@ -165,7 +165,7 @@ class AssetUrlManager {
   /**
    * Stop automatic refresh interval
    */
-  static stopAutoRefresh(timerId: NodeJS.Timer): void {
+  static stopAutoRefresh(timerId: ReturnType<typeof setInterval>): void {
     clearInterval(timerId);
   }
 
