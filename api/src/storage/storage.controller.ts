@@ -1,10 +1,11 @@
 
-import { Body, Controller, Post, UploadedFile, UseInterceptors, Req, BadRequestException, UseGuards } from '@nestjs/common';
+import { Body, Controller, Post, Get, UploadedFile, UseInterceptors, Req, BadRequestException, UseGuards, Query } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { StorageService } from './storage.service';
 import { Request } from 'express';
 import { SubscriptionRequired } from '../auth/subscription-required.decorator';
 import { SubscriptionRequiredGuard } from '../auth/subscription-required.guard';
+import { AuthGuard } from '@nestjs/passport';
 
 @Controller('storage')
 export class StorageController {
@@ -46,5 +47,76 @@ export class StorageController {
     const expiresIn = body.expiresInSeconds ?? 3600;
     const viewUrl = await this.storageService.getViewUrlForExisting(body.url, body.tenantId, expiresIn);
     return { viewUrl, expiresIn }; // Return signed URL (or canonical fallback)
+  }
+
+  /**
+   * Refresh a single asset URL
+   */
+  @Post('assets/refresh-url')
+  @UseGuards(AuthGuard('jwt'))
+  async refreshAssetUrl(
+    @Req() req: any,
+    @Query('url') url: string,
+  ): Promise<{ url: string }> {
+    if (!url) {
+      throw new BadRequestException('url query parameter is required');
+    }
+
+    const user = req.user;
+    const refreshedUrl = await this.storageService.refreshAssetUrl(url, user.tenantId);
+    return { url: refreshedUrl };
+  }
+
+  /**
+   * Get asset URL status and expiration info
+   */
+  @Get('assets/status')
+  @UseGuards(AuthGuard('jwt'))
+  async getAssetStatus(
+    @Req() req: any,
+    @Query('url') url: string,
+  ): Promise<{
+    url: string;
+    isPermanent: boolean;
+    lastRefreshed?: Date;
+    expiresAt?: Date;
+    needsRefresh: boolean;
+  }> {
+    if (!url) {
+      throw new BadRequestException('url query parameter is required');
+    }
+
+    const user = req.user;
+    const status = await this.storageService.getAssetStatus(url, user.tenantId);
+    return status;
+  }
+
+  /**
+   * Batch refresh all expiring asset URLs for a tenant
+   */
+  @Post('assets/refresh-batch')
+  @UseGuards(AuthGuard('jwt'))
+  async refreshAssetUrlsBatch(
+    @Req() req: any,
+    @Query('olderThanDays') olderThanDays?: string,
+  ): Promise<{ refreshedCount: number }> {
+    const user = req.user;
+    const days = olderThanDays ? parseInt(olderThanDays, 10) : 6;
+    
+    const refreshedCount = await this.storageService.refreshAssetUrlsBatch(user.tenantId, days);
+    return { refreshedCount };
+  }
+
+  /**
+   * Migrate all existing assets to permanent URLs (public bucket)
+   */
+  @Post('assets/migrate-to-permanent')
+  @UseGuards(AuthGuard('jwt'))
+  async migrateAssetsToPermanentUrls(
+    @Req() req: any,
+  ): Promise<{ migratedCount: number; skippedCount: number }> {
+    const user = req.user;
+    const result = await this.storageService.migrateAssetsToPermanentUrls(user.tenantId);
+    return result;
   }
 }

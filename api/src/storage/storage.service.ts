@@ -25,6 +25,9 @@ export interface AssetMetadata {
   metadata: Record<string, any>;
   uploadedBy: string;
   uploadedAt: Date;
+  lastUrlRefreshAt?: Date;
+  urlExpiresAt?: Date;
+  isPermanent?: boolean;
 }
 
 @Injectable()
@@ -138,10 +141,173 @@ export class StorageService {
         },
         uploadedBy: options.uploadedBy,
         uploadedAt: new Date(),
+        lastUrlRefreshAt: new Date(),
+        isPermanent: !!this.publicBaseUrl,
+        urlExpiresAt: this.publicBaseUrl ? undefined : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       });
     }
 
     return viewUrl;
+  }
+
+  /**
+   * Refresh an existing asset URL (regenerate signed URL or return public URL)
+   * This method ensures assets remain accessible even after URL expiration
+   */
+  async refreshAssetUrl(url: string, tenantId?: string): Promise<string> {
+    if (!url) {
+      throw new BadRequestException('url is required');
+    }
+
+    if (!this.s3) await this.init(tenantId);
+
+    // If publicBaseUrl is configured, return public URL (permanent)
+    if (this.publicBaseUrl) {
+      const key = this.extractKey(url);
+      return `${this.publicBaseUrl}/${key}`;
+    }
+
+    // Otherwise generate new signed URL with 7-day expiration
+    try {
+      const key = this.extractKey(url);
+      return await this.generateSignedGetUrl(key, 604800); // 7 days
+    } catch (err: any) {
+      this.logger.error('[refreshAssetUrl] Failed to refresh URL', {
+        errorMessage: err?.message,
+        url,
+      });
+      throw err;
+    }
+  }
+
+  /**
+   * Batch refresh asset URLs - updates all assets in database with fresh URLs
+   * This should be called periodically to keep all assets accessible
+   */
+  async refreshAssetUrlsBatch(tenantId: string, olderThanDays: number = 6): Promise<number> {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - olderThanDays);
+
+    // Find assets with old URLs or no refresh date
+    const assetsToRefresh = await this.assetModel
+      .find({
+        tenantId,
+        archived: false,
+        $or: [
+          { lastUrlRefreshAt: { $lt: cutoffDate } },
+          { lastUrlRefreshAt: { $exists: false } },
+        ],
+      })
+      .exec();
+
+    let refreshedCount = 0;
+
+    for (const asset of assetsToRefresh) {
+      try {
+        const newUrl = await this.refreshAssetUrl(asset.url, tenantId);
+        asset.url = newUrl;
+        asset.lastUrlRefreshAt = new Date();
+        
+        // If public URL, mark as permanent
+        if (this.publicBaseUrl) {
+          asset.isPermanent = true;
+          asset.urlExpiresAt = undefined;
+        } else {
+          // Signed URL expires in 7 days
+          asset.urlExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+          asset.isPermanent = false;
+        }
+        
+        await asset.save();
+        refreshedCount++;
+      } catch (err: any) {
+        this.logger.warn('[refreshAssetUrlsBatch] Failed to refresh asset URL', {
+          assetId: asset._id,
+          errorMessage: err?.message,
+        });
+        // Continue with next asset instead of failing
+      }
+    }
+
+    this.logger.log(`[refreshAssetUrlsBatch] Refreshed ${refreshedCount}/${assetsToRefresh.length} asset URLs for tenant ${tenantId}`);
+    return refreshedCount;
+  }
+
+  /**
+   * Get asset status including URL expiration info
+   */
+  async getAssetStatus(url: string, tenantId: string): Promise<{
+    url: string;
+    isPermanent: boolean;
+    lastRefreshed?: Date;
+    expiresAt?: Date;
+    needsRefresh: boolean;
+  }> {
+    const asset = await this.assetModel.findOne({ url, tenantId }).exec();
+    if (!asset) {
+      throw new NotFoundException(`Asset not found: ${url}`);
+    }
+
+    const now = new Date();
+    const needsRefresh = asset.urlExpiresAt ? asset.urlExpiresAt <= new Date(Date.now() + 24 * 60 * 60 * 1000) : false; // Refresh if expires in < 1 day
+
+    return {
+      url: asset.url,
+      isPermanent: asset.isPermanent || false,
+      lastRefreshed: asset.lastUrlRefreshAt,
+      expiresAt: asset.urlExpiresAt,
+      needsRefresh,
+    };
+  }
+
+  /**
+   * Migrate all existing assets to permanent URLs (if public bucket)
+   * This converts signed URLs to direct public URLs for all assets
+   */
+  async migrateAssetsToPermanentUrls(tenantId: string): Promise<{ migratedCount: number; skippedCount: number }> {
+    if (!this.publicBaseUrl) {
+      this.logger.warn('[migrateAssetsToPermanentUrls] publicBaseUrl not configured, cannot migrate to permanent URLs');
+      throw new BadRequestException('Public URL configuration required for permanent asset access');
+    }
+
+    const assets = await this.assetModel
+      .find({
+        tenantId,
+        archived: false,
+        isPermanent: { $ne: true }, // Only non-permanent assets
+      })
+      .exec();
+
+    let migratedCount = 0;
+    let skippedCount = 0;
+
+    for (const asset of assets) {
+      try {
+        const key = this.extractKey(asset.url);
+        const permanentUrl = `${this.publicBaseUrl}/${key}`;
+
+        asset.url = permanentUrl;
+        asset.isPermanent = true;
+        asset.urlExpiresAt = undefined;
+        asset.lastUrlRefreshAt = new Date();
+        
+        await asset.save();
+        migratedCount++;
+      } catch (err: any) {
+        this.logger.warn('[migrateAssetsToPermanentUrls] Failed to migrate asset', {
+          assetId: asset._id,
+          errorMessage: err?.message,
+        });
+        skippedCount++;
+      }
+    }
+
+    this.logger.log(`[migrateAssetsToPermanentUrls] Migration complete for tenant ${tenantId}`, {
+      migratedCount,
+      skippedCount,
+    });
+
+    return { migratedCount, skippedCount };
   }
 
   private async generateSignedGetUrl(key: string, expiresInSeconds = 604800): Promise<string> {

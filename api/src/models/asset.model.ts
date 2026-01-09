@@ -19,6 +19,9 @@ export interface AssetDocument extends Document {
   };
   uploadedBy: string;
   uploadedAt: Date;
+  lastUrlRefreshAt?: Date; // Track when URL was last refreshed
+  urlExpiresAt?: Date; // When signed URL expires (if applicable)
+  isPermanent?: boolean; // True if using public URL (no expiration)
   usedInCampaigns: Types.ObjectId[];
   usedInContentVersions: Array<{
     campaignId: Types.ObjectId;
@@ -43,6 +46,9 @@ export const AssetSchema = new Schema<AssetDocument>({
   metadata: { type: Object, default: {} },
   uploadedBy: { type: String, required: true },
   uploadedAt: { type: Date, default: Date.now },
+  lastUrlRefreshAt: { type: Date },
+  urlExpiresAt: { type: Date },
+  isPermanent: { type: Boolean, default: false },
   usedInCampaigns: [{ type: Schema.Types.ObjectId, ref: 'Campaign' }],
   usedInContentVersions: [{
     campaignId: { type: Schema.Types.ObjectId, ref: 'Campaign' },
@@ -62,4 +68,6 @@ AssetSchema.index({ tenantId: 1, tags: 1 });
 AssetSchema.index({ tenantId: 1, type: 1 });
 AssetSchema.index({ tenantId: 1, categories: 1 });
 AssetSchema.index({ tenantId: 1, archived: 1 });
+AssetSchema.index({ tenantId: 1, isPermanent: 1 });
+AssetSchema.index({ tenantId: 1, urlExpiresAt: 1 });
 AssetSchema.index({ 'usedInCampaigns': 1 });
