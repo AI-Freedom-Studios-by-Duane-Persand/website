@@ -5,6 +5,7 @@ import SubscriptionGate from "../../components/SubscriptionGate";
 import { useAuth } from "../../hooks/useAuth";
 import { parseJwt } from "../../../lib/parseJwt";
 import { VideoCreationWizard } from "../components/VideoCreationWizard";
+import { AssetImage, AssetVideo } from "../../components/AssetImage";
 
 type Creative = { 
   _id: string; 
@@ -629,17 +630,20 @@ export default function CreativesPage() {
                           {creative.type === 'text' ? '📝 Text' : creative.type === 'image' ? '🖼️ Image' : '🎥 Video'}
                         </div>
                         {previewUrl && isVideo(previewUrl) ? (
-                          <video
+                          <AssetVideo
                             src={previewUrl}
                             className="h-full w-full object-cover"
                             controls
                             preload="metadata"
+                            autoRefresh={true}
                           />
                         ) : previewUrl && isImage(previewUrl) ? (
-                          <img
+                          <AssetImage
                             src={previewUrl}
                             alt="Creative preview"
                             className="h-full w-full object-cover"
+                            autoRefresh={true}
+                            fill
                           />
                         ) : creative.type === 'image' && imagePrompt ? (
                           <div className="text-xs text-slate-600 px-4 text-center space-y-2">
