@@ -16,10 +16,11 @@ export class EncryptionService {
   private encryptionKey: Buffer;
 
   constructor() {
-    // Get encryption key from environment or generate one (should be in env)
-    const keyString = process.env.ENCRYPTION_KEY || process.env.JWT_SECRET || 'default-key-change-in-production';
-    
-    // Derive a proper 32-byte key from the string
+    const keyString = process.env.ENCRYPTION_KEY;
+    if (!keyString) {
+      throw new Error('ENCRYPTION_KEY environment variable is required for EncryptionService');
+    }
+
     this.encryptionKey = crypto
       .createHash('sha256')
       .update(keyString)

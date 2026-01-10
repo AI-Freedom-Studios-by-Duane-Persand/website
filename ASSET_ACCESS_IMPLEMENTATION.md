@@ -240,3 +240,209 @@ git revert aeba489..c848d56
 ✅ Backward compatible with existing assets
 ✅ No breaking changes to API
 ✅ Zero impact on user experience
+
+## Security & Access Control
+
+### Authentication & Authorization
+
+#### Endpoint Access Requirements
+
+**Tenant-Scoped Operations** (require JWT + tenant validation):
+- `POST /storage/assets/refresh-url` - Refresh single asset URL for authenticated user's tenant
+- `GET /storage/assets/status` - Check asset URL status within user's tenant scope
+- `POST /storage/assets/refresh-batch?olderThanDays=N` - Batch refresh assets in user's tenant
+
+All tenant-scoped endpoints:
+1. Authenticate via JWT bearer token (verified by `JwtAuthGuard` middleware)
+2. Extract `tenantId` from JWT payload
+3. Apply database-level tenant filters to all queries (`{ tenantId: user.tenantId }`)
+4. Prevent cross-tenant access through strict validation
+
+**Admin/Global Operations** (require admin role):
+- `POST /storage/assets/migrate-to-permanent` - Migrate entire tenant's assets to public URLs (tenant-owner or admin only)
+
+**Authorization Flow**:
+```typescript
+@UseGuards(JwtAuthGuard)  // Step 1: Verify JWT token
+async refreshAssetUrl(@Req() req: any, @Query('url') url: string) {
+  const user = req.user;  // Step 2: Extract user from JWT
+  const tenantId = user.tenantId;  // Step 3: Get tenant scope
+  
+  // Step 4: Validate asset ownership/permissions
+  const asset = await this.assetModel.findOne({ url, tenantId });
+  if (!asset) throw new ForbiddenException();
+  
+  // Step 5: Proceed with authorized action
+  return await this.storageService.refreshAssetUrl(url, tenantId);
+}
+```
+
+### Public URL Risks & Mitigation
+
+**Risk**: Setting `isPermanent: true` with `publicBaseUrl` makes assets publicly discoverable.
+
+**Mitigation Strategies**:
+1. **Unpredictable Object Keys**: Use UUIDs or random suffixes in asset keys
+   ```typescript
+   const key = `${tenantId}/${uuid()}-${filename}`;  // Hard to guess
+   ```
+
+2. **Signed Token Metadata**: For sensitive assets, append verification tokens:
+   ```typescript
+   const url = `${publicBaseUrl}/${key}?token=${signedToken}`;
+   ```
+
+3. **IP/CIDR Restrictions** (for enterprise): Configure CloudflareR2 bucket policies to limit access by IP range
+
+4. **Content-Type Validation**: Serve assets with correct MIME types to prevent malicious uploads
+
+5. **Privacy Recommendations**:
+   - ✅ Use public URLs for marketing/social media assets
+   - ❌ **Never** use public URLs for PII, financial docs, or sensitive user data
+   - ⚠️ Consider signed URLs with rotation for user-generated content
+
+### Rate Limiting & Throttling
+
+**Prescribed Limits**:
+- `POST /storage/assets/refresh-url`: 60 requests/minute per tenant
+- `POST /storage/assets/refresh-batch`: 10 requests/hour per tenant (expensive operation)
+- `GET /storage/assets/status`: 120 requests/minute per tenant
+- `POST /storage/assets/migrate-to-permanent`: 1 request/day per tenant
+
+**Implementation**:
+```typescript
+@UseGuards(ThrottlerGuard)
+@Throttle({ short: { ttl: 60000, limit: 60 } })  // 60/min
+async refreshAssetUrl() { ... }
+
+@Throttle({ long: { ttl: 3600000, limit: 10 } })  // 10/hour
+async refreshAssetUrlsBatch() { ... }
+```
+
+**Client-Side Backoff**:
+- Exponential backoff on 429 (Too Many Requests): 1s, 2s, 4s, 8s
+- Circuit breaker after 5 consecutive failures
+- Retry queue for failed refreshes
+
+### Error Handling & Retry Strategy
+
+**When `refreshAssetUrl` / `refreshAssetUrlsBatch` Fail**:
+
+1. **Exponential Backoff Retry**:
+   ```typescript
+   async retryRefresh(url: string, maxRetries = 3) {
+     for (let i = 0; i < maxRetries; i++) {
+       try {
+         return await AssetUrlManager.refreshAssetUrl(url);
+       } catch (err) {
+         await delay(Math.pow(2, i) * 1000);  // 1s, 2s, 4s
+       }
+     }
+     throw new Error('Max retries exceeded');
+   }
+   ```
+
+2. **Error Counter & Asset Health**:
+   - Track failed refresh attempts in `asset.refreshFailureCount`
+   - Mark asset as `unhealthy` after 5 consecutive failures
+   - Alert admins via webhook/email for unhealthy assets
+
+3. **Fallback Strategy**:
+   - Return cached URL if refresh fails (stale-while-revalidate)
+   - Display placeholder image/video for permanently failed assets
+   - Provide manual "Retry" button in UI
+
+4. **Alerting & Monitoring**:
+   - CloudWatch/Datadog alerts for >10% refresh failure rate
+   - Daily digest of assets needing attention
+   - Dashboard showing: total assets, expired count, refresh success rate
+
+### Logging & Security Best Practices
+
+**✅ DO Log**:
+- Asset ID (non-sensitive identifier)
+- Tenant ID
+- Operation type (refresh, migrate, status)
+- Success/failure status
+- Error messages (sanitized)
+- Masked URLs: `https://*****.r2.cloudflarestorage.com/[REDACTED]`
+
+**❌ NEVER Log**:
+- Full signed URLs (contain `X-Amz-*` sensitive params)
+- R2 access keys or secrets
+- User tokens or JWT payloads
+- Raw object keys that might expose private data
+
+**Code Example**:
+```typescript
+// ❌ BAD
+this.logger.log(`Refreshing ${url}`);  // Logs full signed URL!
+
+// ✅ GOOD
+const maskedUrl = url.split('?')[0].replace(/[a-f0-9-]{36}/g, '[UUID]');
+this.logger.log(`Refreshing asset`, { assetId, tenantId, maskedUrl });
+```
+
+**Frontend Logging** (`AssetUrlManager`, `AssetImage`, `AssetVideo`):
+- Only log asset identifiers, never full URLs
+- Redact query parameters before logging
+- Use `console.warn` for failures, never `console.log` URLs
+
+### Role-Based Access Control (RBAC)
+
+**Roles**:
+- `tenantOwner`: Can refresh/migrate assets within their tenant
+- `tenantAdmin`: Same as owner
+- `tenantMember`: Read-only access to asset status
+- `globalAdmin`: Can access cross-tenant refresh operations (use with extreme caution)
+
+**Preventing Cross-Tenant Access**:
+```typescript
+// Enforce tenant scope in ALL queries
+const asset = await this.assetModel.findOne({
+  _id: assetId,
+  tenantId: user.tenantId,  // ← Critical: always filter by tenant
+});
+
+if (!asset) throw new ForbiddenException('Asset not found or access denied');
+```
+
+**Audit Trail**:
+- Log all admin operations with `performedBy` user ID
+- Track bulk operations (migrate, batch refresh) in audit table
+- Retention: 90 days minimum for compliance
+
+### Signed URL Security
+
+**V4 Presigned URL Details**:
+- Generated with short TTL (7 days default, max 7 days for R2)
+- Includes cryptographic signature in `X-Amz-Signature`
+- Cannot be extended or modified without re-signing
+
+**Rotation & Revocation**:
+- Metadata-based versioning: Store `urlVersion` in asset record
+- Increment version on suspected compromise → all old URLs invalid
+- Active token list (optional): Maintain allowlist of valid signatures
+
+**Best Practices**:
+- ✅ Use HTTPS only for signed URLs
+- ✅ Set `X-Amz-Expires` to minimum required duration
+- ✅ Regenerate URLs before expiration (6-day threshold)
+- ❌ Never cache signed URLs in CDN/browser beyond TTL
+- ❌ Never expose signed URLs in client-side JavaScript bundles
+
+**IP Restrictions** (Enterprise Feature):
+```typescript
+const signedUrl = await s3.getSignedUrl('getObject', {
+  Bucket: bucket,
+  Key: key,
+  Expires: 604800,
+  // Optional: restrict to specific CIDR block
+  Conditions: [
+    ['ip-address', '==', '203.0.113.0/24']
+  ]
+});
+```
+
+---
+

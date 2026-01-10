@@ -402,8 +402,8 @@ Return ONLY a refined prompt optimized for video generation, without any explana
 
         try {
           const imageUrl = await this.replicateClient.generateImage(enhancedPrompt, {
-            width: 1536,
-            height: 864,
+            width: 1280,
+            height: 720,
           });
 
           frame.imageUrl = imageUrl;

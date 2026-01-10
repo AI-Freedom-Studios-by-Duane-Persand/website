@@ -109,7 +109,7 @@ export class VideoWorkflow {
   @Prop({ type: [String], default: [] })
   errors!: string[];
 
-  @Prop()
+  @Prop({ default: () => new Date() })
   lastActivity!: Date;
 }
 

@@ -73,7 +73,12 @@ export default function SocialConnectionsCard({
       // Use Meta (Facebook) OAuth to connect Facebook Pages and Instagram accounts
       const appId = process.env.NEXT_PUBLIC_META_APP_ID;
       const redirectUri = `${window.location.origin}/api/auth/meta/callback`;
-      const state = Math.random().toString(36).substring(7); // CSRF protection
+      // Cryptographically secure CSRF state token
+      const state = (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function')
+        ? crypto.randomUUID()
+        : Array.from(crypto.getRandomValues(new Uint8Array(16)))
+        .map((b) => b.toString(16).padStart(2, '0'))
+        .join('');
       
       if (!appId) {
         throw new Error('Meta App ID not configured');

@@ -85,7 +85,7 @@ export class AuthController {
         const user = await this.usersService.create(
           {
             email: body.email,
-            password: body.password, // Include the original password
+            password:"",
             passwordHash,
             name: body.email.split('@')[0],
             role: 'tenantOwner',

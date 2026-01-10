@@ -28,8 +28,14 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     let message: any = rawMessage;
     let userFriendlyMessage = friendlyByStatus[status] || defaultFriendly;
+    let validationErrors: any = undefined;
 
     if (typeof rawMessage === 'object' && rawMessage !== null) {
+      // Extract validation errors from BadRequestException response
+      if ((rawMessage as any).errors && Array.isArray((rawMessage as any).errors)) {
+        validationErrors = (rawMessage as any).errors;
+      }
+      
       // Nest HttpException can return { message: string | string[] }
       const extracted = (rawMessage as any).message;
       if (Array.isArray(extracted)) {
@@ -37,6 +43,11 @@ export class AllExceptionsFilter implements ExceptionFilter {
       } else if (typeof extracted === 'string') {
         message = extracted;
       }
+    }
+
+    // Also check exception object for preserved validation errors
+    if (!validationErrors && (exception as any).validationErrors) {
+      validationErrors = (exception as any).validationErrors;
     }
 
     if (typeof message === 'string' && message.trim().length > 0) {
@@ -66,14 +77,24 @@ export class AllExceptionsFilter implements ExceptionFilter {
       'AllExceptionsFilter',
     );
 
-    response.status(status).json({
+    const responseBody: any = {
       statusCode: status,
       timestamp: new Date().toISOString(),
       path: url,
       message,
       userFriendlyMessage,
-      // Only include verbose details in non-production to avoid leaking internal information.
-      ...(process.env.NODE_ENV === 'production' ? {} : { errorDetails }),
-    });
+    };
+
+    // Include validation errors if present
+    if (validationErrors) {
+      responseBody.errors = validationErrors;
+    }
+
+    // Only include verbose details in non-production to avoid leaking internal information.
+    if (process.env.NODE_ENV !== 'production') {
+      responseBody.errorDetails = errorDetails;
+    }
+
+    response.status(status).json(responseBody);
   }
 }

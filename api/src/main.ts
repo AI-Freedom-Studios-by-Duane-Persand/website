@@ -60,23 +60,46 @@ async function bootstrap() {
   const { AllExceptionsFilter } = await import('./common/all-exceptions.filter');
   const loggerInstance = WinstonModule.createLogger(winstonConfig);
   app.useGlobalFilters(new AllExceptionsFilter(loggerInstance));
-  // Enable global validation pipe with payload logging
-  console.log('[main.ts] Enabling global ValidationPipe with payload logging...');
+  // Enable global validation pipe with detailed error reporting
+  console.log('[main.ts] Enabling global ValidationPipe with detailed error reporting...');
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
       forbidNonWhitelisted: true,
       transform: true,
+      transformOptions: {
+        enableImplicitConversion: true,
+      },
       exceptionFactory: (errors) => {
         const detailedErrors = errors.map((err) => ({
           field: err.property,
-          errors: Object.values(err.constraints || {}),
+          constraints: err.constraints || {},
+          nestedErrors: err.children?.length
+            ? err.children.map((child) => ({
+                field: child.property,
+                constraints: child.constraints || {},
+              }))
+            : undefined,
         }));
-        loggerInstance.warn('[ValidationPipe] Validation failed', { errors: detailedErrors });
-        return new BadRequestException({
-          message: 'Validation failed',
-          errors: detailedErrors,
-        });
+        // Use proper LoggerService API: second arg is context string, not metadata
+        loggerInstance.warn(
+          `[ValidationPipe] Validation failed (${errors.length} errors)`,
+          'ValidationPipe',
+        );
+        // Log detailed errors as JSON to avoid [object Object]
+        try {
+          loggerInstance.warn(
+            `[ValidationPipe] Details: ${JSON.stringify(detailedErrors)}`,
+            'ValidationPipe',
+          );
+        } catch {
+          // Fallback to console for any serialization issues
+          console.warn('[ValidationPipe] Details:', detailedErrors);
+        }
+        // Create exception and preserve validation errors for the filter
+        const exception = new BadRequestException('Validation failed');
+        (exception as any).validationErrors = detailedErrors;
+        return exception;
       },
     }),
   );

@@ -102,28 +102,43 @@ export class ReplicateClient {
         return Math.round(value / multiple) * multiple;
       };
 
-      const width = normalizeToMultiple(options.width ?? 1536, 16);
-      const height = normalizeToMultiple(options.height ?? 864, 16);
+      // Replicate API limits for Flux Schnell
+      const MAX_WIDTH = 1280;
+      const MAX_HEIGHT = 1280;
+      const MIN_DIMENSION = 256;
+
+      const envDefaultWidth = Number(process.env.DEFAULT_IMAGE_WIDTH) || 1024;
+      const envDefaultHeight = Number(process.env.DEFAULT_IMAGE_HEIGHT) || 576;
+      
+      // Constrain and normalize dimensions
+      const requestedWidth = options.width ?? envDefaultWidth;
+      const requestedHeight = options.height ?? envDefaultHeight;
+      
+      const width = normalizeToMultiple(
+        Math.max(MIN_DIMENSION, Math.min(MAX_WIDTH, requestedWidth)), 
+        16
+      );
+      const height = normalizeToMultiple(
+        Math.max(MIN_DIMENSION, Math.min(MAX_HEIGHT, requestedHeight)), 
+        16
+      );
 
       this.logger.info('[ReplicateClient] Generating image', {
         prompt: prompt.substring(0, 120),
         size: `${width}x${height}`,
       });
 
-      // Flux Schnell: doesn't support guidance_scale, num_inference_steps, or scheduler
-      // These parameters will be silently ignored if sent
-      // Using simplified input for reliability
+      // Use Flux Pro for higher quality (supports guidance and inference steps)
+      // Flux Pro is slower than Schnell but produces better results
       const response = await this.axiosInstance.post('/predictions', {
-        version: '5599ed30703defd1d160a25a63321b4dec97101d98b4674bcc56e41f62f35637', // Flux Schnell
+        version: 'aa74fab0c5f5402b67aa11743f66e73fd2b03209987eef1db38f5e61fcb51235', // Flux Pro
         input: {
           prompt,
           width,
           height,
           num_outputs: 1,
-          // Note: Flux Schnell doesn't support these - removed to prevent 422 errors
-          // num_inference_steps: removed
-          // guidance_scale: removed
-          // scheduler: removed
+          guidance_scale: 3.5, // Higher = more adherence to prompt (but slower)
+          num_inference_steps: 50, // Higher = better quality (but slower)
         },
       });
 

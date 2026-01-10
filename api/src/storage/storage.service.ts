@@ -153,8 +153,9 @@ export class StorageService {
   /**
    * Refresh an existing asset URL (regenerate signed URL or return public URL)
    * This method ensures assets remain accessible even after URL expiration
+   * @param persist If true, updates the asset record in database with new URL
    */
-  async refreshAssetUrl(url: string, tenantId?: string): Promise<string> {
+  async refreshAssetUrl(url: string, tenantId?: string, persist: boolean = true): Promise<string> {
     if (!url) {
       throw new BadRequestException('url is required');
     }
@@ -164,13 +165,39 @@ export class StorageService {
     // If publicBaseUrl is configured, return public URL (permanent)
     if (this.publicBaseUrl) {
       const key = this.extractKey(url);
-      return `${this.publicBaseUrl}/${key}`;
+      const newUrl = `${this.publicBaseUrl}/${key}`;
+      
+      if (persist && tenantId) {
+        const asset = await this.assetModel.findOne({ url, tenantId }).exec();
+        if (asset) {
+          asset.url = newUrl;
+          asset.lastUrlRefreshAt = new Date();
+          asset.isPermanent = true;
+          asset.urlExpiresAt = undefined;
+          await asset.save();
+        }
+      }
+      
+      return newUrl;
     }
 
     // Otherwise generate new signed URL with 7-day expiration
     try {
       const key = this.extractKey(url);
-      return await this.generateSignedGetUrl(key, 604800); // 7 days
+      const newUrl = await this.generateSignedGetUrl(key, 604800); // 7 days
+      
+      if (persist && tenantId) {
+        const asset = await this.assetModel.findOne({ url, tenantId }).exec();
+        if (asset) {
+          asset.url = newUrl;
+          asset.lastUrlRefreshAt = new Date();
+          asset.urlExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+          asset.isPermanent = false;
+          await asset.save();
+        }
+      }
+      
+      return newUrl;
     } catch (err: any) {
       this.logger.error('[refreshAssetUrl] Failed to refresh URL', {
         errorMessage: err?.message,
@@ -249,7 +276,7 @@ export class StorageService {
     }
 
     const now = new Date();
-    const needsRefresh = asset.urlExpiresAt ? asset.urlExpiresAt <= new Date(Date.now() + 24 * 60 * 60 * 1000) : false; // Refresh if expires in < 1 day
+    const needsRefresh = asset.urlExpiresAt ? asset.urlExpiresAt.getTime() <= now.getTime() + 24 * 60 * 60 * 1000 : false;
 
     return {
       url: asset.url,
@@ -329,25 +356,23 @@ export class StorageService {
 
     if (!this.s3) await this.init(tenantId);
     
-    // If publicBaseUrl is configured, return public URL directly
-    if (this.publicBaseUrl && urlOrKey.includes(this.publicBaseUrl)) {
-      return urlOrKey; // Already a public URL
+    // If already a public URL, return it
+    if (urlOrKey.includes(this.publicBaseUrl) && urlOrKey.startsWith('http')) {
+      return urlOrKey;
     }
     
     const key = this.extractKey(urlOrKey);
     
-    // If publicBaseUrl is configured, construct and return public URL
-    if (this.publicBaseUrl) {
-      return `${this.publicBaseUrl}/${key}`;
-    }
-
+    // Always use signed URLs for R2 to avoid authorization issues
+    // R2 buckets require either public access + CORS (not recommended) or signed URLs (secure)
     try {
       return await this.generateSignedGetUrl(key, expiresInSeconds);
     } catch (err: any) {
-      this.logger.warn('[getViewUrlForExisting] Failed to sign URL, falling back to canonical', {
+      this.logger.warn('[getViewUrlForExisting] Failed to sign URL, falling back to publicBaseUrl', {
         errorMessage: err?.message,
         key,
       });
+      // Fallback: if signed URL fails, try public URL as last resort
       return this.publicBaseUrl ? `${this.publicBaseUrl}/${key}` : urlOrKey;
     }
   }

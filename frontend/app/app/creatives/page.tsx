@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import EarlyAccessGate from "../../components/EarlyAccessGate";
 import SubscriptionGate from "../../components/SubscriptionGate";
 import { useAuth } from "../../hooks/useAuth";
@@ -14,6 +14,7 @@ type Creative = {
   visual?: { imageUrl?: string; prompt?: string }; 
   assets?: { videoUrl?: string }; 
   script?: { hook?: string; body?: string | string[]; outro?: string }; 
+  metadata?: { prompt?: string };
   tenantId?: string;
   campaignId?: string;
   updatedAt: string;
@@ -51,6 +52,7 @@ export default function CreativesPage() {
   const [error, setError] = useState("");
   const [creatives, setCreatives] = useState<Creative[]>([]);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [campaignsError, setCampaignsError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editCaption, setEditCaption] = useState("");
   const [renderingMedia, setRenderingMedia] = useState<Set<string>>(new Set());
@@ -93,7 +95,11 @@ export default function CreativesPage() {
   const [showRecreateModal, setShowRecreateModal] = useState(false);
   const [recreateId, setRecreateId] = useState<string | null>(null);
   const [recreateWithChanges, setRecreateWithChanges] = useState(false);
+  const [recreatePrompt, setRecreatePrompt] = useState("");
   const [recreatingAsset, setRecreatingAsset] = useState(false);
+
+  const createModalRef = useRef<HTMLDivElement | null>(null);
+  const previousFocusRef = useRef<Element | null>(null);
 
   const apiUrl = useMemo(
     () =>
@@ -115,14 +121,17 @@ export default function CreativesPage() {
   }
 
   async function fetchCampaigns() {
+    setCampaignsError(null);
     try {
       const res = await fetch(`${apiUrl}/api/campaigns`, {
         headers: getAuthHeaders(),
       });
       if (!res.ok) throw new Error("Failed to fetch campaigns");
       setCampaigns(await res.json());
+      setCampaignsError(null);
     } catch (err: any) {
-      console.error("Error loading campaigns:", err);
+      const message = err?.message || "Error loading campaigns";
+      setCampaignsError(message);
     }
   }
 
@@ -287,8 +296,8 @@ export default function CreativesPage() {
       const qualityPayload = type === 'image'
         ? {
             model: 'flux-schnell',
-              width: 1536,
-              height: 864,
+              width: 1280,
+              height: 720,
             negativePrompt: 'low quality, blurry, artifacts, watermark, distorted anatomy',
             numInferenceSteps: 32,
             guidanceScale: 8,
@@ -420,8 +429,11 @@ export default function CreativesPage() {
       } else if (creative.type === 'video') {
         await handleRenderMedia(recreateId, 'video');
       } else if (creative.type === 'text') {
-        // For text creatives, regenerate with the same prompt
-        const prompt = creative.copy?.caption || "Regenerate caption";
+        // For text creatives, use a stored original prompt or user-provided instruction
+        const storedPrompt = creative.visual?.prompt || creative.metadata?.prompt || null;
+        const prompt = recreatePrompt?.trim()
+          || storedPrompt
+          || `Regenerate caption preserving tone and length of the original: ${creative.copy?.caption || ''}`;
         const res = await fetch(`${apiUrl}/api/creatives/${recreateId}/regenerate`, {
           method: "PUT",
           headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
@@ -446,6 +458,61 @@ export default function CreativesPage() {
     fetchCampaigns();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!showCreateModal) return;
+
+    previousFocusRef.current = document.activeElement;
+
+    const modalElement = createModalRef.current;
+    if (modalElement) {
+      modalElement.focus();
+    }
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !creating) {
+        setShowCreateModal(false);
+        return;
+      }
+
+      if (e.key !== "Tab" || !modalElement) return;
+
+      const focusable = modalElement.querySelectorAll<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+
+      if (!focusable.length) return;
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const active = document.activeElement as HTMLElement | null;
+
+      if (!modalElement.contains(active)) {
+        e.preventDefault();
+        first.focus();
+        return;
+      }
+
+      if (!e.shiftKey && active === last) {
+        e.preventDefault();
+        first.focus();
+      } else if (e.shiftKey && active === first) {
+        e.preventDefault();
+        last.focus();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      const previous = previousFocusRef.current as HTMLElement | null;
+      if (previous && typeof previous.focus === "function") {
+        previous.focus();
+      }
+      previousFocusRef.current = null;
+    };
+  }, [showCreateModal, creating]);
 
   return (
     <EarlyAccessGate hasAccess={hasEarlyAccess}>
@@ -499,6 +566,34 @@ export default function CreativesPage() {
             className="rounded-2xl border border-red-500/30 bg-red-500/10 text-red-200 px-4 py-3"
           >
             {error}
+          </div>
+        )}
+
+        {campaignsError && (
+          <div
+            role="status"
+            className="flex items-start justify-between gap-3 rounded-2xl border border-amber-400/40 bg-amber-50 text-amber-900 px-4 py-3"
+          >
+            <div className="space-y-1 text-sm">
+              <div className="font-semibold">Unable to load campaigns</div>
+              <div>{campaignsError}</div>
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={fetchCampaigns}
+                className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-amber-600 text-white hover:bg-amber-700 transition"
+              >
+                Retry
+              </button>
+              <button
+                type="button"
+                onClick={() => setCampaignsError(null)}
+                className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-amber-200 bg-white text-amber-900 hover:bg-amber-100 transition"
+              >
+                Dismiss
+              </button>
+            </div>
           </div>
         )}
 
@@ -869,12 +964,19 @@ export default function CreativesPage() {
         {/* Create Modal */}
         {showCreateModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-            <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div
+              ref={createModalRef}
+              role="dialog"
+              aria-modal="true"
+              tabIndex={-1}
+              className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+            >
               <div className="p-6 border-b border-slate-200 sticky top-0 bg-white z-10">
                 <div className="flex items-center justify-between">
                   <h2 className="text-xl font-bold text-slate-900">Create New Creative</h2>
                   <button
                     onClick={() => setShowCreateModal(false)}
+                    aria-label="Close"
                     className="text-slate-400 hover:text-slate-600 transition"
                   >
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1063,7 +1165,12 @@ export default function CreativesPage() {
                         max="60"
                         className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500"
                         value={videoDuration}
-                        onChange={(e) => setVideoDuration(parseInt(e.target.value) || 10)}
+                        onChange={(e) => {
+                          let v = parseInt(e.target.value, 10);
+                          if (Number.isNaN(v)) v = 10;
+                          v = Math.max(5, Math.min(60, v));
+                          setVideoDuration(v);
+                        }}
                       />
                       <p className="mt-1 text-xs text-slate-500">
                         Between 5-60 seconds. Longer videos take more time to generate.
@@ -1310,10 +1417,23 @@ export default function CreativesPage() {
                 <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
                   <p className="text-sm text-blue-800">
                     {recreateId && creatives.find(c => c._id === recreateId)?.type === 'text' 
-                      ? '📝 This will regenerate the caption and hashtags with the same prompt.'
+                      ? '📝 This will regenerate the caption and hashtags. Provide instructions below to guide regeneration.'
                       : '🎨 This will generate a new version of your asset with the existing prompt.'}
                   </p>
                 </div>
+
+                {recreateId && creatives.find(c => c._id === recreateId)?.type === 'text' && (
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-1">Regeneration Instructions (optional)</label>
+                    <textarea
+                      value={recreatePrompt}
+                      onChange={(e) => setRecreatePrompt(e.target.value)}
+                      rows={3}
+                      placeholder="e.g., Keep the tone friendly, add a strong CTA, and match the original length."
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                    />
+                  </div>
+                )}
 
                 <div className="flex gap-3">
                   <button
@@ -1332,6 +1452,7 @@ export default function CreativesPage() {
                     onClick={() => {
                       setShowRecreateModal(false);
                       setRecreateId(null);
+                      setRecreatePrompt("");
                     }}
                     disabled={recreatingAsset}
                     className="

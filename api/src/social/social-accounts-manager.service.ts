@@ -39,11 +39,16 @@ export class SocialAccountsManagerService {
    * Create or update a social account
    */
   async upsertAccount(dto: CreateSocialAccountDto): Promise<SocialAccountDocument> {
+    if (!dto.tenantId) {
+      throw new Error('tenantId is required to upsert a social account');
+    }
+
     const encryptedToken = this.encryptionService.encrypt(dto.accessToken);
 
     // Find existing account
     const query: any = {
       userId: new Types.ObjectId(dto.userId),
+      tenantId: new Types.ObjectId(dto.tenantId),
       platform: dto.platform,
     };
 
@@ -130,9 +135,21 @@ export class SocialAccountsManagerService {
     // Check if token is expired
     if (account.tokenExpiresAt && account.tokenExpiresAt < new Date()) {
       // Try to refresh
-      await this.refreshAccountToken(account);
+      try {
+        await this.refreshAccountToken(account);
+      } catch (error: any) {
+        throw new Error(`Unable to refresh access token: ${error?.message || 'unknown error'}`);
+      }
       // Reload account
       const refreshedAccount = await this.getAccount(accountId);
+
+      if (!refreshedAccount.encryptedAccessToken) {
+        throw new Error('No access token available after refresh');
+      }
+      if (refreshedAccount.tokenExpiresAt && refreshedAccount.tokenExpiresAt < new Date()) {
+        throw new Error('Refreshed access token is still expired');
+      }
+
       return this.encryptionService.decrypt(refreshedAccount.encryptedAccessToken);
     }
 
@@ -157,12 +174,12 @@ export class SocialAccountsManagerService {
   /**
    * Deactivate a social account
    */
-  async deactivateAccount(accountId: string): Promise<void> {
+  async deactivateAccount(accountId: string, performedBy?: string): Promise<void> {
     await this.socialAccountModel.updateOne(
       { _id: new Types.ObjectId(accountId) },
       { $set: { isActive: false, updatedAt: new Date() } }
     );
-    this.logger.log(`Deactivated account: ${accountId}`);
+    this.logger.log(`Deactivated account: ${accountId}${performedBy ? ` by ${performedBy}` : ''}`);
   }
 
   /**
@@ -179,7 +196,8 @@ export class SocialAccountsManagerService {
   async recordError(accountId: string, error: string): Promise<void> {
     const account = await this.getAccount(accountId);
     account.lastError = error;
-    account.errorCount += 1;
+    const currentErrorCount = account.errorCount ?? 0;
+    account.errorCount = currentErrorCount + 1;
     
     // Deactivate if too many errors
     if (account.errorCount >= 5) {
@@ -194,6 +212,8 @@ export class SocialAccountsManagerService {
    * Refresh a single account's token
    */
   private async refreshAccountToken(account: SocialAccountDocument): Promise<void> {
+    let errorRecorded = false;
+
     try {
       this.logger.log(`Refreshing token for account ${account._id}...`);
 
@@ -239,13 +259,18 @@ export class SocialAccountsManagerService {
           
           this.logger.log(`Verified page token for account ${account._id}`);
         } catch (error: any) {
+          errorRecorded = true;
           this.logger.error(`Page token verification failed for account ${account._id}: ${error.message}`);
           await this.recordError(account._id.toString(), `Token verification failed: ${error.message}`);
+          throw error;
         }
       }
     } catch (error: any) {
       this.logger.error(`Failed to refresh token for account ${account._id}: ${error.message}`);
-      await this.recordError(account._id.toString(), `Token refresh failed: ${error.message}`);
+      if (!errorRecorded) {
+        await this.recordError(account._id.toString(), `Token refresh failed: ${error.message}`);
+      }
+      throw error;
     }
   }
 
@@ -303,8 +328,8 @@ export class SocialAccountsManagerService {
           const appAccessToken = `${process.env.META_APP_ID}|${process.env.META_APP_SECRET}`;
           
           const debugInfo = await this.metaService.debugToken(token, appAccessToken);
-          
-          if (debugInfo.is_valid) {
+
+          if (debugInfo && typeof debugInfo === 'object' && 'is_valid' in debugInfo && (debugInfo as any).is_valid) {
             account.lastSyncedAt = new Date();
             account.errorCount = 0;
             account.lastError = undefined;

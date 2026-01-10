@@ -23,6 +23,46 @@ Assets stored in R2 (Cloudflare) now have **permanent access** through automatic
    - Expires after 7 days (604,800 seconds)
    - Automatically refreshed before expiration
 
+### URL Encoding & Edge Cases
+
+**Special Characters in Keys:**
+Asset keys with spaces or special characters are automatically URL-encoded:
+```typescript
+// Key with spaces
+const key = "my folder/image file.png";
+// Stored as: "my%20folder/image%20file.png"
+
+// Key with special chars
+const key = "assets/brand#1/logo@2x.png";
+// Stored as: "assets/brand%231/logo%402x.png"
+```
+
+**Handling Non-ASCII Characters:**
+```typescript
+// Unicode characters (emoji, non-Latin)
+const key = "uploads/🎉celebration/文件.jpg";
+// Properly encoded by encodeURIComponent()
+// Result: "uploads/%F0%9F%8E%89celebration/%E6%96%87%E4%BB%B6.jpg"
+```
+
+**Query Parameter Preservation:**
+When refreshing URLs with existing query params:
+```typescript
+// Original URL
+const url = "https://assets.example.com/video.mp4?t=30&autoplay=1";
+
+// After refresh (query params preserved)
+const refreshed = await refreshAssetUrl(url);
+// Result: "https://assets.example.com/video.mp4?t=30&autoplay=1&X-Amz-..."
+```
+
+**Normalized Path Handling:**
+```typescript
+// Paths with double slashes or relative segments
+const key = "folder//subfolder/./file.png";
+// Normalized to: "folder/subfolder/file.png"
+```
+
 ## Backend Components
 
 ### StorageService Methods
@@ -220,19 +260,110 @@ NEXT_PUBLIC_API_URL=https://api.example.com
 
 ## Implementation Guide
 
-### Step 1: Ensure R2 Bucket is Public (Recommended)
-```bash
-# In Cloudflare R2 settings, allow public access to bucket
-# Set ACL to 'public-read' for all objects
-```
+### Step 0: R2 Bucket Setup (Cloudflare Dashboard)
 
-### Step 2: Configure Public Base URL
+**Create R2 Bucket:**
+
+1. **Navigate to R2:**
+   - Log in to Cloudflare Dashboard → R2 Object Storage
+   - Click "Create bucket"
+
+2. **Bucket Configuration:**
+   ```
+   Bucket Name: ai-freedom-studio-assets  (or your preferred name)
+   Location: Automatic (or choose specific region for compliance)
+   ```
+
+3. **Enable Public Access (Recommended):**
+   - Go to bucket Settings → Public Access
+   - Toggle "Allow public access" → Enable
+   - Click "Save"
+   
+   **Warning:** Only use public access for non-sensitive assets. For user-uploaded content with privacy concerns, skip this step and use signed URLs.
+
+4. **Configure Custom Domain (Optional but Recommended):**
+   ```
+   Go to bucket Settings → Custom Domains
+   Click "Connect Domain"
+   
+   Domain: assets.yourcompany.com
+   
+   Add DNS records as instructed:
+   Type: CNAME
+   Name: assets
+   Target: {your-bucket}.r2.cloudflarestorage.com
+   ```
+   
+   **Benefits:**
+   - Branded URLs (`assets.yourcompany.com/image.jpg`)
+   - Better CDN caching
+   - Easier to migrate storage providers later
+
+5. **Create API Token:**
+   ```
+   Go to R2 → Manage R2 API Tokens
+   Click "Create API Token"
+   
+   Token Name: ai-freedom-studio-backend
+   Permissions: Object Read & Write
+   
+   Copy and save:
+   - Access Key ID (like AWS_ACCESS_KEY_ID)
+   - Secret Access Key (like AWS_SECRET_ACCESS_KEY)
+   - R2 Endpoint URL (e.g., https://{accountId}.r2.cloudflarestorage.com)
+   ```
+
+6. **Set Bucket CORS (if frontend uploads directly):**
+   ```json
+   Go to bucket Settings → CORS Policy
+   Add rule:
+   {
+     "AllowedOrigins": ["https://yourapp.com", "http://localhost:3000"],
+     "AllowedMethods": ["GET", "PUT", "POST", "DELETE", "HEAD"],
+     "AllowedHeaders": ["*"],
+     "ExposeHeaders": ["ETag"],
+     "MaxAgeSeconds": 3600
+   }
+   ```
+
+7. **Configure Lifecycle Rules (Optional):**
+   ```
+   Go to bucket Settings → Lifecycle Rules
+   
+   Rule: Delete old temporary files
+   Prefix: temp/
+   Expiration: 7 days
+   ```
+
+### Step 1: Backend Environment Configuration
+
+**For Public Bucket (Recommended):**
 ```env
-# backend/.env
-R2_PUBLIC_BASE_URL=https://assets.example.com
+# api/.env
+R2_ENDPOINT=https://{accountId}.r2.cloudflarestorage.com
+R2_BUCKET_NAME=ai-freedom-studio-assets
+R2_ACCESS_KEY_ID=your_access_key_from_step_5
+R2_SECRET_ACCESS_KEY=your_secret_key_from_step_5
+
+# Public URL (use custom domain if configured)
+R2_PUBLIC_BASE_URL=https://assets.yourcompany.com
+# OR use R2's default public URL:
+# R2_PUBLIC_BASE_URL=https://pub-{bucketId}.r2.dev
 ```
 
-### Step 3: Migrate Existing Assets (One-time)
+**For Private Bucket (Signed URLs):**
+```env
+# api/.env
+R2_ENDPOINT=https://{accountId}.r2.cloudflarestorage.com
+R2_BUCKET_NAME=ai-freedom-studio-assets
+R2_ACCESS_KEY_ID=your_access_key
+R2_SECRET_ACCESS_KEY=your_secret_key
+
+# Leave R2_PUBLIC_BASE_URL empty or unset
+# R2_PUBLIC_BASE_URL=
+```
+
+### Step 2: Migrate Existing Assets (One-time)
 ```bash
 # Call via API or CLI
 POST /storage/assets/migrate-to-permanent
@@ -242,7 +373,7 @@ POST /storage/assets/migrate-to-permanent
 # await storageService.migrateAssetsToPermanentUrls(tenantId);
 ```
 
-### Step 4: Setup Background Job for Automatic Refresh
+### Step 3: Setup Background Job for Automatic Refresh
 
 #### Option A: Cron Job (Recommended for 7-day signed URL scenario)
 ```typescript
@@ -315,7 +446,7 @@ export class CreativeService {
 }
 ```
 
-### Step 5: Use Asset Components in Frontend
+### Step 4: Use Asset Components in Frontend
 ```tsx
 // Instead of:
 <img src={assetUrl} alt="Asset" />
@@ -353,6 +484,215 @@ const count = await storageService.refreshAssetUrlsBatch(tenantId, 6);
 console.log(`Refreshed ${count} asset URLs`);
 ```
 
+## Error Handling
+
+### Backend Error Responses
+
+**Common Error Codes:**
+```typescript
+// 400 Bad Request - Invalid URL format
+{
+  "statusCode": 400,
+  "message": "Invalid asset URL format",
+  "error": "Bad Request"
+}
+
+// 401 Unauthorized - Missing or invalid JWT
+{
+  "statusCode": 401,
+  "message": "Unauthorized",
+  "error": "Unauthorized"
+}
+
+// 403 Forbidden - Asset belongs to different tenant
+{
+  "statusCode": 403,
+  "message": "You don't have permission to access this asset",
+  "error": "Forbidden"
+}
+
+// 404 Not Found - Asset doesn't exist in database
+{
+  "statusCode": 404,
+  "message": "Asset not found",
+  "error": "Not Found"
+}
+
+// 429 Too Many Requests - Rate limit exceeded
+{
+  "statusCode": 429,
+  "message": "Too many requests",
+  "error": "ThrottlerException"
+}
+
+// 500 Internal Server Error - R2 connection failed
+{
+  "statusCode": 500,
+  "message": "Failed to refresh asset URL",
+  "error": "Internal Server Error"
+}
+```
+
+### Frontend Error Handling
+
+**Graceful Degradation in Components:**
+```tsx
+// AssetImage with comprehensive error handling
+<AssetImage
+  src={assetUrl}
+  alt="Product image"
+  autoRefresh={true}
+  fallback="/images/placeholder.png"  // Shown on error
+  onError={(error) => {
+    // Custom error handling
+    console.error('Asset failed to load:', error);
+    analytics.track('asset_load_error', { url: assetUrl });
+  }}
+/>
+```
+
+**Manual Error Handling with useAssetUrl:**
+```tsx
+import { useAssetUrl } from '@/components/AssetImage';
+import { useState } from 'react';
+
+function MyComponent({ assetUrl }) {
+  const { url, isRefreshing, error, refreshUrl } = useAssetUrl(assetUrl);
+  const [retryCount, setRetryCount] = useState(0);
+
+  const handleRetry = async () => {
+    if (retryCount >= 3) {
+      alert('Max retries reached. Please contact support.');
+      return;
+    }
+    setRetryCount(prev => prev + 1);
+    await refreshUrl();
+  };
+
+  if (error) {
+    return (
+      <div className="error-state">
+        <p>Failed to load asset: {error.message}</p>
+        <button onClick={handleRetry} disabled={isRefreshing}>
+          {isRefreshing ? 'Retrying...' : `Retry (${3 - retryCount} left)`}
+        </button>
+      </div>
+    );
+  }
+
+  return <img src={url} alt="Asset" />;
+}
+```
+
+**Network Error Recovery:**
+```typescript
+// AssetUrlManager with exponential backoff
+import AssetUrlManager from '@/lib/asset-url-manager';
+
+async function refreshWithRetry(url: string, maxRetries = 3) {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await AssetUrlManager.refreshAssetUrl(url);
+    } catch (error) {
+      if (attempt === maxRetries) throw error;
+      
+      // Exponential backoff: 1s, 2s, 4s
+      const delay = Math.pow(2, attempt - 1) * 1000;
+      await new Promise(resolve => setTimeout(resolve, delay));
+      
+      console.log(`Retry ${attempt}/${maxRetries} after ${delay}ms`);
+    }
+  }
+}
+```
+
+**Handling Expired URLs:**
+```typescript
+// Detect and handle expired signed URLs
+function isUrlExpired(url: string): boolean {
+  try {
+    const urlObj = new URL(url);
+    const expiresParam = urlObj.searchParams.get('X-Amz-Expires');
+    const dateParam = urlObj.searchParams.get('X-Amz-Date');
+    
+    if (!expiresParam || !dateParam) {
+      return false;  // Public URL, never expires
+    }
+    
+    const issuedAt = parseAmzDate(dateParam);
+    const expiresIn = parseInt(expiresParam, 10);
+    const expiresAt = new Date(issuedAt.getTime() + expiresIn * 1000);
+    
+    return Date.now() > expiresAt.getTime();
+  } catch {
+    return false;
+  }
+}
+
+// Auto-refresh on image load error
+const handleImageError = async (event: React.SyntheticEvent<HTMLImageElement>) => {
+  const img = event.currentTarget;
+  const src = img.src;
+  
+  if (isUrlExpired(src)) {
+    console.log('URL expired, refreshing...');
+    const newUrl = await AssetUrlManager.refreshAssetUrl(src);
+    img.src = newUrl;
+  } else {
+    // Different error (404, network, etc.)
+    img.src = fallbackUrl;
+  }
+};
+```
+
+### Backend Service Error Handling
+
+**StorageService with detailed logging:**
+```typescript
+@Injectable()
+export class StorageService {
+  private readonly logger = new Logger(StorageService.name);
+
+  async refreshAssetUrl(url: string, tenantId?: string): Promise<string> {
+    try {
+      // Find asset
+      const asset = await this.assetModel.findOne({ url });
+      if (!asset) {
+        this.logger.warn(`Asset not found for URL: ${url.split('?')[0]}`);
+        throw new NotFoundException('Asset not found');
+      }
+
+      // Validate tenant
+      if (tenantId && asset.tenantId.toString() !== tenantId) {
+        this.logger.warn(`Tenant mismatch for asset ${asset._id}`);
+        throw new ForbiddenException('Access denied');
+      }
+
+      // Generate new URL
+      const newUrl = asset.isPermanent
+        ? this.getPublicUrl(asset.key)
+        : await this.generateSignedUrl(asset.key);
+
+      // Update database
+      await this.assetModel.updateOne(
+        { _id: asset._id },
+        {
+          url: newUrl,
+          lastUrlRefreshAt: new Date(),
+          urlExpiresAt: asset.isPermanent ? null : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+        }
+      );
+
+      this.logger.log(`Refreshed URL for asset ${asset._id}`);
+      return newUrl;
+    } catch (error) {
+      this.logger.error(`Failed to refresh URL: ${error.message}`, error.stack);
+      throw error;
+    }
+  }
+}
+```
+
 ## Troubleshooting
 
 ### URLs Still Expiring?
@@ -382,10 +722,123 @@ console.log(`Refreshed ${count} asset URLs`);
 
 ## Security
 
-- Signed URLs use AWS S3 signature verification
-- Public URLs require bucket to be explicitly public
-- All operations are user-authenticated via JWT
-- Tenant data is isolated per tenant
+### Authentication & Authorization
+
+**JWT Token Validation:**
+All API endpoints require valid JWT token in Authorization header:
+```typescript
+// Example request
+fetch('/storage/assets/refresh-url?url=...', {
+  headers: {
+    'Authorization': `Bearer ${jwtToken}`,
+    'Content-Type': 'application/json'
+  }
+});
+```
+
+**Tenant Isolation:**
+Every operation validates tenant ownership:
+```typescript
+// Backend: Automatic tenant check via CurrentUser decorator
+@Post('assets/refresh-url')
+async refreshUrl(
+  @CurrentUser() user,  // Contains tenantId from JWT
+  @Query('url') url: string
+) {
+  // Asset URL is validated against user.tenantId
+  // Cross-tenant access is automatically prevented
+}
+```
+
+### URL Security Best Practices
+
+**1. Public URL Considerations:**
+- ✅ **Unpredictable Keys**: Use UUIDs or hashes, never sequential IDs
+  ```typescript
+  // Good: crypto.randomUUID() or hash-based
+  const key = `${uuidv4()}.${ext}`;  // "3fa85f64-5717-4562-b3fc-2c963f66afa6.jpg"
+  
+  // Bad: Sequential or guessable
+  const key = `asset_${counter}.jpg`;  // "asset_1.jpg", "asset_2.jpg" (enumerable!)
+  ```
+
+- ⚠️ **No Sensitive Data**: Public URLs are accessible without auth
+  ```typescript
+  // For sensitive content, use signed URLs instead
+  if (isSensitive) {
+    // Don't set R2_PUBLIC_BASE_URL for this upload
+    const signedUrl = await this.generateSignedUrl(key);
+  }
+  ```
+
+- 🔒 **IP Whitelisting**: Optionally restrict access by origin
+  ```typescript
+  // Cloudflare Workers or WAF rules
+  if (request.headers.get('cf-connecting-ip') !== allowedIp) {
+    return new Response('Forbidden', { status: 403 });
+  }
+  ```
+
+**2. Signed URL Security:**
+- ✅ **Short Expiration**: 7 days balances usability and security
+- ✅ **Automatic Rotation**: URLs refreshed every 6 days
+- ✅ **Signature Verification**: AWS V4 signature prevents tampering
+- ⚠️ **Revocation**: Changing R2 credentials invalidates all signed URLs
+
+**3. Rate Limiting:**
+```typescript
+// Example rate limit middleware (if not using built-in controller limits)
+import { Throttle } from '@nestjs/throttler';
+
+@Throttle({ default: { limit: 60, ttl: 60000 } })  // 60 requests per minute
+@Get('assets/status')
+async getStatus(@Query('url') url: string) {
+  // Rate-limited endpoint
+}
+```
+
+**4. Input Validation:**
+```typescript
+// Validate URL format before processing
+import { IsUrl, IsNotEmpty } from 'class-validator';
+
+export class RefreshUrlDto {
+  @IsNotEmpty()
+  @IsUrl({ require_protocol: true })
+  url: string;
+}
+```
+
+**5. Logging & Monitoring:**
+```typescript
+// Log access patterns without exposing sensitive data
+this.logger.log({
+  action: 'asset_url_refreshed',
+  tenantId: user.tenantId,
+  assetId: asset._id,
+  // ❌ Don't log full URLs (they contain signed tokens)
+  urlPattern: url.split('?')[0],  // Log only base path
+  timestamp: new Date()
+});
+```
+
+**6. CORS Configuration:**
+```typescript
+// api/src/main.ts
+app.enableCors({
+  origin: process.env.ALLOWED_ORIGINS?.split(',') || 'http://localhost:3000',
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+});
+```
+
+### Compliance & Data Protection
+
+- **GDPR/CCPA**: Asset deletion removes both file and URL from database
+- **Audit Trail**: All refresh operations logged with tenant context
+- **Data Residency**: R2 bucket region configurable per tenant
+- **Encryption**: Files encrypted at rest by Cloudflare R2
 
 ## Future Enhancements
 

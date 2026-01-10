@@ -60,6 +60,9 @@ interface VideoWorkflow {
   currentStep: WorkflowStep;
   status: WorkflowStatus;
   initialPrompt: string;
+  initialMetadata?: {
+    targetAudience?: string;
+  };
   refinementIterations: RefinementIteration[];
   finalRefinedPrompt?: string;
   generatedFrames: GeneratedFrame[];
@@ -127,7 +130,7 @@ export function VideoCreationWizard({
 
   // Step 3: Frame Review
   const [frameReviews, setFrameReviews] = useState<
-    Record<number, { approved: boolean; feedback: string }>
+    Record<number, { approved: boolean | null; feedback: string }>
   >({});
   const [showFrameRecreate, setShowFrameRecreate] = useState<number | null>(null);
   const [frameRecreatePrompt, setFrameRecreatePrompt] = useState("");
@@ -186,7 +189,7 @@ export function VideoCreationWizard({
         {
           prompt: latestPrompt,
           context: {
-            targetAudience: workflow.initialPrompt,
+            targetAudience: workflow.initialMetadata?.targetAudience || targetAudience,
             tone: "professional and engaging",
             style: "high-quality video content",
           },
@@ -249,9 +252,9 @@ export function VideoCreationWizard({
       setWorkflow(response.data);
       
       // Initialize frame reviews
-      const reviews: Record<number, { approved: boolean; feedback: string }> = {};
+      const reviews: Record<number, { approved: boolean | null; feedback: string }> = {};
       response.data.generatedFrames.forEach((frame: GeneratedFrame) => {
-        reviews[frame.frameNumber] = { approved: false, feedback: "" };
+        reviews[frame.frameNumber] = { approved: null, feedback: "" };
       });
       setFrameReviews(reviews);
       setCurrentWizardStep(2);
@@ -381,8 +384,18 @@ export function VideoCreationWizard({
     setTone("");
     setDuration("30");
     setStyle("");
+    setAspectRatio("16:9");
     setAdditionalInfo("");
     setFrameReviews({});
+    setSelectedRefinementModel("gpt-4o");
+    setSelectedFrameModel("stable-diffusion-xl");
+    setSelectedVideoModel("veo-3");
+    setVideoFps("30");
+    setShowPromptImprover(false);
+    setImprovedPrompt(null);
+    setImprovingPrompt(false);
+    setShowFrameRecreate(null);
+    setFrameRecreatePrompt("");
     setError(null);
     onClose();
   };
@@ -879,7 +892,7 @@ export function VideoCreationWizard({
           </div>
 
           <div className="flex gap-2">
-            {Object.values(frameReviews).some((r) => !r.approved) && (
+            {Object.values(frameReviews).some((r) => r.approved === false) && (
               <button
                 onClick={regenerateFrames}
                 disabled={loading}
@@ -902,7 +915,7 @@ export function VideoCreationWizard({
               onClick={submitFrameReviews}
               disabled={
                 loading ||
-                Object.values(frameReviews).some((r) => r.approved === undefined)
+                Object.values(frameReviews).some((r) => r.approved === null)
               }
               className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
             >

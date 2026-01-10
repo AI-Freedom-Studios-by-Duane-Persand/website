@@ -34,6 +34,59 @@ export class CreativesService {
     };
   }
 
+  /**
+   * Refresh expired signed URLs for assets
+   * Signed URLs expire after 7 days, so we regenerate them on retrieval
+   */
+  private async refreshAssetUrls(creative: CreativeDocument, tenantId?: string): Promise<void> {
+    try {
+      // Refresh visual imageUrl
+      if (creative.visual?.imageUrl) {
+        const refreshedUrl = await this.storageService.getViewUrlForExisting(
+          creative.visual.imageUrl,
+          tenantId || creative.tenantId?.toString(),
+        );
+        if (refreshedUrl && refreshedUrl !== creative.visual.imageUrl) {
+          creative.visual.imageUrl = refreshedUrl;
+          creative.markModified('visual');
+        }
+      }
+
+      // Refresh asset imageUrls array
+      if (creative.assets?.imageUrls?.length) {
+        const refreshedUrls = await Promise.all(
+          creative.assets.imageUrls.map((url: string) =>
+            this.storageService.getViewUrlForExisting(url, tenantId || creative.tenantId?.toString())
+          )
+        );
+        if (refreshedUrls.some((url: string, i: number) => url !== creative.assets?.imageUrls?.[i])) {
+          creative.assets.imageUrls = refreshedUrls;
+          creative.markModified('assets');
+        }
+      }
+
+      // Refresh asset videoUrl (singular)
+      if (creative.assets?.videoUrl) {
+        const refreshedUrl = await this.storageService.getViewUrlForExisting(
+          creative.assets.videoUrl,
+          tenantId || creative.tenantId?.toString(),
+        );
+        if (refreshedUrl && refreshedUrl !== creative.assets.videoUrl) {
+          creative.assets.videoUrl = refreshedUrl;
+          creative.markModified('assets');
+        }
+      }
+
+      // Save if any URLs were updated
+      if (creative.isModified('visual') || creative.isModified('assets')) {
+        await creative.save();
+      }
+    } catch (err: any) {
+      this.logger.warn('[refreshAssetUrls] Failed to refresh URLs', { error: err.message });
+      // Don't throw - continue serving old URLs if refresh fails
+    }
+  }
+
   async findAll(query: any): Promise<Creative[]> {
     // Convert campaignId string to ObjectId for proper MongoDB querying
     if (query.campaignId && typeof query.campaignId === 'string') {
@@ -42,12 +95,24 @@ export class CreativesService {
     this.logger.log(`[findAll] Query: ${JSON.stringify(query)}`);
     const creatives = await this.creativeModel.find(query).exec();
     this.logger.log(`[findAll] Found ${creatives.length} creatives`);
+    
+    // Refresh expired URLs in parallel (non-blocking)
+    creatives.forEach(creative => {
+      this.refreshAssetUrls(creative).catch(err =>
+        this.logger.warn('[findAll] URL refresh failed for creative', { id: creative._id, error: err.message })
+      );
+    });
+
     return creatives.map((creative) => this.toCreativeResponse(creative));
   }
 
-  async findOne(id: string): Promise<Creative> {
+  async findOne(id: string, tenantId?: string): Promise<Creative> {
     const creative = await this.creativeModel.findById(id).exec();
     if (!creative) throw new NotFoundException('Creative not found');
+    
+    // Refresh expired URLs
+    await this.refreshAssetUrls(creative, tenantId);
+
     return this.toCreativeResponse(creative);
   }
 
@@ -438,6 +503,10 @@ export class CreativesService {
   /**
    * Generate actual image file from prompt using AI
    * This runs asynchronously in the background
+    * Defaults:
+    * - Prompt enhancement is configurable via `ENABLE_PROMPT_ENHANCEMENT` (env) or per-request `quality.enhancePrompt`.
+    * - Image dimensions default to `DEFAULT_IMAGE_WIDTH`/`DEFAULT_IMAGE_HEIGHT` env (fallback 1024x576).
+    * Callers can override via the `quality` object.
    */
   async generateActualImage(
     creativeId: string,
@@ -451,6 +520,8 @@ export class CreativesService {
       numInferenceSteps?: number;
       guidanceScale?: number;
       scheduler?: string;
+      // Optional flag to control prompt enhancement behavior
+      enhancePrompt?: boolean;
     },
   ): Promise<void> {
     try {
@@ -459,12 +530,19 @@ export class CreativesService {
       // Always use Replicate for image generation (per plan)
       this.logger.log(`[generateActualImage] Using replicate for image generation`);
       
-      // Enhance prompt with quality descriptors for better results
-      const enhancedPrompt = `${prompt}. Professional quality, high detail, sharp focus, vibrant colors, well-composed, 8K quality`;
+      // Enhance prompt with detailed quality descriptors for better results
+      // Behavior can be configured via ENABLE_PROMPT_ENHANCEMENT env or per-request flag
+      const enableEnhancement = (quality?.enhancePrompt ?? (process.env.ENABLE_PROMPT_ENHANCEMENT === 'true'));
+      const enhancedPrompt = enableEnhancement
+        ? `${prompt}. High quality professional artwork, cinematic lighting, sharp focus, intricate details, vibrant colors, well-composed, 8k ultra HD, award-winning quality, masterpiece`
+        : prompt;
       
+      const defaultWidth = Number(process.env.DEFAULT_IMAGE_WIDTH) || 1024;
+      const defaultHeight = Number(process.env.DEFAULT_IMAGE_HEIGHT) || 576;
+
       const result: string = await this.replicateClient.generateImage(enhancedPrompt, {
-        width: quality?.width ?? 1536,
-        height: quality?.height ?? 864,
+        width: quality?.width ?? defaultWidth,
+        height: quality?.height ?? defaultHeight,
         negativePrompt: quality?.negativePrompt,
         numInferenceSteps: quality?.numInferenceSteps,
         guidanceScale: quality?.guidanceScale,

@@ -75,12 +75,13 @@ Business logic for workflow operations:
 - Stores iteration in refinementIterations array
 - Updates finalRefinedPrompt
 - Advances step to PROMPT_REFINEMENT, sets status to WAITING_USER_INPUT
-- Unlimited refinement cycles supported
+ - Refinement cycles capped by service limit; see `MAX_REFINEMENT_ITERATIONS`
+ - When the limit is reached, the service returns a validation error and prevents further iterations; the UI should surface remaining iterations and notify when the cap is hit
 
 **`generateFrames(workflowId, userId, dto)`**
 - Validates finalRefinedPrompt exists
-- Generates frame prompts at timestamp intervals (opening/middle/closing scenes)
-- Calls ReplicateClient for each frame (1024x576, 16:9 aspect ratio)
+- Generates frame prompts at key narrative moments (opening/middle/closing scenes)
+- Calls ReplicateClient for each frame (`frameCount` configurable; defaults to 3; 1024x576, 16:9 aspect ratio by default)
 - Supports model selection: stable-diffusion-xl, dalle-3
 - Stores GeneratedFrame objects with approved=false
 - Advances step to FRAME_GENERATION, sets status to PROCESSING
@@ -130,7 +131,25 @@ POST   /video-workflows/:workflowId/generate-video    - Generate final video
 DELETE /video-workflows/:workflowId              - Delete workflow
 ```
 
-All endpoints protected with JWT auth, extract userId from request.
+All endpoints protected with JWT auth.
+
+Authentication and access control:
+- Token format: `Authorization: Bearer <token>` header is required
+- Claims: `userId` is obtained from the JWT `sub` claim
+- Verification: validate signature and expiry using the existing JWT verification routine
+- Access control: verify `jwt.userId === workflow.userId` before returning workflow resources
+
+Errors:
+- `401` for missing/invalid/expired token
+- `403` for authenticated but unauthorized access
+
+Token lifecycle:
+- Access token TTL documented in auth settings; if refresh tokens are used, include refresh flow
+- If applicable, refresh tokens must be stored securely and rotated regularly
+
+External tokens:
+- External API keys and tokens must be encrypted at rest (e.g., using a KMS or secrets manager)
+- Decrypt at runtime with least-privilege access; implement rotation and access-audit logging
 
 #### 4. VideoWorkflowModule (`video-workflow.module.ts`)
 NestJS module configuration:
@@ -211,17 +230,17 @@ Multi-step wizard component with 5 steps:
 
 ```
 INITIAL_PROMPT
-    ↓ (user creates workflow)
-PROMPT_REFINEMENT ←─────┐
-    ↓                   │ (user iterates)
-ADDITIONAL_INFO ────────┘
-    ↓ (user satisfied)
+  ↓ (user creates workflow)
+PROMPT_REFINEMENT ↺ (loop with ADDITIONAL_INFO)
+  ↓ (user satisfied)
 FRAME_GENERATION
-    ↓
-FRAME_REVIEW ←──────────┐
-    ↓                   │ (user rejects frames)
-VIDEO_GENERATION ───────┘
-    ↓
+  ↓
+FRAME_REVIEW ↔ (loop via regenerateFrames)
+  │
+  └─ on reject → regenerateFrames → FRAME_GENERATION (repeat until accepted)
+  ↓
+VIDEO_GENERATION
+  ↓
 COMPLETED
 ```
 
@@ -340,7 +359,14 @@ All methods include try-catch blocks:
 - JWT authentication required for all endpoints
 - userId validation prevents unauthorized access
 - Encrypted token storage (if needed for external APIs)
-- Rate limiting recommended for generation endpoints
+- Rate limiting for generation endpoints:
+  - Scope: per-user, per-IP, and per-API-key
+  - Thresholds:
+    - Prompt refinement: 60 req/min per user
+    - Frame generation: 10 req/min and 100 req/day per API key
+    - Full video generation: 1 req/hr and 10 req/day per API key
+  - Runtime behavior: return `429` on hard limit; optionally queue for async processing with max queue length and `Retry-After` header
+  - Tiers: allow exemptions/whitelisting for trusted API keys or paid tiers with adjustable limits; audit usage for changes
 - Input sanitization for prompts
 
 ## Testing

@@ -101,7 +101,12 @@ export class StorageController {
     @Query('olderThanDays') olderThanDays?: string,
   ): Promise<{ refreshedCount: number }> {
     const user = req.user;
-    const days = olderThanDays ? parseInt(olderThanDays, 10) : 6;
+    
+    let days = olderThanDays ? parseInt(olderThanDays, 10) : 6;
+    if (Number.isNaN(days)) {
+      days = 6;
+    }
+    days = Math.max(1, Math.min(365, days));
     
     const refreshedCount = await this.storageService.refreshAssetUrlsBatch(user.tenantId, days);
     return { refreshedCount };

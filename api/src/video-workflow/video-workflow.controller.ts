@@ -7,7 +7,6 @@ import {
   Param,
   Query,
   UseGuards,
-  Request,
 } from '@nestjs/common';
 import {
   VideoWorkflowService,
@@ -18,6 +17,7 @@ import {
   GenerateVideoDto,
 } from './video-workflow.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { CurrentUser, JwtPayload } from '../auth';
 
 @Controller('video-workflows')
 @UseGuards(JwtAuthGuard)
@@ -28,10 +28,10 @@ export class VideoWorkflowController {
    * Create a new video workflow
    */
   @Post()
-  async createWorkflow(@Request() req: any, @Body() dto: Omit<CreateWorkflowDto, 'userId'>) {
+  async createWorkflow(@CurrentUser() user: JwtPayload, @Body() dto: Omit<CreateWorkflowDto, 'userId'>) {
     return this.videoWorkflowService.createWorkflow({
       ...dto,
-      userId: req.user.userId,
+      userId: user.userId,
     });
   }
 
@@ -40,18 +40,18 @@ export class VideoWorkflowController {
    */
   @Get()
   async getUserWorkflows(
-    @Request() req: any,
+    @CurrentUser() user: JwtPayload,
     @Query('campaignId') campaignId?: string,
   ) {
-    return this.videoWorkflowService.getUserWorkflows(req.user.userId, campaignId);
+    return this.videoWorkflowService.getUserWorkflows(user.userId, campaignId);
   }
 
   /**
    * Get specific workflow
    */
   @Get(':workflowId')
-  async getWorkflow(@Request() req: any, @Param('workflowId') workflowId: string) {
-    return this.videoWorkflowService.getWorkflow(workflowId, req.user.userId);
+  async getWorkflow(@CurrentUser() user: JwtPayload, @Param('workflowId') workflowId: string) {
+    return this.videoWorkflowService.getWorkflow(workflowId, user.userId);
   }
 
   /**
@@ -59,11 +59,11 @@ export class VideoWorkflowController {
    */
   @Post(':workflowId/refine-prompt')
   async refinePrompt(
-    @Request() req: any,
+    @CurrentUser() user: JwtPayload,
     @Param('workflowId') workflowId: string,
     @Body() dto: RefinePromptDto,
   ) {
-    return this.videoWorkflowService.refinePrompt(workflowId, req.user.userId, dto);
+    return this.videoWorkflowService.refinePrompt(workflowId, user.userId, dto);
   }
 
   /**
@@ -71,11 +71,11 @@ export class VideoWorkflowController {
    */
   @Post(':workflowId/generate-frames')
   async generateFrames(
-    @Request() req: any,
+    @CurrentUser() user: JwtPayload,
     @Param('workflowId') workflowId: string,
     @Body() dto: GenerateFramesDto,
   ) {
-    return this.videoWorkflowService.generateFrames(workflowId, req.user.userId, dto);
+    return this.videoWorkflowService.generateFrames(workflowId, user.userId, dto);
   }
 
   /**
@@ -83,11 +83,11 @@ export class VideoWorkflowController {
    */
   @Post(':workflowId/review-frames')
   async reviewFrames(
-    @Request() req: any,
+    @CurrentUser() user: JwtPayload,
     @Param('workflowId') workflowId: string,
     @Body() dto: ReviewFramesDto,
   ) {
-    return this.videoWorkflowService.reviewFrames(workflowId, req.user.userId, dto);
+    return this.videoWorkflowService.reviewFrames(workflowId, user.userId, dto);
   }
 
   /**
@@ -95,13 +95,13 @@ export class VideoWorkflowController {
    */
   @Post(':workflowId/regenerate-frames')
   async regenerateFrames(
-    @Request() req: any,
+    @CurrentUser() user: JwtPayload,
     @Param('workflowId') workflowId: string,
     @Body() body: { frameNumbers: number[]; customPrompts?: Record<number, string> },
   ) {
     return this.videoWorkflowService.regenerateFrames(
       workflowId,
-      req.user.userId,
+      user.userId,
       body.frameNumbers,
       body.customPrompts,
     );
@@ -112,19 +112,19 @@ export class VideoWorkflowController {
    */
   @Post(':workflowId/generate-video')
   async generateVideo(
-    @Request() req: any,
+    @CurrentUser() user: JwtPayload,
     @Param('workflowId') workflowId: string,
     @Body() dto: GenerateVideoDto,
   ) {
-    return this.videoWorkflowService.generateVideo(workflowId, req.user.userId, dto);
+    return this.videoWorkflowService.generateVideo(workflowId, user.userId, dto);
   }
 
   /**
    * Delete workflow
    */
   @Delete(':workflowId')
-  async deleteWorkflow(@Request() req: any, @Param('workflowId') workflowId: string) {
-    await this.videoWorkflowService.deleteWorkflow(workflowId, req.user.userId);
+  async deleteWorkflow(@CurrentUser() user: JwtPayload, @Param('workflowId') workflowId: string) {
+    await this.videoWorkflowService.deleteWorkflow(workflowId, user.userId);
     return { message: 'Workflow deleted successfully' };
   }
 }

@@ -100,8 +100,9 @@ export class AIModelsService {
       } catch {}
 
       const prompt = parsed.prompt || input.contents;
-      const width = parsed.width || parsed.quality?.width || 1536;
-      const height = parsed.height || parsed.quality?.height || 864;
+      // Replicate API max is 1280x1280; maintain aspect ratio
+      const width = Math.min(parsed.width || parsed.quality?.width || 1280, 1280);
+      const height = Math.min(parsed.height || parsed.quality?.height || 720, 1280);
       // Note: Flux Schnell doesn't support these parameters, so we extract them but don't pass to Replicate
       // const negativePrompt = parsed.negativePrompt || parsed.quality?.negativePrompt;
       // const numInferenceSteps = parsed.numInferenceSteps || parsed.quality?.numInferenceSteps;

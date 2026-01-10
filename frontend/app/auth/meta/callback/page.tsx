@@ -127,9 +127,6 @@ function MetaOAuthCallbackContent() {
         
         setMessage("Successfully connected accounts!");
 
-        // The backend already checked for Instagram accounts and saved everything
-        const connectedAccounts = saveData.accounts || [];
-
         // Clean up
         sessionStorage.removeItem("meta_oauth_state");
 

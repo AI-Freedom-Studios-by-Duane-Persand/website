@@ -1,7 +1,9 @@
-import { Controller, Post, Body, UseGuards, Request } from '@nestjs/common';
+import { Controller, Post, Body, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PoeClient } from './poe.client';
 import { Logger } from '@nestjs/common';
+import { ImprovePromptDto } from './dto/improve-prompt.dto';
+import { CurrentUser, JwtPayload } from '../auth';
 
 @Controller('poe')
 export class PoeController {
@@ -12,40 +14,17 @@ export class PoeController {
   @Post('improve-prompt')
   @UseGuards(JwtAuthGuard)
   async improvePrompt(
-    @Body()
-    body: {
-      prompt: string;
-      context?: {
-        targetAudience?: string;
-        tone?: string;
-        style?: string;
-      };
-    },
-    @Request() req: any,
+    @Body() body: ImprovePromptDto,
+    @CurrentUser() user: JwtPayload,
   ) {
     try {
       this.logger.log('[improvePrompt] Improving prompt for user', {
         promptLength: body.prompt.length,
-        userId: req.user?.id,
+        userId: user?.userId,
       });
 
-      const systemPrompt = `You are an expert video prompt engineer. Your task is to improve and enhance video generation prompts.
-      
-When given a video prompt, you should:
-1. Enhance it with more vivid, descriptive language
-2. Add technical film/video production terms for better quality
-3. Include aspect ratios and visual style preferences if not present
-4. Make it more specific and actionable for AI video generation
-5. Suggest improvements that would result in professional-quality video output
-
-${body.context ? `Consider the following context:
-- Target Audience: ${body.context.targetAudience || 'General'}
-- Tone: ${body.context.tone || 'Professional'}
-- Style: ${body.context.style || 'Modern'}` : ''}
-
-Return ONLY the improved prompt, nothing else.`;
-
-        const improvedPrompt = await this.poeClient.improvePrompt(body.prompt, body.context);
+      // PoeClient builds its own system prompt; pass prompt/context only
+      const improvedPrompt = await this.poeClient.improvePrompt(body.prompt, body.context);
 
       this.logger.log('[improvePrompt] Prompt improved successfully', {
         originalLength: body.prompt.length,

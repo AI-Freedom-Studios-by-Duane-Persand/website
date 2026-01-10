@@ -1,5 +1,5 @@
 // frontend/components/AssetImage.tsx
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Image, { ImageProps } from 'next/image';
 import AssetUrlManager from '../lib/asset-url-manager';
 
@@ -19,31 +19,36 @@ export function AssetImage({
   const [imageUrl, setImageUrl] = useState(src);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const imageUrlRef = useRef(imageUrl);
+
+  useEffect(() => {
+    imageUrlRef.current = imageUrl;
+  }, [imageUrl]);
 
   // Check and refresh URL on mount
   useEffect(() => {
     if (!autoRefresh) return;
+    let cancelled = false;
 
     const checkAndRefreshUrl = async () => {
       try {
         const freshUrl = await AssetUrlManager.getAssetUrl(src);
-        if (freshUrl !== imageUrl) {
+        if (!cancelled && freshUrl !== imageUrlRef.current) {
           setImageUrl(freshUrl);
         }
       } catch (err) {
         console.warn('Failed to refresh asset URL:', err);
-        // Continue with original URL
       }
     };
 
     checkAndRefreshUrl();
-  }, [src, autoRefresh, imageUrl]);
+    return () => { cancelled = true; };
+  }, [src, autoRefresh]);
 
   // Handle image load error - try to refresh URL
   const handleError = useCallback(
-    async (e: any) => {
+    async (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
       if (isRefreshing) {
-        // Already tried refresh, use fallback
         setError('Failed to load asset');
         if (onError) onError(e);
         return;
@@ -52,6 +57,7 @@ export function AssetImage({
       try {
         setIsRefreshing(true);
         const freshUrl = await AssetUrlManager.refreshAssetUrl(src);
+        setError(null);
         setImageUrl(freshUrl);
         setIsRefreshing(false);
       } catch (err) {
@@ -98,15 +104,21 @@ export function AssetVideo({
   const [videoUrl, setVideoUrl] = useState(src);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const videoUrlRef = useRef(videoUrl);
+
+  useEffect(() => {
+    videoUrlRef.current = videoUrl;
+  }, [videoUrl]);
 
   // Check and refresh URL on mount
   useEffect(() => {
     if (!autoRefresh) return;
+    let cancelled = false;
 
     const checkAndRefreshUrl = async () => {
       try {
         const freshUrl = await AssetUrlManager.getAssetUrl(src);
-        if (freshUrl !== videoUrl) {
+        if (!cancelled && freshUrl !== videoUrlRef.current) {
           setVideoUrl(freshUrl);
         }
       } catch (err) {
@@ -115,11 +127,12 @@ export function AssetVideo({
     };
 
     checkAndRefreshUrl();
-  }, [src, autoRefresh, videoUrl]);
+    return () => { cancelled = true; };
+  }, [src, autoRefresh]);
 
   // Handle video load error - try to refresh URL
   const handleError = useCallback(
-    async (e: any) => {
+    async (e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
       if (isRefreshing) {
         setError('Failed to load video');
         if (onError) onError(e);
@@ -129,6 +142,7 @@ export function AssetVideo({
       try {
         setIsRefreshing(true);
         const freshUrl = await AssetUrlManager.refreshAssetUrl(src);
+        setError(null);
         setVideoUrl(freshUrl);
         setIsRefreshing(false);
       } catch (err) {
@@ -166,11 +180,12 @@ export function useAssetUrl(initialUrl: string, autoRefresh: boolean = true) {
   // Check and refresh on mount
   useEffect(() => {
     if (!autoRefresh) return;
+    let cancelled = false;
 
     const checkAndRefresh = async () => {
       try {
         const freshUrl = await AssetUrlManager.getAssetUrl(initialUrl);
-        if (freshUrl !== url) {
+        if (!cancelled && freshUrl !== url) {
           setUrl(freshUrl);
         }
       } catch (err) {
@@ -179,7 +194,8 @@ export function useAssetUrl(initialUrl: string, autoRefresh: boolean = true) {
     };
 
     checkAndRefresh();
-  }, [initialUrl, autoRefresh, url]);
+    return () => { cancelled = true; };
+  }, [initialUrl, autoRefresh]);
 
   const refreshUrl = useCallback(async () => {
     setIsRefreshing(true);
