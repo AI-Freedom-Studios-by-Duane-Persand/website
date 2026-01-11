@@ -53,7 +53,7 @@ export default function DataDeletionPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-slate-950">
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-slate-950 mt-20">
       <Toaster position="top-right" />
       
       <div className="max-w-3xl mx-auto px-6 py-16">

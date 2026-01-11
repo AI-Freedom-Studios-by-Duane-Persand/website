@@ -5,35 +5,39 @@ Users can now select from popular AI models for different content types without 
 
 ## Supported Content Types
 
-### 1. **Prompt Improvement** (`prompt-improvement`)
+> **Naming convention:**
+> - **Model ID**: lowercase kebab-case token used in APIs (e.g., `gpt-4o`, `nano-banana`, `video-generator-pro`).
+> - **Display name**: human-readable label shown in the UI (e.g., "GPT-4 Omni", "Nano Banana", "Video Generator PRO").
+
+### 1. Prompt Improvement (`prompt-improvement`)
 Enhances creative prompts with better descriptors and structure.
-- **Recommended**: GPT-4o (best reasoning and creativity)
-- **Available**: Claude 3 Opus, GPT-4, Claude 3 Sonnet
+- **Recommended model ID**: `gpt-4o` ("GPT-4 Omni")
+- **Available model IDs**: `claude-3-opus` ("Claude 3 Opus"), `gpt-4` ("GPT-4"), `claude-3-sonnet` ("Claude 3 Sonnet")
 
-### 2. **Image Generation** (`image-generation`)
+### 2. Image Generation (`image-generation`)
 Generates visual content from text descriptions.
-- **Recommended**: DALL-E 3 (highest quality)
-- **Available**: Stable Diffusion XL
+- **Recommended model ID**: `nano-banana` ("Nano Banana")
+- **Available model IDs**: `dall-e-3` ("DALL-E 3"), `stable-diffusion-xl` ("Stable Diffusion XL")
 
-### 3. **Video Generation** (`video-generation`)
+### 3. Video Generation (`video-generation`)
 Creates video content from scripts and prompts.
-- **Recommended**: Video Generator PRO (optimized for video)
-- **Available**: Veo 3, Gemini 1.5 Pro
+- **Recommended model ID**: `video-generator-pro` ("Video Generator PRO")
+- **Available model IDs**: `veo-3` ("Veo 3"), `gemini-1.5-pro` ("Gemini 1.5 Pro")
 
-### 4. **Caption Generation** (`caption-generation`)
+### 4. Caption Generation (`caption-generation`)
 Creates engaging social media captions and copy.
-- **Recommended**: GPT-4o (best tone variation)
-- **Available**: Claude 3 Opus, GPT-4
+- **Recommended model ID**: `gpt-4o` ("GPT-4 Omni")
+- **Available model IDs**: `claude-3-opus` ("Claude 3 Opus"), `gpt-4` ("GPT-4")
 
-### 5. **Script Generation** (`script-generation`)
+### 5. Script Generation (`script-generation`)
 Generates video scripts with structure (hook, body, outro).
-- **Recommended**: GPT-4o (best for structure)
-- **Available**: Claude 3 Opus, Gemini 1.5 Pro
+- **Recommended model ID**: `gpt-4o` ("GPT-4 Omni")
+- **Available model IDs**: `claude-3-opus` ("Claude 3 Opus"), `gemini-1.5-pro` ("Gemini 1.5 Pro")
 
-### 6. **Hashtag Generation** (`hashtag-generation`)
+### 6. Hashtag Generation (`hashtag-generation`)
 Generates relevant trending hashtags.
-- **Recommended**: GPT-4o (best for trending)
-- **Available**: Claude 3 Sonnet, GPT-3.5 Turbo
+- **Recommended model ID**: `gpt-4o` ("GPT-4 Omni")
+- **Available model IDs**: `claude-3-sonnet` ("Claude 3 Sonnet"), `gpt-3.5-turbo` ("GPT-3.5 Turbo")
 
 ## API Endpoints
 
@@ -62,7 +66,7 @@ GET /poe/models/available?contentType=prompt-improvement
       "description": "Most powerful - best for complex creative enhancement"
     },
     {
-      "model": "claude-3-opus-20240229",
+      "model": "claude-3-opus",
       "displayName": "Claude 3 Opus",
       "recommended": false,
       "description": "Excellent reasoning and nuanced understanding"
@@ -173,20 +177,23 @@ curl -X POST http://localhost:3001/poe/generate-with-model \
   }'
 ```
 
-### Example 2: Generate Image with DALL-E 3
+### Example 2: Generate Image with Nano Banana / DALL-E 3
 ```bash
-# First, get available models
+# (Optional) First, preview available models for image generation
 curl -X GET "http://localhost:3001/poe/models/available?contentType=image-generation" \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 
-# Then generate image (via creatives endpoint with model selection)
+# Then generate an image (via creatives endpoint with model selection).
+# You can skip the GET call above if you instead set
+# `availableModels: true` and read the returned model list
+# from the generate response.
 curl -X POST http://localhost:3001/creatives/generate/image \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -d '{
     "tenantId": "tenant-123",
     "campaignId": "campaign-456",
-    "model": "dall-e-3",
+    "model": "nano-banana",
     "prompt": "Professional product photography",
     "quality": {
       "width": 1024,
@@ -231,10 +238,10 @@ Body includes:
 {
   "tenantId": "string",
   "campaignId": "string",
-  "model": "gpt-4o",  // Specific model to use
+  "model": "gpt-4o",  // Model ID to use
   "prompt": "string",
   "quality": {...},
-  "availableModels": true  // Get list of available models
+  "availableModels": true  // If true, response also includes server-side model list
 }
 ```
 
@@ -248,7 +255,7 @@ Body includes:
 {
   "tenantId": "string",
   "campaignId": "string",
-  "model": "dall-e-3",  // Specific model
+  "model": "nano-banana",  // Model ID to use for images
   "prompt": "string",
   "quality": {
     "width": 1024,
@@ -271,7 +278,7 @@ Body includes:
 {
   "tenantId": "string",
   "campaignId": "string",
-  "model": "Video-Generator-PRO",  // Specific model
+  "model": "video-generator-pro",  // Model ID to use for video
   "prompt": "string",
   "quality": {
     "durationSeconds": 15,

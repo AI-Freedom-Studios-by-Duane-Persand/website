@@ -29,6 +29,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     let message: any = rawMessage;
     let userFriendlyMessage = friendlyByStatus[status] || defaultFriendly;
+    let userFriendlyFromException = false;
     let validationErrors: any = undefined;
 
     if (typeof rawMessage === 'object' && rawMessage !== null) {
@@ -40,6 +41,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       // Check if response has userFriendlyMessage - use it if available
       if ((rawMessage as any).userFriendlyMessage && typeof (rawMessage as any).userFriendlyMessage === 'string') {
         userFriendlyMessage = (rawMessage as any).userFriendlyMessage;
+        userFriendlyFromException = true;
       }
       
       // Nest HttpException can return { message: string | string[] }
@@ -56,7 +58,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       validationErrors = (exception as any).validationErrors;
     }
 
-    if (typeof message === 'string' && message.trim().length > 0) {
+    if (!userFriendlyFromException && typeof message === 'string' && message.trim().length > 0) {
       userFriendlyMessage = friendlyByStatus[status] || message;
     }
 

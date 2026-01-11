@@ -389,6 +389,7 @@ export class PoeClient {
       width,
       height,
       provider: 'poe-fallback',
+      isPlaceholder: true,
       note: 'Poe response did not include an image URL; using placeholder image.',
     });
   }

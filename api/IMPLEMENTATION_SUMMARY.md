@@ -93,8 +93,8 @@ Comprehensive guide including:
 - Claude 3 Opus, Claude 3 Sonnet, Claude 3 Haiku
 
 **Image Generation (2 models)**
-- DALL-E 3 (recommended)
-- Stable Diffusion XL
+- Nano Banana (recommended)
+- DALL-E 3
 
 **Video Generation (3 models)**
 - Video Generator PRO (recommended)
@@ -109,7 +109,7 @@ Comprehensive guide including:
 | Content Type | Recommended | Alternatives |
 |---|---|---|
 | **Prompt Improvement** | GPT-4o | Claude 3 Opus, GPT-4, Claude 3 Sonnet |
-| **Image Generation** | DALL-E 3 | Stable Diffusion XL |
+| **Image Generation** | Nano Banana | DALL-E 3 |
 | **Video Generation** | Video-Generator-PRO | Veo 3, Gemini 1.5 Pro |
 | **Caption Generation** | GPT-4o | Claude 3 Opus, GPT-4 |
 | **Script Generation** | GPT-4o | Claude 3 Opus, Gemini 1.5 Pro |

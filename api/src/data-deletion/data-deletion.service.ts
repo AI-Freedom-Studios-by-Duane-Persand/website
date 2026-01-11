@@ -1,6 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Document } from 'mongoose';
 
 export interface DataDeletionRequest {
   email: string;
@@ -25,10 +25,21 @@ export class DataDeletionService {
    * Submit a data deletion request
    */
   async submitRequest(email: string, reason?: string): Promise<DataDeletionRequest> {
-    this.logger.log(`[submitRequest] Received deletion request for email: ${email}`);
+    const normalizedEmail = email.toLowerCase().trim();
+    this.logger.log(`[submitRequest] Received deletion request`, { emailHash: Buffer.from(normalizedEmail).toString('base64').slice(0, 8) });
+
+    // Prevent duplicate pending/processing requests for the same email
+    const existing = await this.dataDeletionModel.findOne({
+      email: normalizedEmail,
+      status: { $in: ['pending', 'processing'] },
+    }).exec();
+
+    if (existing) {
+      throw new BadRequestException('A deletion request is already pending for this email.');
+    }
 
     const request = await this.dataDeletionModel.create({
-      email: email.toLowerCase().trim(),
+      email: normalizedEmail,
       reason: reason?.trim(),
       requestedAt: new Date(),
       status: 'pending',
@@ -73,11 +84,11 @@ export class DataDeletionService {
   async processDeletion(requestId: string): Promise<void> {
     const request = await this.dataDeletionModel.findById(requestId).exec();
     if (!request) {
-      throw new Error('Deletion request not found');
+      throw new NotFoundException('Deletion request not found');
     }
 
     try {
-      this.logger.log(`[processDeletion] Starting deletion for email: ${request.email}`);
+      this.logger.log(`[processDeletion] Starting deletion for requestId: ${request.id}`);
       
       request.status = 'processing';
       await request.save();
@@ -92,9 +103,10 @@ export class DataDeletionService {
       request.completedAt = new Date();
       await request.save();
 
-      this.logger.log(`[processDeletion] Completed deletion for email: ${request.email}`);
-    } catch (error) {
-      this.logger.error(`[processDeletion] Failed to process deletion`, error);
+      this.logger.log(`[processDeletion] Completed deletion for requestId: ${request.id}`);
+    } catch (error: any) {
+      const safeMessage = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+      this.logger.error(`[processDeletion] Failed to process deletion for requestId: ${request.id}. ${safeMessage}`);
       request.status = 'failed';
       await request.save();
       throw error;

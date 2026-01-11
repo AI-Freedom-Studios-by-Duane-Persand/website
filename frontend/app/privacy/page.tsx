@@ -1,6 +1,6 @@
 export default function PrivacyPolicyPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-slate-950">
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-slate-950 mt-20">
       <div className="max-w-4xl mx-auto px-6 py-16">
         <h1 className="text-4xl font-bold text-white mb-8">Privacy Policy</h1>
         

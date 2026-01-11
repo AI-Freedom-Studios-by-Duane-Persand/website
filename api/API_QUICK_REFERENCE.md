@@ -107,7 +107,7 @@ curl -X POST "http://localhost:3001/poe/models/validate" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -d '{
-    "model": "gpt-4o",
+    "model": "dall-e-3",
     "contentType": "image-generation",
     "prompt": "test"
   }'
@@ -116,16 +116,16 @@ curl -X POST "http://localhost:3001/poe/models/validate" \
 **Response**:
 ```json
 {
-  "model": "gpt-4o",
+  "model": "dall-e-3",
   "contentType": "image-generation",
   "isValid": true,
   "capabilities": {
-    "supportsText": true,
+    "supportsText": false,
     "supportsImages": true,
     "supportsVideo": false,
-    "isMultimodal": true
+    "isMultimodal": false
   },
-  "message": "Model gpt-4o is suitable for image-generation"
+  "message": "Model dall-e-3 is suitable for image-generation"
 }
 ```
 
@@ -283,7 +283,62 @@ Authorization: Bearer {jwt_token}
   "prompt": "string",
   "platforms": ["string (optional)"],
   "angleId": "string (optional)",
-  "guidance": {} (optional)
+  "guidance": {
+    "tone": "string (optional, e.g., 'professional')",
+    "maxLength": "number (optional)",
+    "language": "string (optional, e.g., 'en')",
+    "platforms": ["string (optional)"]
+  } (optional)
+}
+```
+
+**Example**:
+```bash
+curl -X POST "http://localhost:3001/creatives/generate/text" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -d '{
+    "tenantId": "665a1234567890",
+    "campaignId": "665b1234567890",
+    "model": "gpt-4o",
+    "prompt": "Write a LinkedIn post announcing our new AI-powered marketing assistant.",
+    "platforms": ["linkedin"],
+    "angleId": "product-launch",
+    "guidance": {
+      "tone": "professional",
+      "maxLength": 280,
+      "language": "en",
+      "platforms": ["linkedin", "twitter"]
+    }
+  }'
+```
+
+**Sample Response**:
+```json
+{
+  "contentType": "caption-generation",
+  "model": "gpt-4o",
+  "originalContent": {
+    "tenantId": "665a1234567890",
+    "campaignId": "665b1234567890",
+    "prompt": "Write a LinkedIn post announcing our new AI-powered marketing assistant.",
+    "platforms": ["linkedin"],
+    "angleId": "product-launch",
+    "guidance": {
+      "tone": "professional",
+      "maxLength": 280,
+      "language": "en",
+      "platforms": ["linkedin", "twitter"]
+    }
+  },
+  "generatedContent": {
+    "caption": "Meet your new AI marketing copilot. 🚀  We just launched an AI-powered assistant that helps teams plan campaigns, generate on-brand content, and move from idea to publish in minutes.",
+    "hashtags": [
+      "#AIFreedomStudios",
+      "#MarketingAutomation",
+      "#ProductLaunch"
+    ]
+  }
 }
 ```
 

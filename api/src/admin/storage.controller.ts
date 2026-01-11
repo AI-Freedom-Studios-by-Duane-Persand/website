@@ -193,8 +193,22 @@ export class AdminStorageController {
       throw new ForbiddenException('Admin access required');
     }
 
-    const currentTenantId = (req as any).user?.tenantId?.toString();
-    const targetTenantId = body?.tenantId || currentTenantId;
+    const user: any = (req as any).user || {};
+    const currentTenantId = user?.tenantId?.toString();
+    const requestedTenantId = body?.tenantId;
+
+    // Only superadmins can override the tenant context explicitly
+    if (requestedTenantId && user?.role !== 'superadmin') {
+      throw new ForbiddenException('Only superadmins can override tenantId');
+    }
+
+    const targetTenantId = user?.role === 'superadmin' && requestedTenantId
+      ? requestedTenantId
+      : currentTenantId;
+
+    if (!targetTenantId) {
+      throw new BadRequestException('No tenantId available for refresh operation');
+    }
 
     const result = await this.creativesService.refreshAllCreativeImageUrls(targetTenantId);
 

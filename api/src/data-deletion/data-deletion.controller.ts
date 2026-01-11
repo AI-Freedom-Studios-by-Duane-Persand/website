@@ -1,9 +1,19 @@
 import { Body, Controller, Post, Get, Param, UseGuards } from '@nestjs/common';
 import { DataDeletionService } from './data-deletion.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.decorator';
+import { IsEmail, IsOptional, IsString, Length, MaxLength } from 'class-validator';
 
 class SubmitDeletionRequestDto {
+  @IsEmail()
+  @IsString()
+  @Length(3, 254)
   email!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
   reason?: string;
 }
 
@@ -22,7 +32,8 @@ export class DataDeletionController {
   /**
    * Get all deletion requests (admin only)
    */
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
   @Get('requests')
   async getAllRequests() {
     return this.dataDeletionService.getAllRequests();
@@ -39,7 +50,8 @@ export class DataDeletionController {
   /**
    * Process a deletion request (admin only)
    */
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
   @Post('process/:requestId')
   async processDeletion(@Param('requestId') requestId: string) {
     await this.dataDeletionService.processDeletion(requestId);
