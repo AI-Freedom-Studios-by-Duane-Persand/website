@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Logger, HttpException, HttpStatus } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Creative } from '../../../shared/types';
@@ -35,6 +35,93 @@ export class CreativesService {
   }
 
   /**
+   * Batch helper: walk existing creatives and refresh their image URLs
+   * using signed URLs from StorageService.refreshAssetUrl.
+   * Intended for maintenance/migrations to fix older, non-signed URLs.
+   */
+  async refreshAllCreativeImageUrls(tenantId?: string): Promise<{ total: number; updated: number; errors: number }> {
+    const query: any = {};
+    if (tenantId) {
+      query.tenantId = new Types.ObjectId(tenantId);
+    }
+
+    const creatives = await this.creativeModel.find(query).exec();
+    let updated = 0;
+    let errors = 0;
+
+    for (const creative of creatives) {
+      const effectiveTenantId = tenantId || creative.tenantId?.toString();
+      let changed = false;
+
+      try {
+        // Refresh primary visual image URL
+        if (creative.visual?.imageUrl) {
+          const newUrl = await this.storageService.refreshAssetUrl(
+            creative.visual.imageUrl,
+            effectiveTenantId,
+            false,
+          );
+          if (newUrl && newUrl !== creative.visual.imageUrl) {
+            creative.visual.imageUrl = newUrl;
+            creative.markModified('visual');
+            changed = true;
+          }
+        }
+
+        // Refresh assets.imageUrls array
+        if (creative.assets?.imageUrls?.length) {
+          const refreshed: string[] = [];
+          for (const url of creative.assets.imageUrls) {
+            if (!url) continue;
+            try {
+              const newUrl = await this.storageService.refreshAssetUrl(url, effectiveTenantId, false);
+              refreshed.push(newUrl || url);
+            } catch (innerErr: any) {
+              this.logger.warn('[refreshAllCreativeImageUrls] Failed to refresh image URL for creative', {
+                creativeId: creative._id,
+                url,
+                error: innerErr?.message,
+              });
+              refreshed.push(url);
+            }
+          }
+
+          const original = creative.assets.imageUrls.filter((u) => u != null);
+          const changedArray =
+            refreshed.length !== original.length ||
+            refreshed.some((val, idx) => val !== original[idx]);
+
+          if (changedArray) {
+            creative.assets.imageUrls = refreshed;
+            creative.markModified('assets');
+            changed = true;
+          }
+        }
+
+        if (changed) {
+          creative.updatedAt = new Date();
+          await creative.save();
+          updated++;
+        }
+      } catch (err: any) {
+        errors++;
+        this.logger.warn('[refreshAllCreativeImageUrls] Failed to refresh creative URLs', {
+          creativeId: creative._id,
+          error: err?.message,
+        });
+      }
+    }
+
+    this.logger.log('[refreshAllCreativeImageUrls] Finished refreshing creative image URLs', {
+      total: creatives.length,
+      updated,
+      errors,
+    });
+
+    return { total: creatives.length, updated, errors };
+  }
+
+  /**
    * Refresh expired signed URLs for assets
    * Signed URLs expire after 7 days, so we regenerate them on retrieval
    */
@@ -59,8 +146,15 @@ export class CreativesService {
             this.storageService.getViewUrlForExisting(url, tenantId || creative.tenantId?.toString())
           )
         );
-        if (refreshedUrls.some((url: string, i: number) => url !== creative.assets?.imageUrls?.[i])) {
-          creative.assets.imageUrls = refreshedUrls;
+        
+        // Filter out null/undefined results
+        const nonNullUrls = refreshedUrls.filter((u) => u != null);
+        const originalNonNull = creative.assets.imageUrls.filter((u) => u != null);
+        
+        // Only update if URLs actually changed
+        if (nonNullUrls.length !== originalNonNull.length || 
+            nonNullUrls.some((url, i) => url !== originalNonNull[i])) {
+          creative.assets.imageUrls = nonNullUrls;
           creative.markModified('assets');
         }
       }
@@ -136,8 +230,15 @@ export class CreativesService {
     platforms?: string[];
     angleId?: string | null;
     guidance?: { brandTone?: string; targetAudience?: string; contentPillars?: string[]; hashtagCount?: number };
-  }): Promise<Creative> {
+    availableModels?: boolean;
+    selectModel?: boolean;
+  }): Promise<any> {
     if (!params.tenantId) throw new BadRequestException('tenantId is required');
+    // If asking for model listings, return unified lists for caption-generation
+    if (params.availableModels === true || params.selectModel === true) {
+      const lists = this.aiModelsService.getModelsForContentType('caption-generation');
+      return { contentType: 'caption-generation', ...lists, providerHint: 'poe' };
+    }
     
     const contents = JSON.stringify({ type: 'text', task: 'caption_hashtags', ...params });
     
@@ -201,8 +302,13 @@ export class CreativesService {
       guidanceScale?: number;
       scheduler?: string;
     };
-  }): Promise<Creative> {
+  }): Promise<any> {
     if (!params.tenantId) throw new BadRequestException('tenantId is required');
+    // If asking for model listings, return unified lists for image-generation
+    if ((params as any).availableModels === true || (params as any).selectModel === true) {
+      const lists = this.aiModelsService.getModelsForContentType('image-generation');
+      return { contentType: 'image-generation', ...lists, providerHint: process.env.IMAGE_PROVIDER || 'replicate' };
+    }
     
     const contents = JSON.stringify({ type: 'image', task: 'prompt', ...params });
     const result = await this.aiModelsService.generateContent('creative-image', { model: params.model, contents });
@@ -248,8 +354,13 @@ export class CreativesService {
       numInferenceSteps?: number;
       guidanceScale?: number;
     };
-  }): Promise<Creative> {
+  }): Promise<any> {
     if (!params.tenantId) throw new BadRequestException('tenantId is required');
+    // If asking for model listings, return unified lists for video-generation
+    if ((params as any).availableModels === true || (params as any).selectModel === true) {
+      const lists = this.aiModelsService.getModelsForContentType('video-generation');
+      return { contentType: 'video-generation', ...lists, providerHint: process.env.VIDEO_PROVIDER || 'replicate' };
+    }
     
     this.logger.log(`[generateVideoCreative] Starting video generation${params.campaignId ? ` for campaign ${params.campaignId}` : ''}`);
     const contents = JSON.stringify({ type: 'video', task: 'script', ...params });
@@ -492,8 +603,17 @@ export class CreativesService {
   async editPrompt(creativeId: string, prompt: string): Promise<Creative> {
     const creative = await this.creativeModel.findById(creativeId).exec();
     if (!creative) throw new NotFoundException('Creative not found');
-    if (creative.type !== 'image') throw new BadRequestException('Can only edit prompt on image creatives');
-    creative.visual = { ...(creative.visual || {}), prompt };
+    
+    // Allow editing prompts for all creative types
+    if (creative.type === 'image') {
+      creative.visual = { ...(creative.visual || {}), prompt };
+    } else if (creative.type === 'video') {
+      creative.script = { ...(creative.script || {}), hook: prompt, body: prompt };
+    } else if (creative.type === 'text') {
+      // For text creatives, prompt maps to caption
+      creative.copy = { ...(creative.copy || {}), caption: prompt };
+    }
+    
     creative.status = 'needsReview';
     creative.updatedAt = new Date();
     await creative.save();
@@ -527,8 +647,9 @@ export class CreativesService {
     try {
       this.logger.log(`[generateActualImage] Starting image generation for creative ${creativeId}`);
       
-      // Always use Replicate for image generation (per plan)
-      this.logger.log(`[generateActualImage] Using replicate for image generation`);
+      // Determine image generation provider from env
+      const imageProvider = process.env.IMAGE_PROVIDER || 'replicate';
+      this.logger.log(`[generateActualImage] Using ${imageProvider} for image generation`);
       
       // Enhance prompt with detailed quality descriptors for better results
       // Behavior can be configured via ENABLE_PROMPT_ENHANCEMENT env or per-request flag
@@ -537,29 +658,72 @@ export class CreativesService {
         ? `${prompt}. High quality professional artwork, cinematic lighting, sharp focus, intricate details, vibrant colors, well-composed, 8k ultra HD, award-winning quality, masterpiece`
         : prompt;
       
-      const defaultWidth = Number(process.env.DEFAULT_IMAGE_WIDTH) || 1024;
-      const defaultHeight = Number(process.env.DEFAULT_IMAGE_HEIGHT) || 576;
+      // Parse dimensions from env with proper NaN handling
+      const parsedWidth = Number(process.env.DEFAULT_IMAGE_WIDTH);
+      const parsedHeight = Number(process.env.DEFAULT_IMAGE_HEIGHT);
+      
+      const defaultWidth = (!Number.isNaN(parsedWidth) && parsedWidth >= 0) ? Math.round(parsedWidth) : 1024;
+      const defaultHeight = (!Number.isNaN(parsedHeight) && parsedHeight >= 0) ? Math.round(parsedHeight) : 576;
 
-      const result: string = await this.replicateClient.generateImage(enhancedPrompt, {
-        width: quality?.width ?? defaultWidth,
-        height: quality?.height ?? defaultHeight,
-        negativePrompt: quality?.negativePrompt,
-        numInferenceSteps: quality?.numInferenceSteps,
-        guidanceScale: quality?.guidanceScale,
-        scheduler: quality?.scheduler,
-      });
+      let result: string;
+      
+      // Route to appropriate provider
+      if (imageProvider === 'poe') {
+        // Use Poe for image generation
+        result = await this.poeClient.generateContent('image-generation', {
+          model: model || 'claude-3-5-sonnet',
+          contents: JSON.stringify({ prompt: enhancedPrompt, width: quality?.width ?? defaultWidth, height: quality?.height ?? defaultHeight }),
+        });
+      } else {
+        // Use Replicate for image generation
+        result = await this.replicateClient.generateImage(enhancedPrompt, {
+          width: quality?.width ?? defaultWidth,
+          height: quality?.height ?? defaultHeight,
+          negativePrompt: quality?.negativePrompt,
+          numInferenceSteps: quality?.numInferenceSteps,
+          guidanceScale: quality?.guidanceScale,
+          scheduler: quality?.scheduler,
+        });
+      }
 
-      // Parse result - could be URL or base64
+      // Parse result - could be URL or base64, and may include provider metadata
       let imageUrl = result;
+      let provider: string | undefined;
       try {
         const parsed = JSON.parse(result);
         imageUrl = parsed.url || parsed.imageUrl || parsed.image || result;
+        provider = parsed.provider;
       } catch {
         // Result is plain text URL
       }
 
-      // If it's a URL, download and upload to R2
-      if (imageUrl.startsWith('http')) {
+      const isHttpUrl = imageUrl.startsWith('http');
+      const isPoeFallback = provider === 'poe-fallback' || imageUrl.includes('via.placeholder.com');
+
+      if (isHttpUrl && isPoeFallback) {
+        // For Poe fallback placeholder images, do not attempt to fetch/upload.
+        this.logger.warn(
+          `[generateActualImage] Poe fallback placeholder image detected; storing URL directly without uploading to R2`,
+        );
+
+        const creative = await this.creativeModel.findById(creativeId).exec();
+        if (creative) {
+          creative.visual = { ...(creative.visual || {}), imageUrl };
+          creative.assets = { ...(creative.assets || {}), imageUrls: [imageUrl] };
+          creative.status = 'needsReview';
+          creative.updatedAt = new Date();
+          await creative.save();
+
+          if (creative.campaignId) {
+            await this.attachAssetToCampaign(creative.campaignId.toString(), 'image', imageUrl);
+          }
+
+          this.logger.log(
+            `[generateActualImage] Creative ${creativeId} updated with Poe fallback placeholder image URL`,
+          );
+        }
+      } else if (isHttpUrl) {
+        // If it's a normal URL, download and upload to R2
         this.logger.log(`[generateActualImage] Downloading image from ${imageUrl.substring(0, 50)}...`);
         const response = await fetch(imageUrl);
         const arrayBuffer = await response.arrayBuffer();
@@ -568,9 +732,9 @@ export class CreativesService {
         // Upload to R2
         const filename = `creative-${creativeId}-${Date.now()}.png`;
         const r2Url = await this.storageService.uploadFile(buffer, filename, 'image/png', tenantId);
-        
+
         this.logger.log(`[generateActualImage] Image uploaded to R2: ${r2Url}`);
-        
+
         // Update creative with image URL
         const creative = await this.creativeModel.findById(creativeId).exec();
         if (creative) {
@@ -579,10 +743,12 @@ export class CreativesService {
           creative.status = 'needsReview';
           creative.updatedAt = new Date();
           await creative.save();
-          
+
           // Attach to campaign
-          if (creative.campaignId) { await this.attachAssetToCampaign(creative.campaignId.toString(), 'image', r2Url); };
-          
+          if (creative.campaignId) {
+            await this.attachAssetToCampaign(creative.campaignId.toString(), 'image', r2Url);
+          }
+
           this.logger.log(`[generateActualImage] Creative ${creativeId} updated with image URL`);
         }
       } else {
@@ -596,7 +762,6 @@ export class CreativesService {
       throw err;
     }
   }
-
   /**
    * Generate actual video file from script using AI
    * This runs asynchronously in the background
@@ -618,16 +783,31 @@ export class CreativesService {
     try {
       this.logger.log(`[generateActualVideo] Starting video generation for creative ${creativeId}`);
       
-      // Always use Replicate for video generation (per plan)
+      // Determine video generation provider from env
+      const videoProvider = process.env.VIDEO_PROVIDER || 'replicate';
+      this.logger.log(`[generateActualVideo] Using ${videoProvider} for video generation`);
+      
       const duration = quality?.durationSeconds ?? 12;
-      this.logger.log(`[generateActualVideo] Using replicate for video generation`);
-      const result: string = await this.replicateClient.generateVideo(prompt, {
-        durationSeconds: duration,
-        fps: quality?.fps,
-        negativePrompt: quality?.negativePrompt,
-        numInferenceSteps: quality?.numInferenceSteps,
-        guidanceScale: quality?.guidanceScale,
-      });
+      
+      let result: string;
+      
+      // Route to appropriate provider
+      if (videoProvider === 'poe') {
+        // Use Poe for video generation
+        result = await this.poeClient.generateContent('video-generation', {
+          model: model || 'claude-3-5-sonnet',
+          contents: JSON.stringify({ prompt, durationSeconds: duration, fps: quality?.fps }),
+        });
+      } else {
+        // Use Replicate for video generation
+        result = await this.replicateClient.generateVideo(prompt, {
+          durationSeconds: duration,
+          fps: quality?.fps,
+          negativePrompt: quality?.negativePrompt,
+          numInferenceSteps: quality?.numInferenceSteps,
+          guidanceScale: quality?.guidanceScale,
+        });
+      }
 
       // Parse result - could be URL
       let videoUrl = result;
@@ -640,6 +820,21 @@ export class CreativesService {
 
       // If it's a URL, download and upload to R2
       if (videoUrl.startsWith('http')) {
+        // Skip placeholder URLs - they're not real videos
+        if (videoUrl.includes('placeholder') || videoUrl.includes('via.placeholder')) {
+          this.logger.warn(`[generateActualVideo] Placeholder URL detected, marking creative for manual review`, {
+            url: videoUrl,
+          });
+          const creative = await this.creativeModel.findById(creativeId).exec();
+          if (creative) {
+            // Keep as draft - user can retry when quota is available
+            creative.status = 'draft';
+            creative.updatedAt = new Date();
+            await creative.save();
+          }
+          return;
+        }
+
         this.logger.log(`[generateActualVideo] Downloading video from ${videoUrl.substring(0, 50)}...`);
         
         // Retry fetch with exponential backoff
@@ -700,6 +895,35 @@ export class CreativesService {
         error: err.message,
         stack: err.stack,
       });
+      
+      // Check if it's a quota error and propagate as HttpException 402
+      if (err.message.includes('quota exhausted') || err.message.includes('402')) {
+        // Mark creative as draft for potential retry
+        try {
+          const creative = await this.creativeModel.findById(creativeId).exec();
+          if (creative) {
+            creative.status = 'draft';
+            creative.updatedAt = new Date();
+            await creative.save();
+          }
+        } catch (updateErr) {
+          this.logger.error(`[generateActualVideo] Failed to update creative after quota error`, {
+            error: updateErr,
+          });
+        }
+
+        // Throw an HttpException so the global filter returns 402 with the friendly message
+        throw new HttpException(
+          {
+            statusCode: HttpStatus.PAYMENT_REQUIRED,
+            message: err.message,
+            userFriendlyMessage: err.message,
+            error: 'Quota Exhausted',
+          },
+          HttpStatus.PAYMENT_REQUIRED,
+        );
+      }
+      
       throw err;
     }
   }

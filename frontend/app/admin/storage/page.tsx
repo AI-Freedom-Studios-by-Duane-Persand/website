@@ -24,6 +24,8 @@ export default function AdminStoragePage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [testingConnection, setTestingConnection] = useState(false);
+  const [refreshingCreatives, setRefreshingCreatives] = useState(false);
+  const [refreshSummary, setRefreshSummary] = useState<string | null>(null);
   const [token, setToken] = useState<string>('');
 
   useEffect(() => {
@@ -132,6 +134,39 @@ export default function AdminStoragePage() {
     }
   }
 
+  async function handleRefreshCreativeImageUrls() {
+    try {
+      setError(null);
+      setSuccess(null);
+      setRefreshSummary(null);
+      setRefreshingCreatives(true);
+
+      const res = await fetch(`${APIURL}/api/admin/storage/refresh-creative-image-urls`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({}),
+      });
+
+      if (!res.ok) {
+        throw new Error(`Refresh failed: HTTP ${res.status}`);
+      }
+
+      const result = await res.json();
+      const summary = `Refreshed creative image URLs. Total: ${result.total}, Updated: ${result.updated}, Errors: ${result.errors}`;
+      setRefreshSummary(summary);
+      setSuccess('Creative image URLs refreshed successfully');
+    } catch (err: any) {
+      setError(`Failed to refresh creative image URLs: ${err.message}`);
+      console.error('[AdminStoragePage] Refresh creative image URLs error:', err);
+    } finally {
+      setRefreshingCreatives(false);
+    }
+  }
+
   function handleInputChange(field: keyof R2Config, value: string) {
     setFormData(prev => ({ ...prev, [field]: value }));
   }
@@ -168,6 +203,9 @@ export default function AdminStoragePage() {
           <div className="mb-6 p-4 bg-green-500/20 border border-green-500/50 rounded-lg">
             <p className="text-green-400 font-semibold">Success</p>
             <p className="text-green-300 text-sm mt-1">{success}</p>
+            {refreshSummary && (
+              <p className="text-green-200 text-xs mt-1">{refreshSummary}</p>
+            )}
           </div>
         )}
 
@@ -325,6 +363,23 @@ export default function AdminStoragePage() {
             <li>Copy the <strong>Access Key ID</strong> and <strong>Secret Access Key</strong></li>
             <li>Find your bucket endpoint in the R2 bucket settings</li>
           </ol>
+        </div>
+
+        {/* Maintenance actions */}
+        <div className="mt-8 bg-slate-800/40 border border-slate-700 rounded-lg p-6 space-y-4">
+          <h2 className="text-xl font-semibold text-white">Maintenance</h2>
+          <p className="text-sm text-slate-400">
+            Run maintenance tasks related to R2 storage and creative assets.
+          </p>
+
+          <button
+            type="button"
+            onClick={handleRefreshCreativeImageUrls}
+            disabled={refreshingCreatives}
+            className="inline-flex items-center px-4 py-2 rounded-md bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed text-white text-sm font-medium shadow-sm transition"
+          >
+            {refreshingCreatives ? 'Refreshing creative image URLs…' : 'Refresh creative image URLs'}
+          </button>
         </div>
       </div>
     </div>

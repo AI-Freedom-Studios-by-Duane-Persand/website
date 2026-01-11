@@ -1,10 +1,12 @@
 "use client";
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Toaster, toast } from "react-hot-toast";
 import EarlyAccessGate from "../../components/EarlyAccessGate";
 import SubscriptionGate from "../../components/SubscriptionGate";
 import { useAuth } from "../../hooks/useAuth";
 import { parseJwt } from "../../../lib/parseJwt";
 import { VideoCreationWizard } from "../components/VideoCreationWizard";
+import { ModelPickerModal } from "../../components/ModelPickerModal";
 
 type Creative = { 
   _id: string; 
@@ -28,11 +30,13 @@ type Campaign = {
 
 function isImage(url: string | undefined) {
   if (!url) return false;
-  return /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(url) || url.includes("image");
+  const base = url.split("?")[0] || url;
+  return /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(base) || url.includes("image");
 }
 function isVideo(url: string | undefined) {
   if (!url) return false;
-  return /\.(mp4|webm|mov|m4v|ogg)$/i.test(url) || url.includes("video");
+  const base = url.split("?")[0] || url;
+  return /\.(mp4|webm|mov|m4v|ogg)$/i.test(base) || url.includes("video");
 }
 
 function getAuthHeaders(): Record<string, string> {
@@ -49,7 +53,6 @@ export default function CreativesPage() {
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [url, setUrl] = useState("");
-  const [error, setError] = useState("");
   const [creatives, setCreatives] = useState<Creative[]>([]);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [campaignsError, setCampaignsError] = useState<string | null>(null);
@@ -98,6 +101,13 @@ export default function CreativesPage() {
   const [recreatePrompt, setRecreatePrompt] = useState("");
   const [recreatingAsset, setRecreatingAsset] = useState(false);
 
+  // Model picker modal state
+  const [showModelPicker, setShowModelPicker] = useState(false);
+  const [modelPickerContentType, setModelPickerContentType] = useState<"caption-generation" | "image-generation" | "video-generation">("caption-generation");
+  const [textModel, setTextModel] = useState("gpt-4o");
+  const [imageModel, setImageModel] = useState("dall-e-3");
+  const [videoModel, setVideoModel] = useState("Video-Generator-PRO");
+
   const createModalRef = useRef<HTMLDivElement | null>(null);
   const previousFocusRef = useRef<Element | null>(null);
 
@@ -114,9 +124,8 @@ export default function CreativesPage() {
       });
       if (!res.ok) throw new Error("Failed to fetch creatives");
       setCreatives(await res.json());
-      setError("");
     } catch (err: any) {
-      setError(err.message || "Error loading creatives");
+      toast.error(err.message || "Error loading creatives");
     }
   }
 
@@ -137,7 +146,6 @@ export default function CreativesPage() {
 
   async function handleCreateCreative() {
     setCreating(true);
-    setError("");
 
     try {
       // Get tenantId from JWT token
@@ -168,6 +176,9 @@ export default function CreativesPage() {
           caption: textCaption,
           hashtags: textHashtags.split(',').map(h => h.trim()).filter(Boolean),
         };
+        if (textModel) {
+          payload.selectedModel = textModel;
+        }
       } else if (createType === 'image') {
         payload.visual = {
           prompt: imagePrompt,
@@ -178,6 +189,9 @@ export default function CreativesPage() {
         };
         if (generateImageNow) {
           payload.generateNow = true;
+        }
+        if (imageModel) {
+          payload.selectedModel = imageModel;
         }
       } else if (createType === 'video') {
         payload.script = {
@@ -191,6 +205,9 @@ export default function CreativesPage() {
         payload.durationSeconds = videoDuration;
         if (generateVideoNow) {
           payload.generateNow = true;
+        }
+        if (videoModel) {
+          payload.selectedModel = videoModel;
         }
       }
 
@@ -221,7 +238,7 @@ export default function CreativesPage() {
       
       fetchCreatives();
     } catch (err: any) {
-      setError(err.message || "Error creating creative");
+      toast.error(err.message || "Error creating creative");
     } finally {
       setCreating(false);
     }
@@ -232,7 +249,6 @@ export default function CreativesPage() {
     if (!file) return;
 
     setUploading(true);
-    setError("");
     setUrl("");
 
     try {
@@ -251,7 +267,7 @@ export default function CreativesPage() {
       fetchCreatives();
       setFile(null);
     } catch (err: any) {
-      setError(err.message || "Upload error");
+      toast.error(err.message || "Upload error");
     } finally {
       setUploading(false);
     }
@@ -266,7 +282,6 @@ export default function CreativesPage() {
     e.preventDefault();
     if (!editingId) return;
 
-    setError("");
     try {
       const res = await fetch(`${apiUrl}/api/creatives/${editingId}/edit-caption`, {
         method: "PUT",
@@ -277,14 +292,16 @@ export default function CreativesPage() {
       if (!res.ok) throw new Error("Failed to update creative");
       setEditingId(null);
       setEditCaption("");
+      toast.success("Caption updated successfully");
       fetchCreatives();
     } catch (err: any) {
-      setError(err.message || "Error updating creative");
+      toast.error(err.message || "Error updating creative");
     }
   }
 
   async function handleRenderMedia(creativeId: string, type: 'image' | 'video') {
-    setError("");
+    let loadingToastId: string | undefined;
+
     setRenderingMedia(prev => {
       const next = new Set(prev);
       next.add(creativeId);
@@ -292,6 +309,13 @@ export default function CreativesPage() {
     });
 
     try {
+      // Inform the user that generation has started and may take some time
+      loadingToastId = toast.loading(
+        type === 'image'
+          ? 'Generating image… this may take 10–20 seconds.'
+          : 'Generating video… this may take up to a minute.'
+      );
+
       // Provide higher-quality defaults per media type
       const qualityPayload = type === 'image'
         ? {
@@ -318,8 +342,21 @@ export default function CreativesPage() {
         body: JSON.stringify(qualityPayload),
       });
 
-      if (!res.ok) throw new Error(`Failed to start ${type} generation`);
       const data = await res.json();
+      
+      if (!res.ok) {
+        const errorMessage = data?.userFriendlyMessage || data?.message || `Failed to start ${type} generation`;
+        throw new Error(errorMessage);
+      }
+
+      if (loadingToastId) {
+        toast.dismiss(loadingToastId);
+        toast.success(
+          type === 'image'
+            ? 'Image generation started. We’ll refresh the preview in ~15 seconds.'
+            : 'Video generation started. We’ll refresh the preview in ~60 seconds.'
+        );
+      }
       
       // Poll for updates (simple approach - refresh after delay)
       setTimeout(() => {
@@ -332,7 +369,10 @@ export default function CreativesPage() {
       }, type === 'image' ? 15000 : 60000); // 15s for images, 60s for videos
       
     } catch (err: any) {
-      setError(err.message || `Error generating ${type}`);
+      if (loadingToastId) {
+        toast.dismiss(loadingToastId);
+      }
+      toast.error(err.message || `Error generating ${type}`);
       setRenderingMedia(prev => {
         const next = new Set(prev);
         next.delete(creativeId);
@@ -351,7 +391,6 @@ export default function CreativesPage() {
   async function submitImprovePrompt() {
     if (!improvePromptId || !improvePromptText) return;
     
-    setError("");
     setImprovingPrompt(true);
     
     try {
@@ -368,7 +407,7 @@ export default function CreativesPage() {
       const data = await res.json();
       setImprovedPrompt(data.improved_prompt ?? data.improvedPrompt ?? "");
     } catch (err: any) {
-      setError(err.message || "Error improving prompt");
+      toast.error(err.message || "Error improving prompt");
     } finally {
       setImprovingPrompt(false);
     }
@@ -377,7 +416,6 @@ export default function CreativesPage() {
   async function confirmRecreateWithImprovedPrompt() {
     if (!improvePromptId || !improvedPrompt) return;
     
-    setError("");
     setRecreatingAsset(true);
     
     try {
@@ -400,10 +438,10 @@ export default function CreativesPage() {
       setImprovePromptId(null);
       setImprovePromptText("");
       setImprovedPrompt("");
-      setError("");
+      toast.success("Asset recreated successfully");
       fetchCreatives();
     } catch (err: any) {
-      setError(err.message || "Error recreating asset");
+      toast.error(err.message || "Error recreating asset");
     } finally {
       setRecreatingAsset(false);
     }
@@ -417,7 +455,6 @@ export default function CreativesPage() {
   async function confirmRecreateAsset() {
     if (!recreateId) return;
     
-    setError("");
     setRecreatingAsset(true);
     
     try {
@@ -445,9 +482,10 @@ export default function CreativesPage() {
       setShowRecreateModal(false);
       setRecreateId(null);
       setRecreateWithChanges(false);
+      toast.success("Asset recreated successfully");
       fetchCreatives();
     } catch (err: any) {
-      setError(err.message || "Error recreating asset");
+      toast.error(err.message || "Error recreating asset");
     } finally {
       setRecreatingAsset(false);
     }
@@ -559,19 +597,12 @@ export default function CreativesPage() {
           </div>
         </header>
 
-        {/* Alerts */}
-        {error && (
-          <div
-            role="alert"
-            className="rounded-2xl border border-red-500/30 bg-red-500/10 text-red-200 px-4 py-3"
-          >
-            {error}
-          </div>
-        )}
+        <Toaster position="top-right" />
 
+        {/* Alerts */}
         {campaignsError && (
           <div
-            role="status"
+            role="alert"
             className="flex items-start justify-between gap-3 rounded-2xl border border-amber-400/40 bg-amber-50 text-amber-900 px-4 py-3"
           >
             <div className="space-y-1 text-sm">
@@ -1014,6 +1045,21 @@ export default function CreativesPage() {
                 {/* Text Creative */}
                 {createType === 'text' && (
                   <div className="space-y-4">
+                    <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-slate-700">📊 Selected Model:</p>
+                        <p className="text-xs text-slate-600 mt-1">{textModel || 'Default (GPT-4O)'}</p>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setModelPickerContentType('caption-generation');
+                          setShowModelPicker(true);
+                        }}
+                        className="px-3 py-1 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition"
+                      >
+                        Change
+                      </button>
+                    </div>
                     <div>
                       <label className="block text-sm font-semibold text-slate-700 mb-2">
                         Caption <span className="text-red-500">*</span>
@@ -1049,6 +1095,21 @@ export default function CreativesPage() {
                 {/* Image Creative */}
                 {createType === 'image' && (
                   <div className="space-y-4">
+                    <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-slate-700">🎨 Selected Model:</p>
+                        <p className="text-xs text-slate-600 mt-1">{imageModel || 'Default (DALL-E 3)'}</p>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setModelPickerContentType('image-generation');
+                          setShowModelPicker(true);
+                        }}
+                        className="px-3 py-1 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition"
+                      >
+                        Change
+                      </button>
+                    </div>
                     <div>
                       <label className="block text-sm font-semibold text-slate-700 mb-2">
                         Image Prompt <span className="text-red-500">*</span>
@@ -1110,6 +1171,21 @@ export default function CreativesPage() {
                 {/* Video Creative */}
                 {createType === 'video' && (
                   <div className="space-y-4">
+                    <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-slate-700">🎬 Selected Model:</p>
+                        <p className="text-xs text-slate-600 mt-1">{videoModel || 'Default (Video-Generator-PRO)'}</p>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setModelPickerContentType('video-generation');
+                          setShowModelPicker(true);
+                        }}
+                        className="px-3 py-1 bg-orange-600 text-white text-sm rounded-lg hover:bg-orange-700 transition"
+                      >
+                        Change
+                      </button>
+                    </div>
                     <div className="p-4 bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-xl">
                       <div className="flex items-center justify-between mb-2">
                         <h3 className="text-sm font-bold text-slate-900">✨ AI-Powered Video Creation</h3>
@@ -1280,6 +1356,29 @@ export default function CreativesPage() {
               </div>
             </div>
           </div>
+        )}
+
+        {/* Model Picker Modal */}
+        {showModelPicker && (
+          <ModelPickerModal
+            isOpen={showModelPicker}
+            contentType={modelPickerContentType}
+            onSelect={(model) => {
+              if (modelPickerContentType === 'caption-generation') {
+                setTextModel(model);
+              } else if (modelPickerContentType === 'image-generation') {
+                setImageModel(model);
+              } else if (modelPickerContentType === 'video-generation') {
+                setVideoModel(model);
+              }
+              setShowModelPicker(false);
+            }}
+            onClose={() => setShowModelPicker(false)}
+            getAuthHeaders={() => ({
+              'Authorization': `Bearer ${localStorage.getItem('token')}`
+            })}
+            apiUrl={process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}
+          />
         )}
 
         {/* Video Creation Wizard */}

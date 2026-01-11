@@ -39,21 +39,71 @@ export class CreativesController {
   @Post('generate/text')
   @SubscriptionRequired('copy-engine')
   @UseGuards(SubscriptionRequiredGuard)
-  async generateText(@Body() body: { tenantId: string; campaignId: string; model: string; prompt: string; platforms?: string[]; angleId?: string | null; guidance?: any }) {
+  async generateText(@Body() body: { 
+    tenantId: string
+    campaignId: string
+    model: string
+    prompt: string
+    platforms?: string[]
+    angleId?: string | null
+    guidance?: any
+    // Model selection options
+    selectModel?: boolean
+    availableModels?: boolean
+  }) {
     return this.creativesService.generateTextCreative(body);
   }
 
   @Post('generate/image')
   @SubscriptionRequired('creative-engine')
   @UseGuards(SubscriptionRequiredGuard)
-  async generateImage(@Body() body: { tenantId: string; campaignId: string; model: string; prompt: string; layoutHint?: string; platforms?: string[]; angleId?: string | null }) {
+  async generateImage(@Body() body: { 
+    tenantId: string
+    campaignId: string
+    model: string
+    prompt: string
+    layoutHint?: string
+    platforms?: string[]
+    angleId?: string | null
+    // Quality parameters for image generation
+    quality?: {
+      width?: number
+      height?: number
+      negativePrompt?: string
+      numInferenceSteps?: number
+      guidanceScale?: number
+      scheduler?: string
+      enhancePrompt?: boolean
+    }
+    // Model selection options
+    selectModel?: boolean
+    availableModels?: boolean
+  }) {
     return this.creativesService.generateImageCreative(body);
   }
 
   @Post('generate/video')
   @SubscriptionRequired('creative-engine')
   @UseGuards(SubscriptionRequiredGuard)
-  async generateVideo(@Body() body: { tenantId: string; campaignId: string; model: string; prompt: string; platforms?: string[]; angleId?: string | null }) {
+  async generateVideo(@Body() body: { 
+    tenantId: string
+    campaignId: string
+    model: string
+    prompt: string
+    platforms?: string[]
+    angleId?: string | null
+    // Quality parameters for video generation
+    quality?: {
+      durationSeconds?: number
+      fps?: number
+      negativePrompt?: string
+      numInferenceSteps?: number
+      guidanceScale?: number
+    }
+    // Model selection options
+    selectModel?: boolean
+    availableModels?: boolean
+  }) {
     return this.creativesService.generateVideoCreative(body);
   }
 
@@ -110,47 +160,55 @@ export class CreativesController {
       fps?: number;
     }
   ) {
-    const creative = await this.creativesService.findOne(id);
-    const model = body.model || 'gpt-4o';
-    
-    if (creative.type === 'image' && creative.visual?.prompt) {
-      await this.creativesService.generateActualImage(
-        id,
-        creative.visual.prompt,
-        model,
-        creative.tenantId,
-        {
-          width: body.width,
-          height: body.height,
-          negativePrompt: body.negativePrompt,
-          numInferenceSteps: body.numInferenceSteps,
-          guidanceScale: body.guidanceScale,
-          scheduler: body.scheduler,
-        },
-      );
-      return { message: 'Image generation started', status: 'processing' };
-    } else if (creative.type === 'video' && creative.script) {
-      const prompt = creative.visual?.prompt || 
-        (typeof creative.script.body === 'string' ? creative.script.body : 
-         Array.isArray(creative.script.body) ? creative.script.body.join(' ') : 'video');
+    try {
+      const creative = await this.creativesService.findOne(id);
+      const model = body.model || 'gpt-4o';
       
-      await this.creativesService.generateActualVideo(
-        id,
-        prompt,
-        creative.script,
-        model,
-        creative.tenantId,
-        {
-          durationSeconds: body.durationSeconds,
-          fps: body.fps,
-          negativePrompt: body.negativePrompt,
-          numInferenceSteps: body.numInferenceSteps,
-          guidanceScale: body.guidanceScale,
-        },
-      );
-      return { message: 'Video generation started', status: 'processing' };
+      if (creative.type === 'image' && creative.visual?.prompt) {
+        await this.creativesService.generateActualImage(
+          id,
+          creative.visual.prompt,
+          model,
+          creative.tenantId,
+          {
+            width: body.width,
+            height: body.height,
+            negativePrompt: body.negativePrompt,
+            numInferenceSteps: body.numInferenceSteps,
+            guidanceScale: body.guidanceScale,
+            scheduler: body.scheduler,
+          },
+        );
+        return { message: 'Image generation started', status: 'processing' };
+      } else if (creative.type === 'video' && creative.script) {
+        const prompt = creative.visual?.prompt || 
+          (typeof creative.script.body === 'string' ? creative.script.body : 
+           Array.isArray(creative.script.body) ? creative.script.body.join(' ') : 'video');
+        
+        await this.creativesService.generateActualVideo(
+          id,
+          prompt,
+          creative.script,
+          model,
+          creative.tenantId,
+          {
+            durationSeconds: body.durationSeconds,
+            fps: body.fps,
+            negativePrompt: body.negativePrompt,
+            numInferenceSteps: body.numInferenceSteps,
+            guidanceScale: body.guidanceScale,
+          },
+        );
+        return { message: 'Video generation started', status: 'processing' };
+      }
+      
+      return { message: 'No prompt or script available for rendering', status: 'error' };
+    } catch (err: any) {
+      // Pass through quota errors and other meaningful errors
+      if (err.message?.includes('quota exhausted') || err.statusCode === 402) {
+        throw err;
+      }
+      throw err;
     }
-    
-    return { message: 'No prompt or script available for rendering', status: 'error' };
   }
 }

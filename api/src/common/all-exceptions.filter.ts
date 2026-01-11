@@ -20,6 +20,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const friendlyByStatus: Record<number, string> = {
       400: 'Invalid request. Please check your input.',
       401: 'Please sign in to continue.',
+      402: 'Payment or quota limit reached. Please upgrade or add credits.',
       403: 'You do not have permission to perform this action.',
       404: 'The requested resource was not found.',
       429: 'Too many requests. Please wait a moment and try again.',
@@ -34,6 +35,11 @@ export class AllExceptionsFilter implements ExceptionFilter {
       // Extract validation errors from BadRequestException response
       if ((rawMessage as any).errors && Array.isArray((rawMessage as any).errors)) {
         validationErrors = (rawMessage as any).errors;
+      }
+      
+      // Check if response has userFriendlyMessage - use it if available
+      if ((rawMessage as any).userFriendlyMessage && typeof (rawMessage as any).userFriendlyMessage === 'string') {
+        userFriendlyMessage = (rawMessage as any).userFriendlyMessage;
       }
       
       // Nest HttpException can return { message: string | string[] }

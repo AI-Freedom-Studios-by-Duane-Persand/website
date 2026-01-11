@@ -17,6 +17,7 @@ export class ConnectAccountsDto {
 
   @IsString()
   @IsOptional()
+  @IsNotEmpty()
   metaUserId?: string;
 
   @IsArray()

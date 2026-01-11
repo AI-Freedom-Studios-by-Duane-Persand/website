@@ -1,0 +1,103 @@
+import { Injectable, Logger } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+
+export interface DataDeletionRequest {
+  email: string;
+  reason?: string;
+  requestedAt: Date;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  completedAt?: Date;
+}
+
+export type DataDeletionDocument = DataDeletionRequest & Document;
+
+@Injectable()
+export class DataDeletionService {
+  private readonly logger = new Logger(DataDeletionService.name);
+
+  constructor(
+    @InjectModel('DataDeletionRequest')
+    private readonly dataDeletionModel: Model<DataDeletionDocument>,
+  ) {}
+
+  /**
+   * Submit a data deletion request
+   */
+  async submitRequest(email: string, reason?: string): Promise<DataDeletionRequest> {
+    this.logger.log(`[submitRequest] Received deletion request for email: ${email}`);
+
+    const request = await this.dataDeletionModel.create({
+      email: email.toLowerCase().trim(),
+      reason: reason?.trim(),
+      requestedAt: new Date(),
+      status: 'pending',
+    });
+
+    this.logger.log(`[submitRequest] Created deletion request with ID: ${request._id}`);
+
+    // TODO: Send confirmation email to user
+    // TODO: Notify admins of pending deletion request
+    // TODO: Schedule actual deletion job (after 30 days or immediately based on policy)
+
+    return request.toObject();
+  }
+
+  /**
+   * Get all deletion requests (admin only)
+   */
+  async getAllRequests(): Promise<DataDeletionRequest[]> {
+    return this.dataDeletionModel.find().sort({ requestedAt: -1 }).exec();
+  }
+
+  /**
+   * Get deletion requests by email
+   */
+  async getRequestsByEmail(email: string): Promise<DataDeletionRequest[]> {
+    return this.dataDeletionModel
+      .find({ email: email.toLowerCase().trim() })
+      .sort({ requestedAt: -1 })
+      .exec();
+  }
+
+  /**
+   * Process a deletion request (admin action)
+   * This should:
+   * 1. Delete user account
+   * 2. Delete all creatives
+   * 3. Delete all campaigns
+   * 4. Revoke social media tokens
+   * 5. Delete storage files
+   * 6. Mark request as completed
+   */
+  async processDeletion(requestId: string): Promise<void> {
+    const request = await this.dataDeletionModel.findById(requestId).exec();
+    if (!request) {
+      throw new Error('Deletion request not found');
+    }
+
+    try {
+      this.logger.log(`[processDeletion] Starting deletion for email: ${request.email}`);
+      
+      request.status = 'processing';
+      await request.save();
+
+      // TODO: Implement actual deletion logic
+      // 1. Find user by email
+      // 2. Delete all associated data
+      // 3. Revoke OAuth tokens
+      // 4. Delete files from storage
+
+      request.status = 'completed';
+      request.completedAt = new Date();
+      await request.save();
+
+      this.logger.log(`[processDeletion] Completed deletion for email: ${request.email}`);
+    } catch (error) {
+      this.logger.error(`[processDeletion] Failed to process deletion`, error);
+      request.status = 'failed';
+      await request.save();
+      throw error;
+    }
+  }
+}

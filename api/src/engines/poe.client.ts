@@ -1,6 +1,6 @@
 // api/src/engines/poe.client.ts
 // PoeClient implementation using Poe.com API
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, HttpException, HttpStatus } from '@nestjs/common';
 import axios, { AxiosInstance } from 'axios';
 import { createLogger, format, transports } from 'winston';
 import https from 'https';
@@ -33,6 +33,8 @@ export class PoeClient {
     ['Video-Generator-PRO', { supportsText: false, supportsImages: false, supportsVideo: true, isMultimodal: false }],
     ['dall-e-3', { supportsText: false, supportsImages: true, supportsVideo: false, isMultimodal: false }],
     ['stable-diffusion-xl', { supportsText: false, supportsImages: true, supportsVideo: false, isMultimodal: false }],
+    // Poe image model: nano-banana
+    ['nano-banana', { supportsText: false, supportsImages: true, supportsVideo: false, isMultimodal: false }],
   ]);
 
   constructor() {
@@ -58,10 +60,15 @@ export class PoeClient {
     }
     this.apiUrl = apiUrl;
 
+    // Determine timeout (allow override via env, default 120s for heavier image/video models)
+    const timeoutMs = Number(process.env.POE_TIMEOUT_MS) && Number(process.env.POE_TIMEOUT_MS) > 0
+      ? Number(process.env.POE_TIMEOUT_MS)
+      : 120000;
+
     // Create axios instance with connection pooling for better parallel performance
     this.axiosInstance = axios.create({
       baseURL: this.apiUrl,
-      timeout: 60000,
+      timeout: timeoutMs,
       headers: {
         'Authorization': `Bearer ${this.apiKey}`,
         'Content-Type': 'application/json',
@@ -83,6 +90,7 @@ export class PoeClient {
     logger.log(`PoeClient initialized with API URL: ${this.apiUrl}`);
     logger.log(`PoeClient initialized with API Key: ${this.apiKey ? 'Loaded' : 'Missing'}`);
     logger.log(`PoeClient configured with connection pooling (max 10 concurrent)`);
+    logger.log(`PoeClient timeout set to ${timeoutMs} ms`);
     logger.log(`Model capabilities loaded for ${this.modelCapabilities.size} models`);
   }
 
@@ -116,7 +124,8 @@ export class PoeClient {
 
     // Select best default model based on engine type
     if (engineType === 'image-generation') {
-      return process.env.POE_IMAGE_MODEL || 'dall-e-3';
+      // Default to nano-banana for Poe image generation if no override is set
+      return process.env.POE_IMAGE_MODEL || 'nano-banana';
     } else if (engineType === 'video-generation') {
       return process.env.POE_VIDEO_MODEL || 'Video-Generator-PRO';
     } else if (engineType.includes('image')) {
@@ -173,22 +182,33 @@ export class PoeClient {
 
       // Provide user-friendly error messages
       let errorMessage = error?.message || 'Unknown error';
+      let httpStatus = HttpStatus.INTERNAL_SERVER_ERROR;
       
       if (status === 402) {
         const quotaMessage = data?.error?.message || 'Insufficient quota';
         errorMessage = `Poe API credits exhausted: ${quotaMessage}. Add more points at https://poe.com/api_key`;
+        httpStatus = 402; // Payment Required
       } else if (status === 401) {
         errorMessage = 'Poe API authentication failed. Check your POE_API_KEY configuration.';
+        httpStatus = HttpStatus.UNAUTHORIZED;
       } else if (status === 429) {
         errorMessage = 'Poe API rate limit exceeded. Please try again later or upgrade your plan.';
+        httpStatus = HttpStatus.TOO_MANY_REQUESTS;
       } else if (status >= 500) {
         errorMessage = 'Poe API server error. Please try again later.';
+        httpStatus = HttpStatus.BAD_GATEWAY;
       }
 
-      const err = new Error(`Poe API error (${status ?? 'unknown'}): ${errorMessage}`);
-      (err as any).status = status;
-      (err as any).data = data;
-      throw err;
+      // Throw HttpException with proper status code so it gets caught by exception filter
+      throw new HttpException(
+        {
+          statusCode: httpStatus,
+          message: errorMessage,
+          userFriendlyMessage: errorMessage,
+          error: 'Poe API Error',
+        },
+        httpStatus
+      );
     }
   }
 
@@ -205,12 +225,14 @@ export class PoeClient {
     const systemPrompt = systemPrompts[engineType] || 'You are a helpful AI assistant.';
     const userPrompt = input.prompt || JSON.stringify(input);
 
-    this.logger.info(`[generateText] Using model: ${model}`, {
-      engineType,
-      promptLength: userPrompt.length,
-    });
-
     try {
+      const start = Date.now();
+      this.logger.info(`[generateText] Starting Poe API call`, {
+        model,
+        engineType,
+        promptLength: userPrompt.length,
+      });
+
       const response = await this.axiosInstance.post('/chat/completions', {
         model,
         messages: [
@@ -226,18 +248,26 @@ export class PoeClient {
       }
 
       const content = response.data.choices[0].message.content;
-      this.logger.info(`[generateText] Content generated successfully`, {
+      const durationMs = Date.now() - start;
+      const logMethod = durationMs > 15000 ? 'warn' : 'info';
+      (this.logger as any)[logMethod](`[generateText] Content generated successfully`, {
         model,
+        engineType,
+        durationMs,
         contentLength: content.length,
       });
 
       return content;
     } catch (error: any) {
+      const durationMs = error?.config?.metadata?.startTime
+        ? Date.now() - error.config.metadata.startTime
+        : undefined;
       // If API fails, return a mock response for demo/fallback purposes
       this.logger.warn(`[generateText] API call failed, using fallback response`, {
         model,
         error: error?.message,
         status: error?.response?.status,
+        durationMs,
       });
 
       // Generate fallback content based on engine type
@@ -281,17 +311,14 @@ export class PoeClient {
     const height = input.height || 1024;
     const quality = input.quality || 'standard';
 
-    this.logger.info(`[generateImage] Generating image`, {
+    const start = Date.now();
+    this.logger.info(`[generateImage] Starting Poe API call`, {
       model,
       promptLength: prompt.length,
       size: `${width}x${height}`,
       quality,
     });
 
-    // Note: This method is not used - Replicate handles all image generation
-    // Kept for backward compatibility with Poe-only text generation
-    throw new Error('Image generation via Poe is not supported - use Replicate instead');
-    
     // Use chat completions for Poe v2 image-capable models
     const response = await this.axiosInstance.post('/chat/completions', {
       model,
@@ -307,6 +334,13 @@ export class PoeClient {
       ],
       max_tokens: 800,
       temperature: 0.7,
+    });
+
+    const durationMs = Date.now() - start;
+    const timingLogMethod = durationMs > 15000 ? 'warn' : 'info';
+    (this.logger as any)[timingLogMethod]('[generateImage] Poe API call completed', {
+      model,
+      durationMs,
     });
 
     const choice = response.data?.choices?.[0];
@@ -342,8 +376,21 @@ export class PoeClient {
       return JSON.stringify({ url, prompt });
     }
 
-    // If nothing found, error in strict mode
-    throw new Error('No image URL or attachment found in Poe response');
+    // If nothing found, log and return a fallback placeholder image
+    this.logger.warn('[generateImage] No image URL or attachment found in Poe response, using fallback image', {
+      model,
+      contentPreview: content.substring(0, 200),
+    });
+
+    const fallbackUrl = `https://via.placeholder.com/${width}x${height}.png?text=Image+not+available`;
+    return JSON.stringify({
+      url: fallbackUrl,
+      prompt,
+      width,
+      height,
+      provider: 'poe-fallback',
+      note: 'Poe response did not include an image URL; using placeholder image.',
+    });
   }
 
   /**
@@ -355,7 +402,8 @@ export class PoeClient {
     const duration = input.duration || 15;
     const resolution = input.resolution || '1080p';
 
-    this.logger.info(`[generateVideo] Generating video with Poe`, {
+    const start = Date.now();
+    this.logger.info(`[generateVideo] Starting Poe API call`, {
       model,
       promptLength: prompt.length,
       hasScript: !!script,
@@ -394,6 +442,13 @@ export class PoeClient {
             content: videoPrompt,
           },
         ],
+      });
+
+      const durationMs = Date.now() - start;
+      const timingLogMethod = durationMs > 30000 ? 'warn' : 'info';
+      (this.logger as any)[timingLogMethod]('[generateVideo] Poe API call completed', {
+        model: videoModel,
+        durationMs,
       });
 
       if (!response.data?.choices?.[0]?.message?.content) {
@@ -447,13 +502,25 @@ export class PoeClient {
         provider: 'poe',
       });
     } catch (error: any) {
-      // If API fails, return fallback video response
+      const status = error?.response?.status;
+      const data = error?.response?.data;
+
       this.logger.warn(`[generateVideo] API call failed, using fallback response`, {
         model,
         error: error?.message,
-        status: error?.response?.status,
+        status,
       });
 
+      // Handle specific error cases
+      if (status === 402) {
+        this.logger.error(`[generateVideo] Poe API quota exhausted (402)`, {
+          error: error?.message,
+        });
+        // Throw quota error to caller - don't use fallback
+        throw new Error('Poe API credits exhausted. Add more points at https://poe.com/api_key');
+      }
+
+      // For other errors, return fallback
       return this.generateFallbackVideo(prompt, script, duration, resolution);
     }
   }
@@ -494,6 +561,7 @@ export class PoeClient {
         // Multimodal models (text + images)
         'gemini-1.5-pro',
         // Image generation models
+        'nano-banana',
         'dall-e-3',
         'stable-diffusion-xl',
         // Video generation models
@@ -520,7 +588,17 @@ export class PoeClient {
   /**
    * Improve a prompt using GPT-4o
    */
-  async improvePrompt(prompt: string, context?: { targetAudience?: string; tone?: string; style?: string }): Promise<string> {
+  async improvePrompt(prompt: string, context?: { targetAudience?: string; tone?: string; style?: string } | string | Record<string, any>): Promise<string> {
+    // Normalize context to object format
+    let contextObj: { targetAudience?: string; tone?: string; style?: string } | undefined;
+    if (context) {
+      if (typeof context === 'string') {
+        contextObj = { style: context };
+      } else if (typeof context === 'object') {
+        contextObj = context as any;
+      }
+    }
+
     const systemPrompt = `You are an expert creative prompt engineer. Your task is to enhance and improve creative prompts.
 
 When given a creative prompt, you should:
@@ -530,10 +608,10 @@ When given a creative prompt, you should:
 4. Suggest improvements that would result in higher-quality outputs
 5. Keep the core intent while elevating the language
 
-${context ? `Consider this context:
-- Target Audience: ${context.targetAudience || 'General'}
-- Tone: ${context.tone || 'Professional'}
-- Style: ${context.style || 'Modern'}` : ''}
+${contextObj ? `Consider this context:
+- Target Audience: ${contextObj.targetAudience || 'General'}
+- Tone: ${contextObj.tone || 'Professional'}
+- Style: ${contextObj.style || 'Modern'}` : ''}
 
 Return ONLY the improved prompt, nothing else. Do not include explanations.`;
 
@@ -571,6 +649,166 @@ Return ONLY the improved prompt, nothing else. Do not include explanations.`;
 
       // Fallback: return enhanced version of the original prompt
       return `${prompt}. High quality, professional, detailed, well-composed, trending aesthetic`;
+    }
+  }
+
+  /**
+   * Get models available for a specific content type
+   * ContentTypes: prompt-improvement, image-generation, video-generation, caption-generation, script-generation, hashtag-generation
+   */
+  getModelsForContentType(contentType: string): Array<{ model: string; displayName: string; recommended: boolean; description: string }> {
+    const modelsByType: Record<string, Array<{ model: string; displayName: string; recommended: boolean; description: string }>> = {
+      'prompt-improvement': [
+        { model: 'gpt-4o', displayName: 'GPT-4 Omni', recommended: true, description: 'Most powerful - best for complex creative enhancement' },
+        { model: 'claude-3-opus-20240229', displayName: 'Claude 3 Opus', recommended: false, description: 'Excellent reasoning and nuanced understanding' },
+        { model: 'gpt-4', displayName: 'GPT-4', recommended: false, description: 'Strong performance, reliable' },
+        { model: 'claude-3-sonnet-20240229', displayName: 'Claude 3 Sonnet', recommended: false, description: 'Balanced performance and speed' },
+      ],
+      'image-generation': [
+        { model: 'nano-banana', displayName: 'Nano-banana', recommended: true, description: 'Default Poe image model optimized for creative visuals' },
+        { model: 'dall-e-3', displayName: 'DALL-E 3', recommended: false, description: 'Highest quality, best for photorealistic images' },
+        { model: 'stable-diffusion-xl', displayName: 'Stable Diffusion XL', recommended: false, description: 'Fast, versatile, good for varied styles' },
+      ],
+      'video-generation': [
+        { model: 'Video-Generator-PRO', displayName: 'Video Generator PRO', recommended: true, description: 'Optimized for video creation - best quality' },
+        { model: 'veo-3', displayName: 'Veo 3', recommended: false, description: 'Advanced video generation with high fidelity' },
+        { model: 'gemini-1.5-pro', displayName: 'Gemini 1.5 Pro', recommended: false, description: 'Multimodal - can work with videos' },
+      ],
+      'caption-generation': [
+        { model: 'gpt-4o', displayName: 'GPT-4 Omni', recommended: true, description: 'Best for engaging, platform-optimized captions' },
+        { model: 'claude-3-opus-20240229', displayName: 'Claude 3 Opus', recommended: false, description: 'Excellent tone variation' },
+        { model: 'gpt-4', displayName: 'GPT-4', recommended: false, description: 'Reliable, consistent results' },
+      ],
+      'script-generation': [
+        { model: 'gpt-4o', displayName: 'GPT-4 Omni', recommended: true, description: 'Best for structured video scripts' },
+        { model: 'claude-3-opus-20240229', displayName: 'Claude 3 Opus', recommended: false, description: 'Excellent narrative structure' },
+        { model: 'gemini-1.5-pro', displayName: 'Gemini 1.5 Pro', recommended: false, description: 'Strong context understanding' },
+      ],
+      'hashtag-generation': [
+        { model: 'gpt-4o', displayName: 'GPT-4 Omni', recommended: true, description: 'Best for trending, relevant hashtags' },
+        { model: 'claude-3-sonnet-20240229', displayName: 'Claude 3 Sonnet', recommended: false, description: 'Fast and accurate hashtag selection' },
+        { model: 'gpt-3.5-turbo', displayName: 'GPT-3.5 Turbo', recommended: false, description: 'Cost-effective option' },
+      ],
+    };
+
+    return modelsByType[contentType] || modelsByType['caption-generation'];
+  }
+
+  /**
+   * Get all available models organized by capability
+   */
+  getAllModelsWithCapabilities(): Array<{ model: string; displayName: string; provider: string; tier: string; capabilities: any }> {
+    return [
+      // GPT Models
+      { 
+        model: 'gpt-4o', 
+        displayName: 'GPT-4 Omni', 
+        provider: 'OpenAI',
+        tier: 'pro',
+        capabilities: this.getModelCapabilities('gpt-4o'),
+      },
+      { 
+        model: 'gpt-4', 
+        displayName: 'GPT-4', 
+        provider: 'OpenAI',
+        tier: 'pro',
+        capabilities: this.getModelCapabilities('gpt-4'),
+      },
+      { 
+        model: 'gpt-3.5-turbo', 
+        displayName: 'GPT-3.5 Turbo', 
+        provider: 'OpenAI',
+        tier: 'free',
+        capabilities: this.getModelCapabilities('gpt-3.5-turbo'),
+      },
+      // Claude Models
+      { 
+        model: 'claude-3-opus-20240229', 
+        displayName: 'Claude 3 Opus', 
+        provider: 'Anthropic',
+        tier: 'pro',
+        capabilities: this.getModelCapabilities('claude-3-opus-20240229'),
+      },
+      { 
+        model: 'claude-3-sonnet-20240229', 
+        displayName: 'Claude 3 Sonnet', 
+        provider: 'Anthropic',
+        tier: 'pro',
+        capabilities: this.getModelCapabilities('claude-3-sonnet-20240229'),
+      },
+      { 
+        model: 'claude-3-haiku-20240307', 
+        displayName: 'Claude 3 Haiku', 
+        provider: 'Anthropic',
+        tier: 'free',
+        capabilities: this.getModelCapabilities('claude-3-haiku-20240307'),
+      },
+      // Google Models
+      { 
+        model: 'gemini-1.5-pro', 
+        displayName: 'Gemini 1.5 Pro', 
+        provider: 'Google',
+        tier: 'pro',
+        capabilities: this.getModelCapabilities('gemini-1.5-pro'),
+      },
+      // Image Generation
+      { 
+        model: 'nano-banana', 
+        displayName: 'Nano-banana', 
+        provider: 'Poe',
+        tier: 'pro',
+        capabilities: this.getModelCapabilities('nano-banana'),
+      },
+      { 
+        model: 'dall-e-3', 
+        displayName: 'DALL-E 3', 
+        provider: 'OpenAI',
+        tier: 'pro',
+        capabilities: this.getModelCapabilities('dall-e-3'),
+      },
+      { 
+        model: 'stable-diffusion-xl', 
+        displayName: 'Stable Diffusion XL', 
+        provider: 'Stability AI',
+        tier: 'pro',
+        capabilities: this.getModelCapabilities('stable-diffusion-xl'),
+      },
+      // Video Generation
+      { 
+        model: 'Video-Generator-PRO', 
+        displayName: 'Video Generator PRO', 
+        provider: 'Poe',
+        tier: 'pro',
+        capabilities: this.getModelCapabilities('Video-Generator-PRO'),
+      },
+      { 
+        model: 'veo-3', 
+        displayName: 'Veo 3', 
+        provider: 'Google',
+        tier: 'pro',
+        capabilities: this.getModelCapabilities('veo-3'),
+      },
+    ];
+  }
+
+  /**
+   * Validate if a model supports the requested content type
+   */
+  canModelHandleContentType(model: string, contentType: string): boolean {
+    const capabilities = this.getModelCapabilities(model);
+
+    switch (contentType) {
+      case 'image-generation':
+        return capabilities.supportsImages;
+      case 'video-generation':
+        return capabilities.supportsVideo;
+      case 'prompt-improvement':
+      case 'caption-generation':
+      case 'script-generation':
+      case 'hashtag-generation':
+        return capabilities.supportsText;
+      default:
+        return capabilities.supportsText;
     }
   }
 }

@@ -1,4 +1,5 @@
 import React from "react";
+import Link from "next/link";
 
 type FooterProps = {
   darkMode?: boolean;
@@ -78,10 +79,15 @@ export default function Footer({ darkMode = true }: FooterProps) {
           </p>
 
           <div className="flex gap-4">
-            <span>Privacy Policy</span>
-            <span>Terms of Service</span>
-            <span>Cookie Policy</span>
-            <span>GDPR</span>
+            <Link href="/privacy" className="hover:text-white transition">
+              Privacy Policy
+            </Link>
+            <Link href="/terms" className="hover:text-white transition">
+              Terms of Service
+            </Link>
+            <Link href="/data-deletion" className="hover:text-white transition">
+              Data Deletion
+            </Link>
           </div>
         </div>
       </div>

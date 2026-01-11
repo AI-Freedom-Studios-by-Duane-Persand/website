@@ -3,13 +3,17 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ConfigService } from '../integrations/config.service';
 import { Request } from 'express';
 import { S3Client, HeadBucketCommand } from '@aws-sdk/client-s3';
+import { CreativesService } from '../creatives/creatives.service';
 
 @Controller('admin/storage')
 @UseGuards(JwtAuthGuard)
 export class AdminStorageController {
   private readonly logger = new Logger(AdminStorageController.name);
 
-  constructor(private readonly configService: ConfigService) {}
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly creativesService: CreativesService,
+  ) {}
 
   /**
    * Check if user is admin
@@ -174,5 +178,31 @@ export class AdminStorageController {
         message: 'Connection failed - check credentials and endpoint',
       };
     }
+  }
+
+  /**
+   * Admin-only helper to refresh all creative image URLs to fresh signed URLs.
+   * Uses CreativesService.refreshAllCreativeImageUrls under the hood.
+   */
+  @Post('refresh-creative-image-urls')
+  async refreshCreativeImageUrls(
+    @Body() body: { tenantId?: string },
+    @Req() req: Request,
+  ) {
+    if (!this.isAdmin(req)) {
+      throw new ForbiddenException('Admin access required');
+    }
+
+    const currentTenantId = (req as any).user?.tenantId?.toString();
+    const targetTenantId = body?.tenantId || currentTenantId;
+
+    const result = await this.creativesService.refreshAllCreativeImageUrls(targetTenantId);
+
+    this.logger.log('[refreshCreativeImageUrls] Completed refresh via admin endpoint', {
+      tenantId: targetTenantId,
+      ...result,
+    });
+
+    return result;
   }
 }

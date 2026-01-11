@@ -23,6 +23,7 @@ import { R2ConfigController } from './r2-config.controller';
 import { AdminStorageController } from './storage.controller';
 
 import { ModelsModule } from '../models/models.module';
+import { CreativesModule } from '../creatives/creatives.module';
 import { Injectable, Logger } from '@nestjs/common';
 
 @Injectable()
@@ -39,6 +40,7 @@ export class AdminModuleLogger {
     LoggerModule,
     AdminPackagesModule,
     ModelsModule,
+    CreativesModule,
   ],
   providers: [AdminService, ConfigService, BrandingService, AdminModuleLogger],
   controllers: [AdminController, BrandingController, AdminPackagesController, R2ConfigController, AdminStorageController],

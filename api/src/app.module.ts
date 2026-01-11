@@ -31,6 +31,7 @@ import { ApprovalsModule } from './approvals/approvals.module';
 import { StrategiesModule } from './strategies/strategies.module';
 import { PromptingModule } from './prompting/prompting.module';
 import { VideoWorkflowModule } from './video-workflow/video-workflow.module';
+import { DataDeletionModule } from './data-deletion/data-deletion.module';
 
 const logger = new Logger('AppModule');
 
@@ -106,6 +107,7 @@ export class AppModuleLogger {
     StrategiesModule,
     PromptingModule,
     VideoWorkflowModule,
+    DataDeletionModule,
   ],
   controllers: [PlatformsController],
   providers: [AppModuleLogger],

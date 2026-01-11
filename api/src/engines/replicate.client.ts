@@ -79,6 +79,114 @@ export class ReplicateClient {
   }
 
   /**
+   * List Replicate models by content type
+   */
+  listModelsByContentType(contentType: 'image-generation' | 'video-generation') {
+    if (contentType === 'image-generation') {
+      return [
+        { key: 'dall-e-3', displayName: 'DALL-E 3 (via OpenAI)', type: 'image' }, // included for parity in UI
+        { key: 'sdxl', displayName: 'Stable Diffusion XL', type: 'image' },
+        { key: 'flux-schnell', displayName: 'Flux Schnell', type: 'image' },
+      ];
+    }
+    return [
+      { key: 'zeroscope', displayName: 'Zeroscope v2 XL', type: 'video' },
+      { key: 'runway-gen2', displayName: 'Runway Gen-2', type: 'video' },
+    ];
+  }
+
+  /**
+   * Generate image with explicit Replicate model selection
+   */
+  async generateImageWithModel(
+    modelKey: 'sdxl' | 'flux-schnell',
+    prompt: string,
+    options: {
+      width?: number;
+      height?: number;
+      negativePrompt?: string;
+      numInferenceSteps?: number;
+      guidanceScale?: number;
+      scheduler?: string;
+    } = {},
+  ): Promise<string> {
+    // Route to appropriate generator based on modelKey
+    if (modelKey === 'sdxl') {
+      return this.generateImage(prompt, {
+        width: options.width,
+        height: options.height,
+        negativePrompt: options.negativePrompt,
+        numInferenceSteps: options.numInferenceSteps ?? 50,
+        guidanceScale: options.guidanceScale ?? 7.5,
+        scheduler: options.scheduler ?? 'DPMSolverMultistep',
+      });
+    }
+    // Flux Schnell path
+    return this.generateImage(prompt, {
+      width: options.width,
+      height: options.height,
+    });
+  }
+
+  /**
+   * Generate video with explicit Replicate model selection
+   */
+  async generateVideoWithModel(
+    modelKey: 'zeroscope' | 'runway-gen2',
+    prompt: string,
+    options: {
+      durationSeconds?: number;
+      fps?: number;
+      negativePrompt?: string;
+      numInferenceSteps?: number;
+      guidanceScale?: number;
+    } = {},
+  ): Promise<string> {
+    // Currently generateVideo uses Zeroscope configuration constants.
+    // For Runway Gen2, Replicate may require different version; add basic branching.
+    if (!this.apiKey) {
+      throw new Error('Replicate API key is required for video generation. Please configure REPLICATE_API_KEY in your environment.');
+    }
+
+    const durationSeconds = options.durationSeconds ?? 10;
+    const fps = options.fps ?? 24;
+    const num_frames = durationSeconds * fps;
+    const negative_prompt = options.negativePrompt ?? 'blurry, low quality, watermark, distorted, artifacts';
+    const num_inference_steps = options.numInferenceSteps ?? 24;
+    const guidance_scale = options.guidanceScale ?? 6.0;
+
+    const version = modelKey === 'runway-gen2'
+      ? 'ccbd4d15b6f7d8017c3d8a25925b9e0b20b7f84dbb7cbac2b4b5073b3c5f10e7' // placeholder version id for Runway Gen-2 (example)
+      : '9f747673945c62801b13b84701c783929c0ee784e4748ec062204894dda1a351'; // Zeroscope v2 XL
+
+    this.logger.info('[ReplicateClient] Generating video with model', {
+      modelKey,
+      prompt: prompt.substring(0, 120),
+      durationSeconds,
+      fps,
+      num_frames,
+      guidance_scale,
+      num_inference_steps,
+    });
+
+    const response = await this.axiosInstance.post('/predictions', {
+      version,
+      input: {
+        prompt,
+        negative_prompt,
+        num_frames,
+        fps,
+        num_inference_steps,
+        guidance_scale,
+      },
+    });
+
+    const predictionId = response.data.id;
+    const videoUrl = await this.pollPrediction(predictionId, 600000);
+    return JSON.stringify({ url: videoUrl, prompt, durationSeconds, fps, provider: 'replicate', model: modelKey });
+  }
+
+  /**
    * Generate image using Replicate
    */
   async generateImage(
@@ -97,18 +205,22 @@ export class ReplicateClient {
     }
 
     try {
-      // Normalize dimensions to multiples of 16 (required by Flux Schnell)
+      // Normalize dimensions to multiples of 16 (required by image generation models)
       const normalizeToMultiple = (value: number, multiple: number) => {
         return Math.round(value / multiple) * multiple;
       };
 
-      // Replicate API limits for Flux Schnell
+      // Replicate API limits for SDXL and Flux models
       const MAX_WIDTH = 1280;
       const MAX_HEIGHT = 1280;
       const MIN_DIMENSION = 256;
 
-      const envDefaultWidth = Number(process.env.DEFAULT_IMAGE_WIDTH) || 1024;
-      const envDefaultHeight = Number(process.env.DEFAULT_IMAGE_HEIGHT) || 576;
+      // Parse env vars with proper NaN handling
+      const parsedWidth = Number(process.env.DEFAULT_IMAGE_WIDTH);
+      const parsedHeight = Number(process.env.DEFAULT_IMAGE_HEIGHT);
+      
+      const envDefaultWidth = (Number.isFinite(parsedWidth) && parsedWidth > 0) ? parsedWidth : 1024;
+      const envDefaultHeight = (Number.isFinite(parsedHeight) && parsedHeight > 0) ? parsedHeight : 576;
       
       // Constrain and normalize dimensions
       const requestedWidth = options.width ?? envDefaultWidth;
@@ -128,19 +240,46 @@ export class ReplicateClient {
         size: `${width}x${height}`,
       });
 
-      // Use Flux Pro for higher quality (supports guidance and inference steps)
-      // Flux Pro is slower than Schnell but produces better results
-      const response = await this.axiosInstance.post('/predictions', {
-        version: 'aa74fab0c5f5402b67aa11743f66e73fd2b03209987eef1db38f5e61fcb51235', // Flux Pro
-        input: {
-          prompt,
-          width,
-          height,
-          num_outputs: 1,
-          guidance_scale: 3.5, // Higher = more adherence to prompt (but slower)
-          num_inference_steps: 50, // Higher = better quality (but slower)
-        },
-      });
+      // Try SDXL first (supports quality parameters), fallback to Flux Schnell
+      const useSDXL = options.numInferenceSteps || options.guidanceScale;
+      
+      let response;
+      if (useSDXL) {
+        // SDXL: supports advanced quality parameters
+        try {
+          response = await this.axiosInstance.post('/predictions', {
+            version: '39ed52f2a78e934b3ba6e2a89f5b1c712de7dfea535525255b1aa35c5565e08b', // SDXL
+            input: {
+              prompt,
+              width,
+              height,
+              num_outputs: 1,
+              num_inference_steps: options.numInferenceSteps ?? 50,
+              guidance_scale: options.guidanceScale ?? 7.5,
+              negative_prompt: options.negativePrompt ?? 'ugly, blurry, poor quality',
+              scheduler: options.scheduler ?? 'DPMSolverMultistep',
+            },
+          });
+          this.logger.info('[ReplicateClient] Using SDXL for quality generation');
+        } catch (err: any) {
+          this.logger.warn('[ReplicateClient] SDXL failed, falling back to Flux Schnell', { error: err.message });
+          response = null;
+        }
+      }
+
+      // Fallback to Flux Schnell (fast, reliable, but fewer parameters)
+      if (!response) {
+        response = await this.axiosInstance.post('/predictions', {
+          version: '5599ed30703defd1d160a25a63321b4dec97101d98b4674bcc56e41f62f35637', // Flux Schnell
+          input: {
+            prompt,
+            width,
+            height,
+            num_outputs: 1,
+          },
+        });
+        this.logger.info('[ReplicateClient] Using Flux Schnell for fast generation');
+      }
 
       const predictionId = response.data.id;
       

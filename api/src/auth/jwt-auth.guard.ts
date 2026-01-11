@@ -1,5 +1,5 @@
 // api/src/auth/jwt-auth.guard.ts
-import { Injectable, ExecutionContext, Inject } from '@nestjs/common';
+import { Injectable, ExecutionContext, Inject, UnauthorizedException } from '@nestjs/common';
 import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 import { AuthGuard } from '@nestjs/passport';
 import { Reflector } from '@nestjs/core';
@@ -36,5 +36,26 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
       return true;
     }
     return super.canActivate(context);
+  }
+
+  handleRequest(err: any, user: any, info: any) {
+    // Handle authentication errors with appropriate HTTP status codes
+    if (err || !user) {
+      const errorMessage = info?.message || err?.message || 'Authentication failed';
+      
+      this.logger?.warn?.('[JwtAuthGuard] Authentication failed', {
+        error: errorMessage,
+        info: info?.name,
+      });
+
+      throw new UnauthorizedException({
+        statusCode: 401,
+        message: 'Invalid or expired authentication token',
+        userFriendlyMessage: 'Your session has expired or your token is invalid. Please log in again.',
+        error: 'Unauthorized',
+      });
+    }
+    
+    return user;
   }
 }

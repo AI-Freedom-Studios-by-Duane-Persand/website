@@ -29,6 +29,13 @@ Users were unable to view created assets after 1 hour due to expired R2 presigne
 - `lastUrlRefreshAt?: Date` - Track when URL was last refreshed
 - `urlExpiresAt?: Date` - Track when signed URL expires
 - `isPermanent?: boolean` - Flag for public URLs (no expiration)
+- `refreshFailureCount?: number` - Count of consecutive failed refresh attempts (default: 0)
+- `unhealthy?: boolean` - Flag indicating asset needs attention after repeated failures (default: false)
+
+**Field Semantics:**
+- Increment `refreshFailureCount` on each failed refresh attempt
+- Set `unhealthy: true` when `refreshFailureCount >= 5`
+- Reset both `refreshFailureCount: 0` and `unhealthy: false` on successful refresh
 
 ✅ **New Database Indexes:**
 - Index on `isPermanent` for efficient querying
@@ -431,18 +438,26 @@ if (!asset) throw new ForbiddenException('Asset not found or access denied');
 - ❌ Never cache signed URLs in CDN/browser beyond TTL
 - ❌ Never expose signed URLs in client-side JavaScript bundles
 
-**IP Restrictions** (Enterprise Feature):
+**IP Restrictions** (AWS S3 Only - Not Compatible with Cloudflare R2):
 ```typescript
+// NOTE: This approach ONLY works with AWS S3
+// Cloudflare R2 does NOT support the "Conditions" parameter in getSignedUrl
 const signedUrl = await s3.getSignedUrl('getObject', {
   Bucket: bucket,
   Key: key,
   Expires: 604800,
-  // Optional: restrict to specific CIDR block
+  // Optional: restrict to specific CIDR block (AWS S3 ONLY)
   Conditions: [
     ['ip-address', '==', '203.0.113.0/24']
   ]
 });
 ```
+
+**Cloudflare R2 IP Restrictions**:
+For IP-based access control with Cloudflare R2, use:
+1. **R2 Bucket Policies**: Configure access rules in Cloudflare Dashboard → R2 → Bucket Settings → Access Policies
+2. **Cloudflare Account-Level Settings**: Use Cloudflare Access or Workers to enforce IP restrictions at the edge
+3. **Reference**: See [Cloudflare R2 Documentation](https://developers.cloudflare.com/r2/buckets/public-buckets/) for bucket policy examples
 
 ---
 

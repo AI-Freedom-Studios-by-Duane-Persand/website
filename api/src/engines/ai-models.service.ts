@@ -51,13 +51,34 @@ export class AIModelsService {
     try {
       this.logger.info(`Generating content using engine: ${engineType}`, { input });
 
-      // Use Replicate for image and video generation
+      // Route to appropriate provider based on env config
+      const imageProvider = process.env.IMAGE_PROVIDER || 'replicate';
+      const videoProvider = process.env.VIDEO_PROVIDER || 'replicate';
+
+      // Image generation - route to configured provider
       if (engineType === 'image-generation' || engineType === 'creative-image') {
-        return await this.generateImageWithReplicate(input);
+        if (imageProvider === 'poe') {
+          this.logger.info('Using Poe for image generation');
+          const content = await this.poeClient.generateContent('image-generation', input);
+          this.logger.info('Image generated successfully via Poe');
+          return content;
+        } else {
+          this.logger.info('Using Replicate for image generation');
+          return await this.generateImageWithReplicate(input);
+        }
       }
 
+      // Video generation - route to configured provider
       if (engineType === 'video-generation' || engineType === 'creative-video') {
-        return await this.generateVideoWithReplicate(input);
+        if (videoProvider === 'poe') {
+          this.logger.info('Using Poe for video generation');
+          const content = await this.poeClient.generateContent('video-generation', input);
+          this.logger.info('Video generated successfully via Poe');
+          return content;
+        } else {
+          this.logger.info('Using Replicate for video generation');
+          return await this.generateVideoWithReplicate(input);
+        }
       }
 
       // Use Poe for text generation
@@ -100,9 +121,22 @@ export class AIModelsService {
       } catch {}
 
       const prompt = parsed.prompt || input.contents;
-      // Replicate API max is 1280x1280; maintain aspect ratio
-      const width = Math.min(parsed.width || parsed.quality?.width || 1280, 1280);
-      const height = Math.min(parsed.height || parsed.quality?.height || 720, 1280);
+      
+      // Replicate API max is 1280x1280; preserve aspect ratio by scaling proportionally
+      const initialWidth = parsed.width ?? parsed.quality?.width ?? 1280;
+      const initialHeight = parsed.height ?? parsed.quality?.height ?? 720;
+      const maxDim = 1280;
+      
+      let width = initialWidth;
+      let height = initialHeight;
+      
+      // Scale down proportionally if either dimension exceeds maxDim
+      if (initialWidth > maxDim || initialHeight > maxDim) {
+        const scale = Math.min(maxDim / initialWidth, maxDim / initialHeight);
+        width = Math.round(initialWidth * scale);
+        height = Math.round(initialHeight * scale);
+      }
+      
       // Note: Flux Schnell doesn't support these parameters, so we extract them but don't pass to Replicate
       // const negativePrompt = parsed.negativePrompt || parsed.quality?.negativePrompt;
       // const numInferenceSteps = parsed.numInferenceSteps || parsed.quality?.numInferenceSteps;
@@ -205,5 +239,148 @@ export class AIModelsService {
     }
 
     return 'Fallback content generated locally.';
+  }
+
+  /**
+   * Get available models for a specific content type
+   */
+  getModelsForContentType(contentType: string) {
+    // Combine Poe and Replicate popular models for unified selection
+    const poeModels = this.poeClient.getModelsForContentType(contentType).map(m => ({
+      model: m.model,
+      displayName: m.displayName,
+      provider: 'poe',
+      recommended: m.recommended,
+      description: m.description,
+    }));
+
+    const replicateModels = (() => {
+      if (contentType === 'image-generation') {
+        return [
+          { model: 'sdxl', displayName: 'Stable Diffusion XL', provider: 'replicate', recommended: false, description: 'Advanced quality control via num steps & guidance' },
+          { model: 'flux-schnell', displayName: 'Flux Schnell', provider: 'replicate', recommended: false, description: 'Fast generation with good results' },
+        ];
+      }
+      if (contentType === 'video-generation') {
+        return [
+          { model: 'zeroscope', displayName: 'Zeroscope v2 XL', provider: 'replicate', recommended: true, description: 'Text-to-video generation with solid results' },
+          { model: 'runway-gen2', displayName: 'Runway Gen-2', provider: 'replicate', recommended: false, description: 'Alternative text-to-video model' },
+        ];
+      }
+      return [];
+    })();
+
+    const combined = [...poeModels, ...replicateModels];
+    const recommendedModel = combined.find(m => m.recommended)?.model || combined[0]?.model;
+    return { recommendedModel, availableModels: combined };
+  }
+
+  /**
+   * Get all available models with their capabilities
+   */
+  getAllModelsWithCapabilities() {
+    return this.poeClient.getAllModelsWithCapabilities();
+  }
+
+  /**
+   * Validate if a model can handle a specific content type
+   */
+  canModelHandleContentType(model: string, contentType: string): boolean {
+    return this.poeClient.canModelHandleContentType(model, contentType);
+  }
+
+  /**
+   * Generate content with a specifically selected model
+   */
+  async generateContentWithModel(
+    contentType: string,
+    model: string,
+    prompt: string,
+    context?: any
+  ): Promise<string> {
+    try {
+      // Validate model can handle this content type
+      if (!this.canModelHandleContentType(model, contentType)) {
+        this.logger.warn(`Model ${model} may not be ideal for ${contentType}, but attempting anyway`);
+      }
+
+      this.logger.info(`Generating ${contentType} with selected model: ${model}`, {
+        promptLength: prompt.length,
+        context,
+      });
+
+      const input = {
+        model,
+        contents: prompt,
+      };
+
+      // Route based on content type
+      if (contentType === 'prompt-improvement') {
+        return await this.poeClient.improvePrompt(prompt, context);
+      }
+
+      if (contentType === 'image-generation' || contentType === 'creative-image') {
+        // If IMAGE_PROVIDER is poe, use Poe; otherwise use Replicate
+        const imageProvider = process.env.IMAGE_PROVIDER || 'replicate';
+        if (imageProvider === 'poe') {
+          return await this.poeClient.generateContent('image-generation', input);
+        } else {
+          // Route to specific Replicate model when provided
+          const parsed: any = (() => { try { return JSON.parse(input.contents); } catch { return {}; } })();
+          const width = parsed.width ?? parsed.quality?.width;
+          const height = parsed.height ?? parsed.quality?.height;
+          const negativePrompt = parsed.negativePrompt ?? parsed.quality?.negativePrompt;
+          const numInferenceSteps = parsed.numInferenceSteps ?? parsed.quality?.numInferenceSteps;
+          const guidanceScale = parsed.guidanceScale ?? parsed.quality?.guidanceScale;
+          const scheduler = parsed.scheduler ?? parsed.quality?.scheduler;
+
+          if (model === 'sdxl' || model === 'flux-schnell') {
+            return await this.replicateClient.generateImageWithModel(model as 'sdxl' | 'flux-schnell', prompt, {
+              width,
+              height,
+              negativePrompt,
+              numInferenceSteps,
+              guidanceScale,
+              scheduler,
+            });
+          }
+          // Fallback to default behavior
+          return await this.generateImageWithReplicate(input);
+        }
+      }
+
+      if (contentType === 'video-generation' || contentType === 'creative-video') {
+        const videoProvider = process.env.VIDEO_PROVIDER || 'replicate';
+        if (videoProvider === 'poe') {
+          return await this.poeClient.generateContent('video-generation', input);
+        } else {
+          const parsed: any = (() => { try { return JSON.parse(input.contents); } catch { return {}; } })();
+          const durationSeconds = parsed.durationSeconds ?? parsed.duration ?? parsed.quality?.durationSeconds;
+          const fps = parsed.fps ?? parsed.quality?.fps;
+          const negativePrompt = parsed.negativePrompt ?? parsed.quality?.negativePrompt;
+          const numInferenceSteps = parsed.numInferenceSteps ?? parsed.quality?.numInferenceSteps;
+          const guidanceScale = parsed.guidanceScale ?? parsed.quality?.guidanceScale;
+
+          if (model === 'zeroscope' || model === 'runway-gen2') {
+            return await this.replicateClient.generateVideoWithModel(model as 'zeroscope' | 'runway-gen2', prompt, {
+              durationSeconds,
+              fps,
+              negativePrompt,
+              numInferenceSteps,
+              guidanceScale,
+            });
+          }
+          return await this.generateVideoWithReplicate(input);
+        }
+      }
+
+      // For text-based content (captions, scripts, hashtags)
+      return await this.poeClient.generateContent('creative-text', input);
+    } catch (error) {
+      this.logger.error(`Error generating ${contentType} with model ${model}`, {
+        error: error instanceof Error ? error.message : error,
+      });
+      throw error;
+    }
   }
 }

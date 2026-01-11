@@ -52,6 +52,10 @@ export interface GenerateVideoDto {
 @Injectable()
 export class VideoWorkflowService {
   private readonly logger = new Logger(VideoWorkflowService.name);
+  
+  // Video frame resolution constants
+  private readonly VIDEO_WIDTH = 1280;
+  private readonly VIDEO_HEIGHT = 720;
 
   constructor(
     @InjectModel(VideoWorkflow.name)
@@ -262,8 +266,8 @@ Return ONLY a refined prompt optimized for video generation, without any explana
         try {
           // Use Replicate for image generation
           const imageUrl = await this.replicateClient.generateImage(framePrompts[i], {
-            width: 1024,
-            height: 576, // 16:9 aspect ratio for video
+            width: this.VIDEO_WIDTH,
+            height: this.VIDEO_HEIGHT,
             guidanceScale: 7.5,
             numInferenceSteps: 50,
           });
@@ -402,8 +406,8 @@ Return ONLY a refined prompt optimized for video generation, without any explana
 
         try {
           const imageUrl = await this.replicateClient.generateImage(enhancedPrompt, {
-            width: 1280,
-            height: 720,
+            width: this.VIDEO_WIDTH,
+            height: this.VIDEO_HEIGHT,
           });
 
           frame.imageUrl = imageUrl;

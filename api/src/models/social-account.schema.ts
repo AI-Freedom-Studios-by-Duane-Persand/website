@@ -27,13 +27,13 @@ export interface SocialAccount {
   scopes: string[]; // Granted permissions
   
   // Status
-  isActive?: boolean;
+  isActive: boolean;
   lastSyncedAt?: Date; // Last time we verified token is valid
   lastUsedAt?: Date; // Last time used for posting
   
   // Error Tracking
   lastError?: string;
-  errorCount?: number;
+  errorCount: number;
   
   // Metadata
   createdAt: Date;

@@ -44,7 +44,7 @@ export class SocialAccountsManagerController {
     @Body() dto: ConnectAccountsDto,
     @Req() req: any,
   ) {
-    const currentUserId = req?.user?.userId || req?.user?.id;
+    const currentUserId = req?.user?.userId ?? req?.user?.id;
     const currentTenantId = req?.user?.tenantId;
 
     if (!currentUserId || currentUserId !== dto.userId) {
@@ -123,7 +123,7 @@ export class SocialAccountsManagerController {
     @Query() dto: GetAccountsDto,
     @Req() req: any,
   ) {
-    const currentUserId = req?.user?.userId || req?.user?.id;
+    const currentUserId = req?.user?.userId ?? req?.user?.id;
     const currentTenantId = req?.user?.tenantId;
 
     if (!currentUserId || currentUserId !== dto.userId) {
@@ -159,7 +159,7 @@ export class SocialAccountsManagerController {
   @UseGuards(AuthGuard('jwt'))
   async getAccount(@Param('accountId') accountId: string, @Req() req: any) {
     const account = await this.accountsManager.getAccount(accountId);
-    const currentUserId = req?.user?.userId || req?.user?.id;
+    const currentUserId = req?.user?.userId ?? req?.user?.id;
 
     if (!currentUserId || account.userId.toString() !== currentUserId) {
       throw new ForbiddenException('You are not allowed to view this account');
@@ -190,7 +190,7 @@ export class SocialAccountsManagerController {
   @Patch('accounts/:accountId/deactivate')
   @UseGuards(AuthGuard('jwt'))
   async deactivateAccount(@Param('accountId') accountId: string, @Req() req: any) {
-    const currentUserId = req?.user?.userId || req?.user?.id;
+    const currentUserId = req?.user?.userId ?? req?.user?.id;
     if (!currentUserId) {
       throw new UnauthorizedException();
     }
@@ -210,7 +210,7 @@ export class SocialAccountsManagerController {
   @Delete('accounts/:accountId')
   @UseGuards(AuthGuard('jwt'))
   async deleteAccount(@Param('accountId') accountId: string, @Req() req: any) {
-    const currentUserId = req?.user?.userId || req?.user?.id;
+    const currentUserId = req?.user?.userId ?? req?.user?.id;
     if (!currentUserId) {
       throw new UnauthorizedException();
     }
@@ -231,7 +231,7 @@ export class SocialAccountsManagerController {
   @UseGuards(AuthGuard('jwt'))
   async refreshToken(@Param('accountId') accountId: string, @Req() req: any) {
     const account = await this.accountsManager.getAccount(accountId);
-    const currentUserId = req?.user?.userId || req?.user?.id;
+    const currentUserId = req?.user?.userId ?? req?.user?.id;
     if (!currentUserId) {
       throw new UnauthorizedException();
     }
@@ -263,7 +263,7 @@ export class SocialAccountsManagerController {
     @Req() req: any,
   ) {
     const { account, token } = await this.accountsManager.getAccountWithToken(body.accountId);
-    const currentUserId = req?.user?.userId || req?.user?.id;
+    const currentUserId = req?.user?.userId ?? req?.user?.id;
     if (!currentUserId) {
       throw new UnauthorizedException();
     }
@@ -303,7 +303,7 @@ export class SocialAccountsManagerController {
     @Req() req: any,
   ) {
     const { account, token } = await this.accountsManager.getAccountWithToken(body.accountId);
-    const currentUserId = req?.user?.userId || req?.user?.id;
+    const currentUserId = req?.user?.userId ?? req?.user?.id;
     if (!currentUserId) {
       throw new UnauthorizedException();
     }
@@ -345,7 +345,7 @@ export class SocialAccountsManagerController {
     @Req() req: any,
   ) {
     const { account, token } = await this.accountsManager.getAccountWithToken(body.accountId);
-    const currentUserId = req?.user?.userId || req?.user?.id;
+    const currentUserId = req?.user?.userId ?? req?.user?.id;
     if (!currentUserId) {
       throw new UnauthorizedException();
     }

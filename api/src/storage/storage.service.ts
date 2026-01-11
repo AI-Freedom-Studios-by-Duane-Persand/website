@@ -111,16 +111,13 @@ export class StorageService {
     const canonicalUrl = this.publicBaseUrl ? `${this.publicBaseUrl}/${fileKey}` : `${this.bucket}/${fileKey}`;
     let viewUrl = canonicalUrl;
 
-    // If publicBaseUrl is configured and ACL is public-read, use direct public URL
-    // Otherwise, generate signed URL with 7-day expiration (max for R2/S3)
-    if (!this.publicBaseUrl) {
-      try {
-        viewUrl = await this.generateSignedGetUrl(fileKey, 7 * 24 * 60 * 60); // 7 days
-      } catch (err: any) {
-        this.logger.warn('[uploadFile] Failed to generate signed URL, falling back to canonical', {
-          errorMessage: err?.message,
-        });
-      }
+    // Always try to generate a signed URL for browser-safe access, regardless of publicBaseUrl
+    try {
+      viewUrl = await this.generateSignedGetUrl(fileKey, 7 * 24 * 60 * 60); // 7 days
+    } catch (err: any) {
+      this.logger.warn('[uploadFile] Failed to generate signed URL, falling back to canonical', {
+        errorMessage: err?.message,
+      });
     }
 
     this.logger.log(`[uploadFile] Upload successful canonical=${canonicalUrl}`);
@@ -159,44 +156,22 @@ export class StorageService {
     if (!url) {
       throw new BadRequestException('url is required');
     }
-
-    if (!this.s3) await this.init(tenantId);
-
-    // If publicBaseUrl is configured, return public URL (permanent)
-    if (this.publicBaseUrl) {
-      const key = this.extractKey(url);
-      const newUrl = `${this.publicBaseUrl}/${key}`;
-      
-      if (persist && tenantId) {
-        const asset = await this.assetModel.findOne({ url, tenantId }).exec();
-        if (asset) {
-          asset.url = newUrl;
-          asset.lastUrlRefreshAt = new Date();
-          asset.isPermanent = true;
-          asset.urlExpiresAt = undefined;
-          await asset.save();
-        }
-      }
-      
-      return newUrl;
-    }
-
-    // Otherwise generate new signed URL with 7-day expiration
     try {
-      const key = this.extractKey(url);
-      const newUrl = await this.generateSignedGetUrl(key, 604800); // 7 days
-      
+      // Use the same signed-URL generation logic as getViewUrlForExisting
+      const newUrl = await this.getViewUrlForExisting(url, tenantId, 604800);
+
       if (persist && tenantId) {
         const asset = await this.assetModel.findOne({ url, tenantId }).exec();
         if (asset) {
           asset.url = newUrl;
           asset.lastUrlRefreshAt = new Date();
-          asset.urlExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+          // Signed URLs are time-limited
           asset.isPermanent = false;
+          asset.urlExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
           await asset.save();
         }
       }
-      
+
       return newUrl;
     } catch (err: any) {
       this.logger.error('[refreshAssetUrl] Failed to refresh URL', {
@@ -356,8 +331,9 @@ export class StorageService {
 
     if (!this.s3) await this.init(tenantId);
     
-    // If already a public URL, return it
-    if (urlOrKey.includes(this.publicBaseUrl) && urlOrKey.startsWith('http')) {
+    // If already a public URL, return it (only if publicBaseUrl is configured)
+    if (this.publicBaseUrl && this.publicBaseUrl.length > 0 && 
+        urlOrKey.includes(this.publicBaseUrl) && urlOrKey.startsWith('http')) {
       return urlOrKey;
     }
     
