@@ -16,6 +16,14 @@ import {
   ReviewFramesDto,
   GenerateVideoDto,
 } from './video-workflow.service';
+import {
+  CreateVideoWorkflowDto,
+  RefinePromptDto as RefinePromptDtoValidator,
+  GenerateFramesDto as GenerateFramesDtoValidator,
+  ReviewFramesDto as ReviewFramesDtoValidator,
+  GenerateVideoDto as GenerateVideoDtoValidator,
+  RegenerateFramesDto,
+} from './video-workflow.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser, JwtPayload } from '../auth';
 
@@ -28,7 +36,7 @@ export class VideoWorkflowController {
    * Create a new video workflow
    */
   @Post()
-  async createWorkflow(@CurrentUser() user: JwtPayload, @Body() dto: Omit<CreateWorkflowDto, 'userId'>) {
+  async createWorkflow(@CurrentUser() user: JwtPayload, @Body() dto: CreateVideoWorkflowDto) {
     return this.videoWorkflowService.createWorkflow({
       ...dto,
       userId: user.userId,
@@ -61,7 +69,7 @@ export class VideoWorkflowController {
   async refinePrompt(
     @CurrentUser() user: JwtPayload,
     @Param('workflowId') workflowId: string,
-    @Body() dto: RefinePromptDto,
+    @Body() dto: RefinePromptDtoValidator,
   ) {
     return this.videoWorkflowService.refinePrompt(workflowId, user.userId, dto);
   }
@@ -73,7 +81,7 @@ export class VideoWorkflowController {
   async generateFrames(
     @CurrentUser() user: JwtPayload,
     @Param('workflowId') workflowId: string,
-    @Body() dto: GenerateFramesDto,
+    @Body() dto: GenerateFramesDtoValidator,
   ) {
     return this.videoWorkflowService.generateFrames(workflowId, user.userId, dto);
   }
@@ -85,7 +93,7 @@ export class VideoWorkflowController {
   async reviewFrames(
     @CurrentUser() user: JwtPayload,
     @Param('workflowId') workflowId: string,
-    @Body() dto: ReviewFramesDto,
+    @Body() dto: ReviewFramesDtoValidator,
   ) {
     return this.videoWorkflowService.reviewFrames(workflowId, user.userId, dto);
   }
@@ -97,13 +105,13 @@ export class VideoWorkflowController {
   async regenerateFrames(
     @CurrentUser() user: JwtPayload,
     @Param('workflowId') workflowId: string,
-    @Body() body: { frameNumbers: number[]; customPrompts?: Record<number, string> },
+    @Body() dto: RegenerateFramesDto,
   ) {
     return this.videoWorkflowService.regenerateFrames(
       workflowId,
       user.userId,
-      body.frameNumbers,
-      body.customPrompts,
+      dto.frameNumbers,
+      dto.customPrompts,
     );
   }
 
@@ -114,7 +122,7 @@ export class VideoWorkflowController {
   async generateVideo(
     @CurrentUser() user: JwtPayload,
     @Param('workflowId') workflowId: string,
-    @Body() dto: GenerateVideoDto,
+    @Body() dto: GenerateVideoDtoValidator,
   ) {
     return this.videoWorkflowService.generateVideo(workflowId, user.userId, dto);
   }

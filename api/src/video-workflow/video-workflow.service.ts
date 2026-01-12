@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException, ForbiddenException, HttpStatus } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import {
@@ -40,7 +40,7 @@ export interface ReviewFramesDto {
     frameNumber: number;
     approved: boolean;
     feedback?: string;
-  }>;
+  }> | Record<number, boolean | { approved: boolean; feedback?: string }>;
 }
 
 export interface GenerateVideoDto {
@@ -63,6 +63,13 @@ export class VideoWorkflowService {
     private readonly poeClient: PoeClient,
     private readonly replicateClient: ReplicateClient,
   ) {}
+
+  /**
+   * Get image provider from env (poe or replicate)
+   */
+  private getImageProvider(): 'poe' | 'replicate' {
+    return (process.env.IMAGE_PROVIDER || 'replicate') as 'poe' | 'replicate';
+  }
 
   /**
    * Create a new video workflow
@@ -244,7 +251,14 @@ Return ONLY a refined prompt optimized for video generation, without any explana
 
     try {
       const frameCount = dto.frameCount || 3;
-      const model = dto.frameModel || workflow.modelSelections.frameModel || 'stable-diffusion-xl';
+      const imageProvider = this.getImageProvider();
+      const model = dto.frameModel || workflow.modelSelections.frameModel || 
+        (imageProvider === 'poe' ? 'nano-banana' : 'stable-diffusion-xl');
+
+      // Validate frame count
+      if (frameCount < 1 || frameCount > 10) {
+        throw new BadRequestException('Frame count must be between 1 and 10');
+      }
 
       // Update model selection
       if (dto.frameModel) {
@@ -264,13 +278,34 @@ Return ONLY a refined prompt optimized for video generation, without any explana
         this.logger.log(`Generating frame ${i + 1}/${framePrompts.length}`);
 
         try {
-          // Use Replicate for image generation
-          const imageUrl = await this.replicateClient.generateImage(framePrompts[i], {
-            width: this.VIDEO_WIDTH,
-            height: this.VIDEO_HEIGHT,
-            guidanceScale: 7.5,
-            numInferenceSteps: 50,
-          });
+          let imageUrl: string;
+
+          if (imageProvider === 'poe') {
+            // Use Poe for image generation
+            const result = await this.poeClient.generateImage(framePrompts[i], {
+              width: this.VIDEO_WIDTH,
+              height: this.VIDEO_HEIGHT,
+              model,
+            });
+            try {
+              const parsed = JSON.parse(result);
+              imageUrl = parsed.url || parsed.imageUrl || result;
+            } catch {
+              imageUrl = result;
+            }
+          } else {
+            // Use Replicate for image generation
+            imageUrl = await this.replicateClient.generateImage(framePrompts[i], {
+              width: this.VIDEO_WIDTH,
+              height: this.VIDEO_HEIGHT,
+              guidanceScale: 7.5,
+              numInferenceSteps: 50,
+            });
+          }
+
+          if (!imageUrl) {
+            throw new Error('Image provider returned empty URL');
+          }
 
           frames.push({
             frameNumber: i + 1,
@@ -287,7 +322,7 @@ Return ONLY a refined prompt optimized for video generation, without any explana
       }
 
       if (frames.length === 0) {
-        throw new Error('Failed to generate any frames');
+        throw new BadRequestException('Failed to generate any frames');
       }
 
       workflow.generatedFrames = frames;
@@ -304,7 +339,11 @@ Return ONLY a refined prompt optimized for video generation, without any explana
       workflow.status = WorkflowStatus.FAILED;
       workflow.errors.push(`Frame generation failed: ${error.message}`);
       await workflow.save();
-      throw error;
+      // Re-throw with proper status code
+      if (error.statusCode === HttpStatus.PAYMENT_REQUIRED) {
+        throw error; // Propagate quota errors as-is
+      }
+      throw new BadRequestException(`Frame generation failed: ${error.message}`);
     }
   }
 
@@ -347,13 +386,33 @@ Return ONLY a refined prompt optimized for video generation, without any explana
 
     this.logger.log(`Reviewing frames for workflow: ${workflowId}`);
 
+    // Normalize frameApprovals to array format
+    let approvals: Array<{ frameNumber: number; approved: boolean; feedback?: string }>;
+    if (Array.isArray(dto.frameApprovals)) {
+      approvals = dto.frameApprovals;
+    } else if (typeof dto.frameApprovals === 'object') {
+      // Convert object format to array format
+      approvals = Object.entries(dto.frameApprovals).map(([frameNum, approval]) => {
+        if (typeof approval === 'boolean') {
+          return { frameNumber: parseInt(frameNum, 10), approved: approval };
+        } else if (typeof approval === 'object' && approval !== null) {
+          return { frameNumber: parseInt(frameNum, 10), ...approval };
+        } else {
+          throw new BadRequestException(`Invalid approval format for frame ${frameNum}`);
+        }
+      });
+    } else {
+      throw new BadRequestException('frameApprovals must be an array or object');
+    }
+
     // Update frame approvals
-    for (const approval of dto.frameApprovals) {
+    for (const approval of approvals) {
       const frame = workflow.generatedFrames.find(f => f.frameNumber === approval.frameNumber);
-      if (frame) {
-        frame.approved = approval.approved;
-        frame.feedback = approval.feedback;
+      if (!frame) {
+        throw new NotFoundException(`Frame ${approval.frameNumber} not found in workflow`);
       }
+      frame.approved = approval.approved;
+      frame.feedback = approval.feedback;
     }
 
     // Check if all frames are approved
@@ -405,10 +464,31 @@ Return ONLY a refined prompt optimized for video generation, without any explana
         }
 
         try {
-          const imageUrl = await this.replicateClient.generateImage(enhancedPrompt, {
-            width: this.VIDEO_WIDTH,
-            height: this.VIDEO_HEIGHT,
-          });
+          const imageProvider = this.getImageProvider();
+          let imageUrl: string;
+
+          if (imageProvider === 'poe') {
+            const result = await this.poeClient.generateImage(enhancedPrompt, {
+              width: this.VIDEO_WIDTH,
+              height: this.VIDEO_HEIGHT,
+              model: frame.model,
+            });
+            try {
+              const parsed = JSON.parse(result);
+              imageUrl = parsed.url || parsed.imageUrl || result;
+            } catch {
+              imageUrl = result;
+            }
+          } else {
+            imageUrl = await this.replicateClient.generateImage(enhancedPrompt, {
+              width: this.VIDEO_WIDTH,
+              height: this.VIDEO_HEIGHT,
+            });
+          }
+
+          if (!imageUrl) {
+            throw new Error('Image provider returned empty URL');
+          }
 
           frame.imageUrl = imageUrl;
           frame.approved = false;
@@ -432,7 +512,7 @@ Return ONLY a refined prompt optimized for video generation, without any explana
       workflow.status = WorkflowStatus.FAILED;
       workflow.errors.push(`Frame regeneration failed: ${error.message}`);
       await workflow.save();
-      throw error;
+      throw new BadRequestException(`Frame regeneration failed: ${error.message}`);
     }
   }
 
@@ -501,7 +581,10 @@ Return ONLY a refined prompt optimized for video generation, without any explana
       workflow.status = WorkflowStatus.FAILED;
       workflow.errors.push(`Video generation failed: ${error.message}`);
       await workflow.save();
-      throw error;
+      if (error.statusCode === HttpStatus.PAYMENT_REQUIRED) {
+        throw error; // Propagate quota errors as-is
+      }
+      throw new BadRequestException(`Video generation failed: ${error.message}`);
     }
   }
 

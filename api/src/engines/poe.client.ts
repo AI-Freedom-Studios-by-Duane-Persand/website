@@ -305,7 +305,7 @@ export class PoeClient {
   /**
    * Generate actual image from prompt
    */
-  private async generateImage(model: string, input: any): Promise<string> {
+  async generateImage(model: string, input: any): Promise<string> {
     const prompt = input.prompt || '';
     const width = input.width || 1024;
     const height = input.height || 1024;
