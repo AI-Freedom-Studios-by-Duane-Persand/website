@@ -1,5 +1,26 @@
-import { IsString, IsOptional, IsNotEmpty, IsNumber, Min, Max, IsArray, ValidateNested, IsBoolean, IsObject } from 'class-validator';
+import { IsString, IsOptional, IsNotEmpty, IsNumber, Min, Max, IsArray, ValidateNested, IsBoolean, IsObject, Validate, ValidatorConstraint, ValidatorConstraintInterface } from 'class-validator';
 import { Type } from 'class-transformer';
+
+/**
+ * Custom validator: ensures value is Record<number, string> with all values being strings
+ */
+@ValidatorConstraint({ name: 'IsStringRecord', async: false })
+export class IsStringRecordConstraint implements ValidatorConstraintInterface {
+  validate(value: any): boolean {
+    if (value === null || value === undefined) {
+      return true; // Optional, so null/undefined is valid
+    }
+    if (typeof value !== 'object' || Array.isArray(value)) {
+      return false;
+    }
+    // All values must be strings
+    return Object.values(value).every((v) => typeof v === 'string');
+  }
+
+  defaultMessage(): string {
+    return 'customPrompts must be a Record<number, string> where all values are strings';
+  }
+}
 
 export class CreateVideoWorkflowDto {
   @IsString()
@@ -74,7 +95,10 @@ export class FrameApprovalDto {
 
 export class ReviewFramesDto {
   @IsNotEmpty()
-  frameApprovals!: Array<FrameApprovalDto> | Record<number, boolean | { approved: boolean; feedback?: string }>;
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => FrameApprovalDto)
+  frameApprovals!: FrameApprovalDto[];
 }
 
 export class GenerateVideoDto {
@@ -103,5 +127,6 @@ export class RegenerateFramesDto {
 
   @IsOptional()
   @IsObject()
+  @Validate(IsStringRecordConstraint)
   customPrompts?: Record<number, string>;
 }

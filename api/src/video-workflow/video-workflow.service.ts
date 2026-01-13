@@ -40,7 +40,7 @@ export interface ReviewFramesDto {
     frameNumber: number;
     approved: boolean;
     feedback?: string;
-  }> | Record<number, boolean | { approved: boolean; feedback?: string }>;
+  }>;
 }
 
 export interface GenerateVideoDto {
@@ -246,19 +246,19 @@ Return ONLY a refined prompt optimized for video generation, without any explana
 
     this.logger.log(`Generating frames for workflow: ${workflowId}`);
 
+    // Validate frameCount BEFORE changing workflow status
+    const frameCount = dto.frameCount || 3;
+    if (frameCount < 1 || frameCount > 10) {
+      throw new BadRequestException('Frame count must be between 1 and 10');
+    }
+
     workflow.status = WorkflowStatus.PROCESSING;
     await workflow.save();
 
     try {
-      const frameCount = dto.frameCount || 3;
       const imageProvider = this.getImageProvider();
       const model = dto.frameModel || workflow.modelSelections.frameModel || 
         (imageProvider === 'poe' ? 'nano-banana' : 'stable-diffusion-xl');
-
-      // Validate frame count
-      if (frameCount < 1 || frameCount > 10) {
-        throw new BadRequestException('Frame count must be between 1 and 10');
-      }
 
       // Update model selection
       if (dto.frameModel) {
@@ -386,24 +386,8 @@ Return ONLY a refined prompt optimized for video generation, without any explana
 
     this.logger.log(`Reviewing frames for workflow: ${workflowId}`);
 
-    // Normalize frameApprovals to array format
-    let approvals: Array<{ frameNumber: number; approved: boolean; feedback?: string }>;
-    if (Array.isArray(dto.frameApprovals)) {
-      approvals = dto.frameApprovals;
-    } else if (typeof dto.frameApprovals === 'object') {
-      // Convert object format to array format
-      approvals = Object.entries(dto.frameApprovals).map(([frameNum, approval]) => {
-        if (typeof approval === 'boolean') {
-          return { frameNumber: parseInt(frameNum, 10), approved: approval };
-        } else if (typeof approval === 'object' && approval !== null) {
-          return { frameNumber: parseInt(frameNum, 10), ...approval };
-        } else {
-          throw new BadRequestException(`Invalid approval format for frame ${frameNum}`);
-        }
-      });
-    } else {
-      throw new BadRequestException('frameApprovals must be an array or object');
-    }
+    // frameApprovals is now guaranteed to be an array by DTO validation
+    const approvals = dto.frameApprovals;
 
     // Update frame approvals
     for (const approval of approvals) {
