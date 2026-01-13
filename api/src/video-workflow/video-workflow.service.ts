@@ -465,6 +465,16 @@ Return ONLY a refined prompt optimized for video generation, without any explana
           enhancedPrompt = `${frame.prompt}. User feedback: ${frame.feedback}`;
         }
 
+        this.logger.log(`[regenerateFrames] Frame ${frameNumber}:`, {
+          hasCustomPrompt: !!customPrompts?.[frameNumber],
+          customPrompt: customPrompts?.[frameNumber]?.substring(0, 100),
+          originalPrompt: frame.prompt?.substring(0, 100),
+          feedback: frame.feedback?.substring(0, 100),
+          finalPrompt: enhancedPrompt.substring(0, 100),
+          model,
+          provider: imageProvider,
+        });
+
         try {
           let imageUrl: string;
 
