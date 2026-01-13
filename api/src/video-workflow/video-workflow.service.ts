@@ -451,7 +451,9 @@ Return ONLY a refined prompt optimized for video generation, without any explana
     await workflow.save();
 
     try {
-      const model = workflow.modelSelections.frameModel || 'stable-diffusion-xl';
+      const imageProvider = this.getImageProvider();
+      const model = workflow.modelSelections.frameModel || 
+        (imageProvider === 'poe' ? 'nano-banana' : 'stable-diffusion-xl');
 
       for (const frameNumber of frameNumbers) {
         const frame = workflow.generatedFrames.find(f => f.frameNumber === frameNumber);
@@ -464,14 +466,13 @@ Return ONLY a refined prompt optimized for video generation, without any explana
         }
 
         try {
-          const imageProvider = this.getImageProvider();
           let imageUrl: string;
 
           if (imageProvider === 'poe') {
             const result = await this.poeClient.generateImage(enhancedPrompt, {
               width: this.VIDEO_WIDTH,
               height: this.VIDEO_HEIGHT,
-              model: frame.model,
+              model,
             });
             try {
               const parsed = JSON.parse(result);
