@@ -4,7 +4,7 @@
 **Target Completion**: Week 1-2  
 **Goal**: Establish maintainable, scalable module structure with clear ownership and reduced coupling
 
-## Overall Status: ▓▓▓▓▓▓▓▓▓░ 85% - Phase 0 Complete, Phase 1 Complete (100%), Phase 2 (40%) - Repositories & Adapters
+## Overall Status: ▓▓▓▓▓▓▓▓▓░ 90% - Phase 0 Complete, Phase 1 Complete (100%), Phase 2 (95%) - Repositories, Adapters, Service Templates
 
 ---
 
@@ -376,6 +376,87 @@
 **File**: `api/src/infrastructure/adapters/index.ts`
 **Exports**: PoeContentGeneratorAdapter, R2StorageAdapter
 
+### Phase 2.4: Service Refactoring Templates (Reference Implementations)
+**Status**: ✅ COMPLETED — Templates ready for Phase 2.4a-c production application
+**Files Created**:
+- `api/src/campaigns/campaigns.service.refactored.ts` (350 lines)
+  - Demonstrates migration from direct @InjectModel to CampaignRepository
+  - Shows TenantContextService automatic tenant scoping
+  - Shows @Transactional decorator on write operations
+  - Replaces all model.find() with repository.findActive() etc.
+- `api/src/users/users.service.refactored.ts` (380 lines)
+  - Full UserService refactoring example
+  - User lifecycle methods (deactivate, reactivate, updateLastLogin)
+  - Inactivity tracking (findInactiveUsers)
+  - Statistics aggregation (getStatistics)
+- `api/src/subscriptions/subscriptions.service.refactored.ts` (400 lines)
+  - Full SubscriptionsService refactoring example
+  - Renewal and cancellation management
+  - Expiry notifications (findExpiringBefore)
+  - Revenue tracking (getStatistics)
+
+**Documentation Created**:
+- `docs/PHASE_2.4_SERVICE_REFACTORING_GUIDE.md` (comprehensive 250+ line guide)
+  - Step-by-step migration instructions
+  - Pattern library with code examples
+  - Service checklist for validation
+  - Module configuration examples
+  - Common patterns (Find & Throw, Create with Validation, Update with Verification, etc.)
+  - Error handling standards
+  - Testing implications
+  - Rollout strategy and validation steps
+- `docs/PHASE_2.4_2.5_CHECKLIST.md` (execution checklist with all tasks)
+  - Phase 2.4a-c: Core service refactoring tasks
+  - Phase 2.4d: Secondary service refactoring
+  - Phase 2.5: Validation & testing tasks
+  - Cross-cutting concerns tracking
+  - Success metrics and validation steps
+  - Deployment preparation checklist
+
+### Phase 2.5: Service Refactoring Application (Production Implementation)
+**Status**: ⏳ NOT STARTED — Ready for execution
+**Blocked on**: None - all dependencies complete
+**Tasks**:
+- Phase 2.5a: Apply CampaignsService refactoring (30 min)
+  - Replace `api/src/campaigns/campaigns.service.ts` with refactored version
+  - Update campaigns.module.ts to include CampaignRepository provider
+  - Verify TypeScript compilation
+  - Run unit tests
+
+- Phase 2.5b: Apply UsersService refactoring (30 min)
+  - Replace `api/src/users/users.service.ts` with refactored version
+  - Update users.module.ts to include UserRepository provider
+  - Verify TypeScript compilation
+  - Run unit tests
+
+- Phase 2.5c: Apply SubscriptionsService refactoring (30 min)
+  - Replace `api/src/subscriptions/subscriptions.service.ts` with refactored version
+  - Update subscriptions.module.ts to include SubscriptionRepository provider
+  - Verify TypeScript compilation
+  - Run unit tests
+
+- Phase 2.5d: Secondary services refactoring (2 hours)
+  - TenantService → TenantRepository
+  - AuthService → Use UserRepository
+  - StrategiesService → StrategyRepository (if needed)
+  - BrandingService → BrandingRepository (if needed)
+
+- Phase 2.5e: Validation & Testing (3 hours)
+  - Full TypeScript compilation: `npm run build`
+  - All unit tests: `npm test`
+  - All integration tests: `npm run test:e2e`
+  - Manual smoke tests via Postman/Thunder Client
+  - Performance audit (no N+1 queries)
+  - Multi-tenant isolation verification
+
+### Phase 2.6: Deployment Preparation
+**Status**: ⏳ NOT STARTED — Blocked on Phase 2.5
+**Tasks**:
+- Comprehensive documentation update
+- Staging deployment testing
+- Performance baseline verification
+- Rollback plan preparation
+
 ---
 
 ## Blocked Issues
@@ -413,10 +494,17 @@ None yet.
 22. ⏳ Security & testing (httpOnly cookies, refresh tokens, unit tests)
 
 ## Commit History
-- **NEW** `20d8eea`: feat(phase-2): Repository implementations and infrastructure adapters
-  - ✅ CampaignRepository with business queries (findActive, search, statistics)
-  - ✅ UserRepository with user management (updateLastLogin, deactivate, inactivity tracking)
-  - ✅ SubscriptionRepository with renewal/expiry management
+- **LATEST** `ca79a1c`: feat(phase-2.4): Service refactoring templates and comprehensive migration guide
+  - ✅ CampaignsService refactored template (350 lines)
+  - ✅ UsersService refactored template (380 lines)
+  - ✅ SubscriptionsService refactored template (400 lines)
+  - ✅ PHASE_2.4_SERVICE_REFACTORING_GUIDE.md (comprehensive step-by-step guide)
+  - ✅ PHASE_2.4_2.5_CHECKLIST.md (execution tracking checklist)
+  - **Ready for**: Production service refactoring in Phase 2.4a-c
+- `20d8eea`: feat(phase-2): Repository implementations and infrastructure adapters
+  - ✅ CampaignRepository with business queries
+  - ✅ UserRepository with lifecycle methods
+  - ✅ SubscriptionRepository with renewal management
   - ✅ PoeContentGeneratorAdapter for IContentGenerator interface
   - ✅ R2StorageAdapter for IStorageProvider interface
 - `3e942ba`: fix: resolve export conflicts in api/src/index.ts
