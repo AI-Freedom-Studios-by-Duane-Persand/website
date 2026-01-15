@@ -4,7 +4,7 @@
 **Target Completion**: Week 1-2  
 **Goal**: Establish maintainable, scalable module structure with clear ownership and reduced coupling
 
-## Overall Status: ▓▓░░░░░░░░░░ 15% - Phase 0.1 Complete, Starting 0.2
+## Overall Status: ▓▓▓░░░░░░░░░ 25% - Phase 0.2 Complete, Starting 0.3
 
 ---
 
@@ -57,16 +57,44 @@
 ---
 
 ### Phase 0.2: Move DTOs into Module Folders
-**Status**: ⏳ PENDING
+**Status**: ✅ COMPLETED
+
+**Completed**:
+- ✅ Migrated approval.dto.ts to `api/src/approvals/dtos/`
+- ✅ Migrated creative.dto.ts to `api/src/creatives/dtos/`
+- ✅ Migrated tenant.dto.ts to `api/src/tenants/dtos/`
+- ✅ Migrated asset.dto.ts to `api/src/storage/dtos/`
+- ✅ Migrated branding.dto.ts to `api/src/campaigns/dtos/`
+- ✅ Migrated content-version.dto.ts to `api/src/campaigns/dtos/`
+- ✅ Migrated strategy-version.dto.ts to `api/src/campaigns/dtos/`
+- ✅ Migrated schedule.dto.ts to `api/src/campaigns/dtos/`
+- ✅ Migrated meta-ads.dto.ts to `api/src/meta-ads/dtos/`
+- ✅ Migrated package.dto.ts to `api/src/billing/dtos/`
+- ✅ Migrated subscriptionV2.dto.ts to `api/src/subscriptions/dtos/`
+- ✅ Updated all imports across modules (creatives, tenants, subscriptions)
+- ✅ Updated frontend import (branding.ts)
+- ✅ Build verified - no TypeScript errors
+- ✅ Committed to GitHub (commit 9ad9918)
+
+**All 15 DTOs now in module-scoped locations**:
+- Campaigns: campaign, branding, content-version, strategy-version, schedule
+- Users: user
+- Subscriptions: subscription, subscriptionV2
+- Creatives: creative
+- Approvals: approval
+- Tenants: tenant
+- Storage: asset
+- Meta-ads: meta-ads
+- Billing: package
 
 **Checklist**:
-- [ ] Copy campaign DTOs to `api/src/campaigns/dtos/`
-- [ ] Update imports in campaigns module
-- [ ] Copy user DTOs to `api/src/users/dtos/`
-- [ ] Update imports in users module
-- [ ] Repeat for all other modules
-- [ ] Verify no import breakage
-- [ ] Remove old DTO files from `shared/` (keep during transition)
+- [x] Copy campaign DTOs to `api/src/campaigns/dtos/`
+- [x] Update imports in campaigns module
+- [x] Copy user DTOs to `api/src/users/dtos/`
+- [x] Update imports in users module
+- [x] Repeat for all other modules
+- [x] Verify no import breakage
+- [x] Remove old DTO files from `shared/` (keep during transition)
 
 ---
 
