@@ -4,7 +4,7 @@
 **Target Completion**: Week 1-2  
 **Goal**: Establish maintainable, scalable module structure with clear ownership and reduced coupling
 
-## Overall Status: ▓▓▓▓▓░░░░░░ 50% - Phase 0.5 Complete, Starting 0.6
+## Overall Status: ▓▓▓▓▓▓░░░░░ 55% - Phase 0.6 In Progress (Frontend Component Reorganization)
 
 ---
 
@@ -168,15 +168,30 @@
 ---
 
 ### Phase 0.6: Frontend Component Structure Reorganization
-**Status**: ⏳ PENDING
+**Status**: 🔄 IN PROGRESS
+
+**Completed**:
+- ✅ Created `frontend/app/(features)/campaigns/` feature layout folder
+- ✅ Created `frontend/app/components/campaigns/` component folder
+- ✅ Created `frontend/app/components/ui/` for shared UI primitives (Button, Input, Badge, Card, Modal)
+- ✅ Created `frontend/app/components/auth/` folder
+- ✅ Created `frontend/app/components/subscriptions/` folder
+- ✅ Migrated `Stepper` component to new location with UI primitives
+- ✅ Migrated `CampaignList` component with Card/Badge/Button usage
+- ✅ Refactored `ModelPickerModal` to use UI components and auth utilities
+- ✅ Refactored `SubscriptionGate` to use new API client
+- ✅ Created barrel exports for `ui/` and `campaigns/` components
 
 **Checklist**:
-- [ ] Create `frontend/app/(features)/campaigns/` layout
-- [ ] Create `frontend/app/components/campaigns/` component folder
-- [ ] Create `frontend/app/components/ui/` for shared UI primitives
-- [ ] Move campaign components to feature folder
-- [ ] Move shared UI components to `ui/` folder
-- [ ] Update import paths across frontend
+- [x] Create `frontend/app/(features)/campaigns/` layout
+- [x] Create `frontend/app/components/campaigns/` component folder
+- [x] Create `frontend/app/components/ui/` for shared UI primitives
+- [x] Move campaign components to feature folder (Stepper, CampaignList)
+- [x] Create reusable UI components (Button, Input, Badge, Card, Modal)
+- [ ] Migrate CampaignForm and CampaignChatBot (large, complex components)
+- [ ] Update campaign pages to import from new locations
+- [ ] Replace getAuthHeaders() duplicates with centralized utility
+- [ ] Wire hooks into pages to replace inline fetch calls
 
 ---
 
