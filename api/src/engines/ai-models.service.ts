@@ -55,7 +55,7 @@ export class AIModelsService {
       const imageProvider = process.env.IMAGE_PROVIDER || 'replicate';
       const videoProvider = process.env.VIDEO_PROVIDER || 'replicate';
 
-      // Image generation - route to configured provider
+      // Image generation - try Replicate first, fallback to Poe on rate limit
       if (engineType === 'image-generation' || engineType === 'creative-image') {
         if (imageProvider === 'poe') {
           this.logger.info('Using Poe for image generation');
@@ -63,8 +63,24 @@ export class AIModelsService {
           this.logger.info('Image generated successfully via Poe');
           return content;
         } else {
-          this.logger.info('Using Replicate for image generation');
-          return await this.generateImageWithReplicate(input);
+          // Try Replicate, fallback to Poe on rate limit (429) or low credit errors
+          try {
+            this.logger.info('Using Replicate for image generation');
+            return await this.generateImageWithReplicate(input);
+          } catch (replicateError: any) {
+            const status = replicateError?.status || (replicateError?.message?.includes('429') ? 429 : 0);
+            const isRateLimit = status === 429 || replicateError?.message?.includes('rate limit') || replicateError?.message?.includes('throttled');
+            
+            if (isRateLimit) {
+              this.logger.warn('Replicate rate limited, falling back to Poe for image generation', {
+                error: replicateError?.message,
+              });
+              const content = await this.poeClient.generateContent('image-generation', input);
+              this.logger.info('Image generated successfully via Poe fallback');
+              return content;
+            }
+            throw replicateError;
+          }
         }
       }
 
@@ -196,8 +212,6 @@ export class AIModelsService {
         durationSeconds,
         fps,
         negativePrompt,
-        numInferenceSteps,
-        guidanceScale,
       });
     } catch (error) {
       this.logger.error('[AIModelsService] Replicate video generation failed', {
@@ -358,16 +372,22 @@ export class AIModelsService {
           const durationSeconds = parsed.durationSeconds ?? parsed.duration ?? parsed.quality?.durationSeconds;
           const fps = parsed.fps ?? parsed.quality?.fps;
           const negativePrompt = parsed.negativePrompt ?? parsed.quality?.negativePrompt;
+          const resolution = parsed.resolution ?? parsed.quality?.resolution;
+          const aspectRatio = parsed.aspectRatio ?? parsed.aspect_ratio ?? parsed.quality?.aspectRatio;
+          const generateAudio = parsed.generateAudio ?? parsed.generate_audio ?? parsed.quality?.generateAudio;
+          const referenceImages = parsed.referenceImages ?? parsed.reference_images ?? parsed.quality?.referenceImages;
           const numInferenceSteps = parsed.numInferenceSteps ?? parsed.quality?.numInferenceSteps;
           const guidanceScale = parsed.guidanceScale ?? parsed.quality?.guidanceScale;
 
-          if (model === 'zeroscope' || model === 'runway-gen2') {
-            return await this.replicateClient.generateVideoWithModel(model as 'zeroscope' | 'runway-gen2', prompt, {
+          if (model === 'veo-3.1' || model === 'runway-gen3' || model === 'runway-gen2') {
+            return await this.replicateClient.generateVideoWithModel(model as 'veo-3.1' | 'runway-gen3' | 'runway-gen2', prompt, {
               durationSeconds,
               fps,
               negativePrompt,
-              numInferenceSteps,
-              guidanceScale,
+              resolution,
+              aspectRatio,
+              generateAudio,
+              referenceImages,
             });
           }
           return await this.generateVideoWithReplicate(input);

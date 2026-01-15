@@ -442,7 +442,7 @@ export function VideoCreationWizard({
   const renderPromptImproverModal = () => {
     if (!showPromptImprover) return null;
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 mt-0">
         <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6 space-y-4">
           <h3 className="text-lg font-bold text-gray-900">Improve Prompt with AI</h3>
           <p className="text-sm text-gray-600">ChatGPT will analyze your prompt and suggest improvements for better video generation.</p>

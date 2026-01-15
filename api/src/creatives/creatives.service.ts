@@ -872,13 +872,11 @@ export class CreativesService {
           contents: JSON.stringify({ prompt, durationSeconds: duration, fps: quality?.fps }),
         });
       } else {
-        // Use Replicate for video generation
+        // Use Replicate for video generation (Runway Gen-3)
         result = await this.replicateClient.generateVideo(prompt, {
           durationSeconds: duration,
           fps: quality?.fps,
           negativePrompt: quality?.negativePrompt,
-          numInferenceSteps: quality?.numInferenceSteps,
-          guidanceScale: quality?.guidanceScale,
         });
       }
 

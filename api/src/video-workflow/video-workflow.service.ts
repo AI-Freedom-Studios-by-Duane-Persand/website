@@ -23,20 +23,34 @@ export interface CreateWorkflowDto {
   duration?: number;
   style?: string;
   aspectRatio?: string;
+  metadata?: {
+    targetAudience?: string;
+    tone?: string;
+    duration?: number;
+    style?: string;
+    aspectRatio?: string;
+  };
 }
 
 export interface RefinePromptDto {
   additionalInfo?: string;
   refinementModel?: string;
+  model?: string; // Alias for refinementModel (backward compatibility)
 }
 
 export interface GenerateFramesDto {
   frameCount?: number;
   frameModel?: string;
+  model?: string; // Alias for frameModel (backward compatibility)
 }
 
 export interface ReviewFramesDto {
-  frameApprovals: Array<{
+  frameApprovals?: Array<{
+    frameNumber: number;
+    approved: boolean;
+    feedback?: string;
+  }>;
+  frameReviews?: Array<{
     frameNumber: number;
     approved: boolean;
     feedback?: string;
@@ -45,8 +59,13 @@ export interface ReviewFramesDto {
 
 export interface GenerateVideoDto {
   videoModel?: string;
-  duration?: number;
+  model?: string; // Alias for videoModel (backward compatibility)
+  duration?: number; // For Veo 3.1: only 4, 6, or 8 seconds (will auto-adjust)
   fps?: number;
+  resolution?: '480p' | '720p' | '1080p';
+  aspectRatio?: '16:9' | '9:16' | '1:1';
+  generateAudio?: boolean;
+  referenceImages?: string[];
 }
 
 @Injectable()
@@ -68,7 +87,7 @@ export class VideoWorkflowService {
    * Get image provider from env (poe or replicate)
    */
   private getImageProvider(): 'poe' | 'replicate' {
-    return (process.env.IMAGE_PROVIDER || 'replicate') as 'poe' | 'replicate';
+    return (process.env.IMAGE_PROVIDER || 'poe') as 'poe' | 'replicate';
   }
 
   /**
@@ -83,11 +102,11 @@ export class VideoWorkflowService {
       title: dto.title,
       initialPrompt: dto.initialPrompt,
       initialMetadata: {
-        targetAudience: dto.targetAudience,
-        tone: dto.tone,
-        duration: dto.duration,
-        style: dto.style,
-        aspectRatio: dto.aspectRatio,
+        targetAudience: dto.metadata?.targetAudience ?? dto.targetAudience,
+        tone: dto.metadata?.tone ?? dto.tone,
+        duration: dto.metadata?.duration ?? dto.duration,
+        style: dto.metadata?.style ?? dto.style,
+        aspectRatio: dto.metadata?.aspectRatio ?? dto.aspectRatio,
       },
       currentStep: WorkflowStep.INITIAL_PROMPT,
       status: WorkflowStatus.IN_PROGRESS,
@@ -149,14 +168,17 @@ export class VideoWorkflowService {
     await workflow.save();
 
     try {
-      // Select refinement model
-      const model = dto.refinementModel || 
+      // Select refinement model - support both 'model' (legacy) and 'refinementModel' (preferred)
+      const model = dto.refinementModel || dto.model || 
                     workflow.modelSelections.refinementModel || 
                     'gpt-4o';
 
       // Build refinement prompt
       const lastIteration = workflow.refinementIterations[workflow.refinementIterations.length - 1];
-      const basePrompt = lastIteration?.refinedPrompt || workflow.initialPrompt;
+      // If this is first refinement and additionalInfo provided, use it as base; otherwise use last refined or initial
+      const basePrompt = (!lastIteration && dto.additionalInfo) 
+        ? dto.additionalInfo 
+        : (lastIteration?.refinedPrompt || workflow.initialPrompt);
       
       let refinementPrompt = `You are an expert video script and prompt engineer. 
 
@@ -191,7 +213,12 @@ Return ONLY a refined prompt optimized for video generation, without any explana
       let refinedPrompt: string;
       try {
         const parsed = JSON.parse(response);
-        refinedPrompt = parsed.hook + ' ' + parsed.body.join(' ') + ' ' + parsed.outro;
+        // If this is a fallback response and we have user's additionalInfo, use that instead
+        if (parsed.hook?.includes('Attention-grabbing intro:') && dto.additionalInfo) {
+          refinedPrompt = basePrompt; // Use the actual user prompt
+        } else {
+          refinedPrompt = parsed.hook + ' ' + parsed.body.join(' ') + ' ' + parsed.outro;
+        }
       } catch {
         refinedPrompt = response.trim();
       }
@@ -212,9 +239,9 @@ Return ONLY a refined prompt optimized for video generation, without any explana
       workflow.status = WorkflowStatus.WAITING_USER_INPUT;
       workflow.lastActivity = new Date();
 
-      // Update model selection
-      if (dto.refinementModel) {
-        workflow.modelSelections.refinementModel = dto.refinementModel;
+      // Update model selection - support both property names
+      if (dto.refinementModel || dto.model) {
+        workflow.modelSelections.refinementModel = dto.refinementModel || dto.model;
       }
 
       await workflow.save();
@@ -257,12 +284,28 @@ Return ONLY a refined prompt optimized for video generation, without any explana
 
     try {
       const imageProvider = this.getImageProvider();
-      const model = dto.frameModel || workflow.modelSelections.frameModel || 
-        (imageProvider === 'poe' ? 'nano-banana' : 'stable-diffusion-xl');
+      
+      // For Poe, only nano-banana and dall-e-3 are valid image models
+      // If frontend sends stable-diffusion-xl (old default), use nano-banana instead
+      const isValidPoeImageModel = (model: string): boolean => {
+        const validModels = ['nano-banana', 'dall-e-3'];
+        return validModels.includes(model);
+      };
+      
+      let model: string = dto.frameModel || dto.model || workflow.modelSelections.frameModel || '';
+      if (imageProvider === 'poe') {
+        if (!model || !isValidPoeImageModel(model)) {
+          model = 'nano-banana';
+        }
+      } else {
+        if (!model) {
+          model = 'stable-diffusion-xl';
+        }
+      }
 
-      // Update model selection
-      if (dto.frameModel) {
-        workflow.modelSelections.frameModel = dto.frameModel;
+      // Update model selection - support both property names
+      if (dto.frameModel || dto.model) {
+        workflow.modelSelections.frameModel = dto.frameModel || dto.model;
       }
 
       // Generate frame prompts based on refined prompt
@@ -282,10 +325,10 @@ Return ONLY a refined prompt optimized for video generation, without any explana
 
           if (imageProvider === 'poe') {
             // Use Poe for image generation
-            const result = await this.poeClient.generateImage(framePrompts[i], {
+            const result = await this.poeClient.generateImage(model, {
+              prompt: framePrompts[i],
               width: this.VIDEO_WIDTH,
               height: this.VIDEO_HEIGHT,
-              model,
             });
             try {
               const parsed = JSON.parse(result);
@@ -294,13 +337,37 @@ Return ONLY a refined prompt optimized for video generation, without any explana
               imageUrl = result;
             }
           } else {
-            // Use Replicate for image generation
-            imageUrl = await this.replicateClient.generateImage(framePrompts[i], {
-              width: this.VIDEO_WIDTH,
-              height: this.VIDEO_HEIGHT,
-              guidanceScale: 7.5,
-              numInferenceSteps: 50,
-            });
+            // Try Replicate first, fallback to Poe on rate limit
+            try {
+              imageUrl = await this.replicateClient.generateImage(framePrompts[i], {
+                width: this.VIDEO_WIDTH,
+                height: this.VIDEO_HEIGHT,
+                guidanceScale: 7.5,
+                numInferenceSteps: 50,
+              });
+            } catch (replicateError: any) {
+              const status = replicateError?.response?.status || replicateError?.status;
+              const isRateLimit = status === 429 || replicateError?.message?.includes('rate limit') || replicateError?.message?.includes('throttled');
+              
+              if (isRateLimit) {
+                this.logger.warn(`Replicate rate limited for frame ${i + 1}, falling back to Poe`, {
+                  error: replicateError?.message,
+                });
+                const result = await this.poeClient.generateImage(model, {
+                  prompt: framePrompts[i],
+                  width: this.VIDEO_WIDTH,
+                  height: this.VIDEO_HEIGHT,
+                });
+                try {
+                  const parsed = JSON.parse(result);
+                  imageUrl = parsed.url || parsed.imageUrl || result;
+                } catch {
+                  imageUrl = result;
+                }
+              } else {
+                throw replicateError;
+              }
+            }
           }
 
           if (!imageUrl) {
@@ -316,8 +383,15 @@ Return ONLY a refined prompt optimized for video generation, without any explana
             timestamp: new Date(),
           });
         } catch (error: any) {
-          this.logger.error(`Failed to generate frame ${i + 1}: ${error.message}`);
-          workflow.errors.push(`Frame ${i + 1} generation failed: ${error.message}`);
+          const errorMessage = error?.message || String(error);
+          const errorStatus = error?.response?.status || error?.status;
+          this.logger.error(`Failed to generate frame ${i + 1}: ${errorMessage}`, {
+            status: errorStatus,
+            provider: imageProvider,
+            model,
+            stack: error?.stack?.substring(0, 500),
+          });
+          workflow.errors.push(`Frame ${i + 1} generation failed: ${errorMessage}${errorStatus ? ` (HTTP ${errorStatus})` : ''}`);
         }
       }
 
@@ -378,6 +452,12 @@ Return ONLY a refined prompt optimized for video generation, without any explana
     userId: string,
     dto: ReviewFramesDto,
   ): Promise<VideoWorkflowDocument> {
+    // Support both frameApprovals and frameReviews (legacy)
+    const frameApprovals = dto.frameApprovals || dto.frameReviews || [];
+    if (frameApprovals.length === 0) {
+      throw new BadRequestException('Frame approvals are required');
+    }
+
     const workflow = await this.getWorkflow(workflowId, userId);
 
     if (workflow.generatedFrames.length === 0) {
@@ -386,11 +466,8 @@ Return ONLY a refined prompt optimized for video generation, without any explana
 
     this.logger.log(`Reviewing frames for workflow: ${workflowId}`);
 
-    // frameApprovals is now guaranteed to be an array by DTO validation
-    const approvals = dto.frameApprovals;
-
     // Update frame approvals
-    for (const approval of approvals) {
+    for (const approval of frameApprovals) {
       const frame = workflow.generatedFrames.find(f => f.frameNumber === approval.frameNumber);
       if (!frame) {
         throw new NotFoundException(`Frame ${approval.frameNumber} not found in workflow`);
@@ -463,10 +540,10 @@ Return ONLY a refined prompt optimized for video generation, without any explana
           let imageUrl: string;
 
           if (imageProvider === 'poe') {
-            const result = await this.poeClient.generateImage(enhancedPrompt, {
+            const result = await this.poeClient.generateImage(model, {
+              prompt: enhancedPrompt,
               width: this.VIDEO_WIDTH,
               height: this.VIDEO_HEIGHT,
-              model,
             });
             try {
               const parsed = JSON.parse(result);
@@ -475,10 +552,35 @@ Return ONLY a refined prompt optimized for video generation, without any explana
               imageUrl = result;
             }
           } else {
-            imageUrl = await this.replicateClient.generateImage(enhancedPrompt, {
-              width: this.VIDEO_WIDTH,
-              height: this.VIDEO_HEIGHT,
-            });
+            // Try Replicate first, fallback to Poe on rate limit
+            try {
+              imageUrl = await this.replicateClient.generateImage(enhancedPrompt, {
+                width: this.VIDEO_WIDTH,
+                height: this.VIDEO_HEIGHT,
+              });
+            } catch (replicateError: any) {
+              const status = replicateError?.response?.status || replicateError?.status;
+              const isRateLimit = status === 429 || replicateError?.message?.includes('rate limit') || replicateError?.message?.includes('throttled');
+              
+              if (isRateLimit) {
+                this.logger.warn(`Replicate rate limited for frame ${frameNumber} regeneration, falling back to Poe`, {
+                  error: replicateError?.message,
+                });
+                const result = await this.poeClient.generateImage(model, {
+                  prompt: enhancedPrompt,
+                  width: this.VIDEO_WIDTH,
+                  height: this.VIDEO_HEIGHT,
+                });
+                try {
+                  const parsed = JSON.parse(result);
+                  imageUrl = parsed.url || parsed.imageUrl || result;
+                } catch {
+                  imageUrl = result;
+                }
+              } else {
+                throw replicateError;
+              }
+            }
           }
 
           if (!imageUrl) {
@@ -531,13 +633,13 @@ Return ONLY a refined prompt optimized for video generation, without any explana
     await workflow.save();
 
     try {
-      const model = dto.videoModel || workflow.modelSelections.videoModel || 'Video-Generator-PRO';
+      const model = dto.videoModel || dto.model || workflow.modelSelections.videoModel || 'Video-Generator-PRO';
       const duration = dto.duration || workflow.initialMetadata.duration || 30;
       const fps = dto.fps || 24;
 
-      // Update model selection
-      if (dto.videoModel) {
-        workflow.modelSelections.videoModel = dto.videoModel;
+      // Update model selection - support both property names
+      if (dto.videoModel || dto.model) {
+        workflow.modelSelections.videoModel = dto.videoModel || dto.model;
       }
 
       // Use the final refined prompt for video generation
@@ -549,8 +651,10 @@ Return ONLY a refined prompt optimized for video generation, without any explana
       const videoUrl = await this.replicateClient.generateVideo(finalPrompt, {
         durationSeconds: duration,
         fps,
-        guidanceScale: 6.0,
-        numInferenceSteps: 24,
+        resolution: dto.resolution,
+        aspectRatio: dto.aspectRatio,
+        generateAudio: dto.generateAudio,
+        referenceImages: dto.referenceImages,
       });
 
       const videoOutput: VideoOutput = {

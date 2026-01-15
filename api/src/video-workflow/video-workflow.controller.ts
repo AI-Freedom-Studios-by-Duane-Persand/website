@@ -17,7 +17,7 @@ import {
   GenerateVideoDto,
 } from './video-workflow.service';
 import {
-  CreateVideoWorkflowDto,
+  CreateVideoWorkflowWithMetadataDto,
   RefinePromptDto as RefinePromptDtoValidator,
   GenerateFramesDto as GenerateFramesDtoValidator,
   ReviewFramesDto as ReviewFramesDtoValidator,
@@ -36,7 +36,7 @@ export class VideoWorkflowController {
    * Create a new video workflow
    */
   @Post()
-  async createWorkflow(@CurrentUser() user: JwtPayload, @Body() dto: CreateVideoWorkflowDto) {
+  async createWorkflow(@CurrentUser() user: JwtPayload, @Body() dto: CreateVideoWorkflowWithMetadataDto) {
     return this.videoWorkflowService.createWorkflow({
       ...dto,
       userId: user.userId,

@@ -1,51 +1,14 @@
 // api/src/engines/replicate.client.ts
-// Replicate API client for actual image/video generation
+// Replicate API client for image/video generation using official SDK
 import { Injectable, Logger } from '@nestjs/common';
-import axios, { AxiosInstance } from 'axios';
+import Replicate from 'replicate';
 import { createLogger, format, transports } from 'winston';
-
-interface ReplicateModel {
-  owner: string;
-  name: string;
-  version: string;
-}
 
 @Injectable()
 export class ReplicateClient {
-  private readonly apiUrl = 'https://api.replicate.com/v1';
   private readonly apiKey: string;
+  private readonly replicate: Replicate;
   private logger;
-  private axiosInstance: AxiosInstance;
-
-  // Popular models for image/video generation
-  private readonly models = {
-    // Image generation models
-    'flux-schnell': {
-      owner: 'black-forest-labs',
-      name: 'flux-schnell',
-      version: 'latest',
-      type: 'image',
-    },
-    'sdxl': {
-      owner: 'stability-ai',
-      name: 'sdxl',
-      version: 'latest',
-      type: 'image',
-    },
-    // Video generation models
-    'runway-gen2': {
-      owner: 'runwayml',
-      name: 'gen2',
-      version: 'latest',
-      type: 'video',
-    },
-    'zeroscope': {
-      owner: 'anotherjesse',
-      name: 'zeroscope-v2-xl',
-      version: 'latest',
-      type: 'video',
-    },
-  };
 
   constructor() {
     this.apiKey = process.env.REPLICATE_API_KEY || '';
@@ -60,14 +23,9 @@ export class ReplicateClient {
       ],
     });
 
-    this.axiosInstance = axios.create({
-      baseURL: this.apiUrl,
-      timeout: 120000, // 2 minutes for video generation
-      headers: {
-        // Replicate HTTP API expects Bearer token per official docs
-        'Authorization': `Bearer ${this.apiKey}`,
-        'Content-Type': 'application/json',
-      },
+    // Initialize official Replicate SDK
+    this.replicate = new Replicate({
+      auth: this.apiKey,
     });
 
     const logger = new Logger(ReplicateClient.name);
@@ -84,13 +42,12 @@ export class ReplicateClient {
   listModelsByContentType(contentType: 'image-generation' | 'video-generation') {
     if (contentType === 'image-generation') {
       return [
-        { key: 'dall-e-3', displayName: 'DALL-E 3 (via OpenAI)', type: 'image' }, // included for parity in UI
         { key: 'sdxl', displayName: 'Stable Diffusion XL', type: 'image' },
         { key: 'flux-schnell', displayName: 'Flux Schnell', type: 'image' },
       ];
     }
     return [
-      { key: 'zeroscope', displayName: 'Zeroscope v2 XL', type: 'video' },
+      { key: 'runway-gen3', displayName: 'Runway Gen-3 (Recommended)', type: 'video' },
       { key: 'runway-gen2', displayName: 'Runway Gen-2', type: 'video' },
     ];
   }
@@ -130,64 +87,137 @@ export class ReplicateClient {
 
   /**
    * Generate video with explicit Replicate model selection
+   * Uses official Replicate SDK for simplified API handling
    */
   async generateVideoWithModel(
-    modelKey: 'zeroscope' | 'runway-gen2',
+    modelKey: 'runway-gen3' | 'runway-gen2' | 'veo-3.1',
     prompt: string,
     options: {
       durationSeconds?: number;
       fps?: number;
       negativePrompt?: string;
-      numInferenceSteps?: number;
-      guidanceScale?: number;
+      resolution?: '480p' | '720p' | '1080p';
+      aspectRatio?: '16:9' | '9:16' | '1:1';
+      generateAudio?: boolean;
+      referenceImages?: string[];
     } = {},
   ): Promise<string> {
-    // Currently generateVideo uses Zeroscope configuration constants.
-    // For Runway Gen2, Replicate may require different version; add basic branching.
     if (!this.apiKey) {
       throw new Error('Replicate API key is required for video generation. Please configure REPLICATE_API_KEY in your environment.');
     }
 
-    const durationSeconds = options.durationSeconds ?? 10;
-    const fps = options.fps ?? 24;
-    const num_frames = durationSeconds * fps;
-    const negative_prompt = options.negativePrompt ?? 'blurry, low quality, watermark, distorted, artifacts';
-    const num_inference_steps = options.numInferenceSteps ?? 24;
-    const guidance_scale = options.guidanceScale ?? 6.0;
+    // Veo 3.1 is now available on Replicate via google/veo-3.1
+    const actualModelKey = modelKey;
 
-    const version = modelKey === 'runway-gen2'
-      ? 'ccbd4d15b6f7d8017c3d8a25925b9e0b20b7f84dbb7cbac2b4b5073b3c5f10e7' // placeholder version id for Runway Gen-2 (example)
-      : '9f747673945c62801b13b84701c783929c0ee784e4748ec062204894dda1a351'; // Zeroscope v2 XL
+    const requestedDuration = options.durationSeconds ?? 8;
+    const fps = options.fps ?? 24;
+    const resolution = options.resolution ?? '1080p';
+    const aspectRatio = options.aspectRatio ?? '16:9';
+    const generateAudio = options.generateAudio ?? true;
+    const referenceImages = options.referenceImages ?? [];
+    const negative_prompt = options.negativePrompt ?? 'blurry, low quality, watermark, distorted, artifacts';
+
+    // Veo 3.1 only accepts duration values of 4, 6, or 8 seconds
+    let adjustedDuration: number;
+    if (requestedDuration <= 4) {
+      adjustedDuration = 4;
+    } else if (requestedDuration <= 6) {
+      adjustedDuration = 6;
+    } else {
+      adjustedDuration = 8;
+    }
+
+    if (adjustedDuration !== requestedDuration) {
+      this.logger.warn('[ReplicateClient] Adjusted duration for Veo 3.1', {
+        requested: requestedDuration,
+        adjusted: adjustedDuration,
+        note: 'Veo 3.1 only supports 4, 6, or 8 seconds',
+      });
+    }
+
+    const num_frames = adjustedDuration * fps;
+
+    // Model identifiers for Replicate SDK
+    // Using Google Veo 3.1 via Replicate
+    const modelId = 'google/veo-3.1';
 
     this.logger.info('[ReplicateClient] Generating video with model', {
-      modelKey,
+      requestedModelKey: modelKey,
+      actualModelKey,
+      modelId,
       prompt: prompt.substring(0, 120),
-      durationSeconds,
-      fps,
-      num_frames,
-      guidance_scale,
-      num_inference_steps,
+      durationSeconds: adjustedDuration,
     });
 
-    const response = await this.axiosInstance.post('/predictions', {
-      version,
-      input: {
-        prompt,
-        negative_prompt,
-        num_frames,
-        fps,
-        num_inference_steps,
-        guidance_scale,
-      },
-    });
+    // Build input based on Veo 3.1 parameters
+    const input: Record<string, any> = {
+      prompt,
+      duration: adjustedDuration, // in seconds (1-10)
+      resolution: resolution || '1080p', // '480p', '720p', '1080p'
+      aspect_ratio: aspectRatio || '16:9', // '16:9', '9:16', '1:1'
+      generate_audio: generateAudio !== undefined ? generateAudio : true,
+    };
 
-    const predictionId = response.data.id;
-    const videoUrl = await this.pollPrediction(predictionId, 600000);
-    return JSON.stringify({ url: videoUrl, prompt, durationSeconds, fps, provider: 'replicate', model: modelKey });
+    // Add reference_images if provided
+    if (referenceImages && referenceImages.length > 0) {
+      input.reference_images = referenceImages.map(url => ({ value: url }));
+    }
+
+    try {
+      this.logger.info('[ReplicateClient] Calling Replicate SDK', {
+        modelId,
+        inputKeys: Object.keys(input),
+      });
+
+      // Use official Replicate SDK to generate video
+      const output = await this.replicate.run(modelId, { input });
+      
+      // Extract video URL from output
+      let videoUrl: string = '';
+      if (typeof output === 'string') {
+        videoUrl = output;
+      } else if (Array.isArray(output) && output.length > 0) {
+        videoUrl = output[0] as string;
+      } else if (output && typeof output === 'object') {
+        videoUrl = (output as any).url || (output as any)[0];
+      }
+
+      if (!videoUrl || typeof videoUrl !== 'string') {
+        throw new Error('No valid video URL returned from Replicate');
+      }
+      
+      this.logger.info('[ReplicateClient] Video generated successfully', {
+        requestedModel: modelKey,
+        actualModel: actualModelKey,
+        url: videoUrl.substring(0, 50) + '...',
+      });
+      
+      return JSON.stringify({ 
+        url: videoUrl, 
+        prompt, 
+        durationSeconds: adjustedDuration, 
+        fps, 
+        provider: 'replicate', 
+        model: modelKey,
+        actualModel: actualModelKey,
+      });
+    } catch (error: any) {
+      this.logger.error('[ReplicateClient] Error generating video', {
+        error: error?.message,
+        modelKey: actualModelKey,
+        stack: error?.stack?.substring(0, 300),
+      });
+      
+      if (error?.message?.includes('insufficient credits')) {
+        throw new Error('Replicate account has insufficient credits. Please add credits at https://replicate.com/account/billing');
+      }
+      
+      throw new Error(`Failed to generate video with ${modelKey}: ${error?.message}`);
+    }
   }
 
   /**
-   * Generate image using Replicate
+   * Generate image using Replicate SDK
    */
   async generateImage(
     prompt: string,
@@ -205,24 +235,21 @@ export class ReplicateClient {
     }
 
     try {
-      // Normalize dimensions to multiples of 16 (required by image generation models)
+      // Normalize dimensions to multiples of 16
       const normalizeToMultiple = (value: number, multiple: number) => {
         return Math.round(value / multiple) * multiple;
       };
 
-      // Replicate API limits for SDXL and Flux models
       const MAX_WIDTH = 1280;
       const MAX_HEIGHT = 1280;
       const MIN_DIMENSION = 256;
 
-      // Parse env vars with proper NaN handling
       const parsedWidth = Number(process.env.DEFAULT_IMAGE_WIDTH);
       const parsedHeight = Number(process.env.DEFAULT_IMAGE_HEIGHT);
       
       const envDefaultWidth = (Number.isFinite(parsedWidth) && parsedWidth > 0) ? parsedWidth : 1024;
       const envDefaultHeight = (Number.isFinite(parsedHeight) && parsedHeight > 0) ? parsedHeight : 576;
       
-      // Constrain and normalize dimensions
       const requestedWidth = options.width ?? envDefaultWidth;
       const requestedHeight = options.height ?? envDefaultHeight;
       
@@ -240,80 +267,48 @@ export class ReplicateClient {
         size: `${width}x${height}`,
       });
 
-      // Try SDXL first (supports quality parameters), fallback to Flux Schnell
-      const useSDXL = options.numInferenceSteps || options.guidanceScale;
+      // Use Flux Schnell - fast and reliable
+      const modelId = 'black-forest-labs/flux-schnell';
       
-      let response;
-      if (useSDXL) {
-        // SDXL: supports advanced quality parameters
-        try {
-          response = await this.axiosInstance.post('/predictions', {
-            version: '39ed52f2a78e934b3ba6e2a89f5b1c712de7dfea535525255b1aa35c5565e08b', // SDXL
-            input: {
-              prompt,
-              width,
-              height,
-              num_outputs: 1,
-              num_inference_steps: options.numInferenceSteps ?? 50,
-              guidance_scale: options.guidanceScale ?? 7.5,
-              negative_prompt: options.negativePrompt ?? 'ugly, blurry, poor quality',
-              scheduler: options.scheduler ?? 'DPMSolverMultistep',
-            },
-          });
-          this.logger.info('[ReplicateClient] Using SDXL for quality generation');
-        } catch (err: any) {
-          this.logger.warn('[ReplicateClient] SDXL failed, falling back to Flux Schnell', { error: err.message });
-          response = null;
-        }
+      const input = {
+        prompt,
+        width,
+        height,
+        num_outputs: 1,
+      };
+
+      const output = await this.replicate.run(modelId, { input });
+      
+      let imageUrl: string = '';
+      if (typeof output === 'string') {
+        imageUrl = output;
+      } else if (Array.isArray(output) && output.length > 0) {
+        imageUrl = output[0] as string;
+      } else if (output && typeof output === 'object') {
+        imageUrl = (output as any).url || (output as any)[0];
       }
 
-      // Fallback to Flux Schnell (fast, reliable, but fewer parameters)
-      if (!response) {
-        response = await this.axiosInstance.post('/predictions', {
-          version: '5599ed30703defd1d160a25a63321b4dec97101d98b4674bcc56e41f62f35637', // Flux Schnell
-          input: {
-            prompt,
-            width,
-            height,
-            num_outputs: 1,
-          },
-        });
-        this.logger.info('[ReplicateClient] Using Flux Schnell for fast generation');
+      if (!imageUrl || typeof imageUrl !== 'string') {
+        throw new Error('No valid image URL returned from Replicate');
       }
-
-      const predictionId = response.data.id;
-      
-      // Poll for completion
-      const imageUrl = await this.pollPrediction(predictionId);
 
       this.logger.info('[ReplicateClient] Image generated successfully', {
-        predictionId,
+        size: `${width}x${height}`,
         url: imageUrl.substring(0, 50) + '...',
       });
 
-      return JSON.stringify({ url: imageUrl, prompt, provider: 'replicate' });
+      return imageUrl;
     } catch (error: any) {
-      const status = error.response?.status;
       this.logger.error('[ReplicateClient] Error generating image', {
-        error: error.message,
-        status,
-        responseData: error.response?.data,
+        error: error?.message,
+        stack: error?.stack?.substring(0, 300),
       });
-      
-      if (status === 402) {
-        throw new Error('Replicate account has insufficient credits. Please add credits at https://replicate.com/account/billing');
-      }
-
-      if (status === 422) {
-        throw new Error(`Invalid parameters for image generation: ${error.response?.data?.detail || error.message}`);
-      }
-      
-      throw new Error(`Failed to generate image: ${error.message}`);
+      throw new Error(`Failed to generate image: ${error?.message}`);
     }
   }
 
   /**
-   * Generate video using Replicate
+   * Generate video using Replicate (defaults to Runway Gen-3 for best quality)
    */
   async generateVideo(
     prompt: string,
@@ -321,131 +316,13 @@ export class ReplicateClient {
       durationSeconds?: number;
       fps?: number;
       negativePrompt?: string;
-      numInferenceSteps?: number;
-      guidanceScale?: number;
+      resolution?: '480p' | '720p' | '1080p';
+      aspectRatio?: '16:9' | '9:16' | '1:1';
+      generateAudio?: boolean;
+      referenceImages?: string[];
     } = {},
   ): Promise<string> {
-    if (!this.apiKey) {
-      throw new Error('Replicate API key is required for video generation. Please configure REPLICATE_API_KEY in your environment.');
-    }
-
-    try {
-      const durationSeconds = options.durationSeconds ?? 10;
-      const fps = options.fps ?? 24;
-      const num_frames = durationSeconds * fps;
-      const negative_prompt = options.negativePrompt ?? 'blurry, low quality, watermark, distorted, artifacts';
-      const num_inference_steps = options.numInferenceSteps ?? 24;
-      const guidance_scale = options.guidanceScale ?? 6.0;
-
-      this.logger.info('[ReplicateClient] Generating video', {
-        prompt: prompt.substring(0, 120),
-        durationSeconds,
-        fps,
-        num_frames,
-        guidance_scale,
-        num_inference_steps,
-      });
-
-      // Use Zeroscope (text-to-video)
-      const response = await this.axiosInstance.post('/predictions', {
-        version: '9f747673945c62801b13b84701c783929c0ee784e4748ec062204894dda1a351',
-        input: {
-          prompt,
-          negative_prompt,
-          num_frames,
-          fps,
-          num_inference_steps,
-          guidance_scale,
-        },
-      });
-
-      const predictionId = response.data.id;
-
-      // Poll for completion (videos take longer, can exceed 5 minutes)
-      const videoUrl = await this.pollPrediction(predictionId, 600000); // 10 min timeout for long-running videos
-
-      this.logger.info('[ReplicateClient] Video generated successfully', {
-        predictionId,
-        url: videoUrl.substring(0, 50) + '...',
-      });
-
-      return JSON.stringify({ url: videoUrl, prompt, durationSeconds, fps, provider: 'replicate' });
-    } catch (error: any) {
-      const status = error.response?.status;
-      this.logger.error('[ReplicateClient] Error generating video', {
-        error: error.message,
-        status,
-      });
-      
-      if (status === 402) {
-        throw new Error('Replicate account has insufficient credits. Please add credits at https://replicate.com/account/billing');
-      }
-      
-      throw new Error(`Failed to generate video: ${error.message}`);
-    }
+    // Delegate to generateVideoWithModel with Veo 3.1 (best quality)
+    return this.generateVideoWithModel('veo-3.1', prompt, options);
   }
-
-  /**
-   * Poll Replicate prediction until completion
-   * Increased timeout for video generation; includes backoff and connection recovery
-   */
-  private async pollPrediction(predictionId: string, timeout = 60000): Promise<string> {
-    const startTime = Date.now();
-    let attempts = 0;
-    let consecutiveErrors = 0;
-    const maxConsecutiveErrors = 5;
-
-    while (Date.now() - startTime < timeout) {
-      attempts++;
-      
-      try {
-        const response = await this.axiosInstance.get(`/predictions/${predictionId}`);
-        const { status, output, error } = response.data;
-
-        // Reset error counter on successful poll
-        consecutiveErrors = 0;
-
-        if (status === 'succeeded' && output) {
-          const url = Array.isArray(output) ? output[0] : output;
-          return url;
-        }
-
-        if (status === 'failed' || error) {
-          throw new Error(`Prediction failed: ${error || 'Unknown error'}`);
-        }
-
-        if (status === 'canceled') {
-          throw new Error('Prediction was canceled');
-        }
-
-        // Wait before next poll (exponential backoff: 1s → 2s → 4s → max 10s)
-        const delay = Math.min(1000 * Math.pow(1.5, Math.min(attempts, 8)), 10000);
-        await new Promise(resolve => setTimeout(resolve, delay));
-      } catch (error: any) {
-        consecutiveErrors++;
-
-        if (error.response?.status === 404) {
-          throw new Error('Prediction not found');
-        }
-
-        // Log but continue on transient network errors (e.g., ECONNRESET)
-        if (consecutiveErrors <= maxConsecutiveErrors) {
-          this.logger.warn('[pollPrediction] Transient error during polling', {
-            error: error.message,
-            predictionId,
-            attempt: attempts,
-            consecutiveErrors,
-          });
-          // Wait longer after connection error before retry
-          const delay = Math.min(2000 * consecutiveErrors, 15000);
-          await new Promise(resolve => setTimeout(resolve, delay));
-        } else {
-          throw new Error(`Polling failed after ${maxConsecutiveErrors} consecutive errors: ${error.message}`);
-        }
-      }
-    }
-
-    throw new Error('Prediction timeout - generation took too long');
-  }
-
 }

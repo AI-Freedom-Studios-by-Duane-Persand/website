@@ -32,8 +32,7 @@ export class PoeClient {
     ['veo-3', { supportsText: false, supportsImages: false, supportsVideo: true, isMultimodal: false }],
     ['Video-Generator-PRO', { supportsText: false, supportsImages: false, supportsVideo: true, isMultimodal: false }],
     ['dall-e-3', { supportsText: false, supportsImages: true, supportsVideo: false, isMultimodal: false }],
-    ['stable-diffusion-xl', { supportsText: false, supportsImages: true, supportsVideo: false, isMultimodal: false }],
-    // Poe image model: nano-banana
+    // Poe image model: nano-banana (primary image generation model)
     ['nano-banana', { supportsText: false, supportsImages: true, supportsVideo: false, isMultimodal: false }],
   ]);
 
@@ -130,8 +129,12 @@ export class PoeClient {
       return process.env.POE_VIDEO_MODEL || 'Video-Generator-PRO';
     } else if (engineType.includes('image')) {
       return 'gpt-4o'; // Multimodal for understanding images
+    } else if (engineType === 'creative-video') {
+      // For video script/prompt refinement, use gpt-4o (gemini-1.5-pro returns 404)
+      return 'gpt-4o';
     } else if (engineType.includes('video')) {
-      return 'gemini-1.5-pro'; // Best for video understanding
+      // For actual video generation, use Video-Generator-PRO or veo-3
+      return process.env.POE_VIDEO_MODEL || 'Video-Generator-PRO';
     }
 
     return requestedModel || 'gpt-4o';
@@ -319,79 +322,113 @@ export class PoeClient {
       quality,
     });
 
-    // Use chat completions for Poe v2 image-capable models
-    const response = await this.axiosInstance.post('/chat/completions', {
-      model,
-      messages: [
-        {
-          role: 'system',
-          content: 'You are an image generation bot. Generate an image and return either an attachment or a single JSON object {"url": "https://...", "description": "..."}. If attachment is used, also include a markdown image reference.'
-        },
-        {
-          role: 'user',
-          content: `Prompt: ${prompt}\nTarget size: ${width}x${height}\nQuality: ${quality}`,
-        },
-      ],
-      max_tokens: 800,
-      temperature: 0.7,
-    });
-
-    const durationMs = Date.now() - start;
-    const timingLogMethod = durationMs > 15000 ? 'warn' : 'info';
-    (this.logger as any)[timingLogMethod]('[generateImage] Poe API call completed', {
-      model,
-      durationMs,
-    });
-
-    const choice = response.data?.choices?.[0];
-    const message = choice?.message;
-    const content = message?.content || '';
-    const attachments = message?.attachments || [];
-
-    // Prefer attachments if present
-    const imageAttachment = Array.isArray(attachments)
-      ? attachments.find((a: any) => (a?.content_type || '').startsWith('image') && a?.url)
-      : null;
-    if (imageAttachment?.url) {
-      const url = imageAttachment.url as string;
-      this.logger.info(`[generateImage] Attachment URL extracted`, { model, url: url.substring(0, 50) + '...' });
-      return JSON.stringify({ url, prompt });
-    }
-
-    // Try JSON in content
     try {
-      const parsed = JSON.parse(content);
-      if (parsed?.url && typeof parsed.url === 'string') {
-        const url = parsed.url as string;
-        this.logger.info(`[generateImage] JSON URL extracted`, { model, url: url.substring(0, 50) + '...' });
-        return JSON.stringify({ url, prompt, description: parsed.description });
+      // Use chat completions for Poe v2 image-capable models
+      const response = await this.axiosInstance.post('/chat/completions', {
+        model,
+        messages: [
+          {
+            role: 'system',
+            content: 'You are an image generation bot. Generate an image and return either an attachment or a single JSON object {"url": "https://...", "description": "..."}. If attachment is used, also include a markdown image reference.'
+          },
+          {
+            role: 'user',
+            content: `Prompt: ${prompt}\nTarget size: ${width}x${height}\nQuality: ${quality}`,
+          },
+        ],
+        max_tokens: 800,
+        temperature: 0.7,
+      });
+
+      const durationMs = Date.now() - start;
+      const timingLogMethod = durationMs > 15000 ? 'warn' : 'info';
+      (this.logger as any)[timingLogMethod]('[generateImage] Poe API call completed', {
+        model,
+        durationMs,
+      });
+
+      const choice = response.data?.choices?.[0];
+      const message = choice?.message;
+      const content = message?.content || '';
+      const attachments = message?.attachments || [];
+
+      // Prefer attachments if present
+      const imageAttachment = Array.isArray(attachments)
+        ? attachments.find((a: any) => (a?.content_type || '').startsWith('image') && a?.url)
+        : null;
+      if (imageAttachment?.url) {
+        const url = imageAttachment.url as string;
+        this.logger.info(`[generateImage] Attachment URL extracted`, { model, url: url.substring(0, 50) + '...' });
+        return JSON.stringify({ url, prompt });
       }
-    } catch {}
 
-    // Try URL regex from content (markdown or plain)
-    const urlMatch = (content.match(/https?:\/\/[^\s)\"']+/) || [])[0];
-    if (urlMatch) {
-      const url = urlMatch;
-      this.logger.info(`[generateImage] URL extracted from content`, { model, url: url.substring(0, 50) + '...' });
-      return JSON.stringify({ url, prompt });
+      // Try JSON in content
+      try {
+        const parsed = JSON.parse(content);
+        if (parsed?.url && typeof parsed.url === 'string') {
+          const url = parsed.url as string;
+          this.logger.info(`[generateImage] JSON URL extracted`, { model, url: url.substring(0, 50) + '...' });
+          return JSON.stringify({ url, prompt, description: parsed.description });
+        }
+      } catch {}
+
+      // Try URL regex from content (markdown or plain)
+      const urlMatch = (content.match(/https?:\/\/[^\s)\"']+/) || [])[0];
+      if (urlMatch) {
+        const url = urlMatch;
+        this.logger.info(`[generateImage] URL extracted from content`, { model, url: url.substring(0, 50) + '...' });
+        return JSON.stringify({ url, prompt });
+      }
+
+      // If nothing found, log and return a fallback placeholder image
+      this.logger.warn('[generateImage] No image URL or attachment found in Poe response, using fallback image', {
+        model,
+        contentPreview: content.substring(0, 200),
+      });
+
+      const fallbackUrl = `https://via.placeholder.com/${width}x${height}.png?text=Image+not+available`;
+      return JSON.stringify({
+        url: fallbackUrl,
+        prompt,
+        width,
+        height,
+        provider: 'poe-fallback',
+        isPlaceholder: true,
+        note: 'Poe response did not include an image URL; using placeholder image.',
+      });
+    } catch (error: any) {
+      const durationMs = Date.now() - start;
+      const status = error?.response?.status;
+      
+      this.logger.warn(`[generateImage] Poe API call failed, using fallback image`, {
+        model,
+        error: error?.message,
+        status,
+        durationMs,
+      });
+
+      // Handle 402 Payment Required errors gracefully
+      if (status === 402) {
+        this.logger.warn(`[generateImage] Poe API returned 402 - Insufficient credits/quota`, {
+          model,
+          durationMs,
+        });
+      }
+
+      // Always return a fallback placeholder image on any error
+      const fallbackUrl = `https://via.placeholder.com/${width}x${height}.png?text=Image+generation+failed`;
+      return JSON.stringify({
+        url: fallbackUrl,
+        prompt,
+        width,
+        height,
+        provider: 'poe-fallback',
+        isPlaceholder: true,
+        error: error?.message,
+        status,
+        note: 'Poe API failed; using placeholder image.',
+      });
     }
-
-    // If nothing found, log and return a fallback placeholder image
-    this.logger.warn('[generateImage] No image URL or attachment found in Poe response, using fallback image', {
-      model,
-      contentPreview: content.substring(0, 200),
-    });
-
-    const fallbackUrl = `https://via.placeholder.com/${width}x${height}.png?text=Image+not+available`;
-    return JSON.stringify({
-      url: fallbackUrl,
-      prompt,
-      width,
-      height,
-      provider: 'poe-fallback',
-      isPlaceholder: true,
-      note: 'Poe response did not include an image URL; using placeholder image.',
-    });
   }
 
   /**
@@ -564,7 +601,6 @@ export class PoeClient {
         // Image generation models
         'nano-banana',
         'dall-e-3',
-        'stable-diffusion-xl',
         // Video generation models
         'Video-Generator-PRO',
         'veo-3',
@@ -668,7 +704,6 @@ Return ONLY the improved prompt, nothing else. Do not include explanations.`;
       'image-generation': [
         { model: 'nano-banana', displayName: 'Nano-banana', recommended: true, description: 'Default Poe image model optimized for creative visuals' },
         { model: 'dall-e-3', displayName: 'DALL-E 3', recommended: false, description: 'Highest quality, best for photorealistic images' },
-        { model: 'stable-diffusion-xl', displayName: 'Stable Diffusion XL', recommended: false, description: 'Fast, versatile, good for varied styles' },
       ],
       'video-generation': [
         { model: 'Video-Generator-PRO', displayName: 'Video Generator PRO', recommended: true, description: 'Optimized for video creation - best quality' },
@@ -766,13 +801,6 @@ Return ONLY the improved prompt, nothing else. Do not include explanations.`;
         provider: 'OpenAI',
         tier: 'pro',
         capabilities: this.getModelCapabilities('dall-e-3'),
-      },
-      { 
-        model: 'stable-diffusion-xl', 
-        displayName: 'Stable Diffusion XL', 
-        provider: 'Stability AI',
-        tier: 'pro',
-        capabilities: this.getModelCapabilities('stable-diffusion-xl'),
       },
       // Video Generation
       { 

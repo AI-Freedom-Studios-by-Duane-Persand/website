@@ -34,7 +34,9 @@ export class CreateVideoWorkflowDto {
   @IsOptional()
   @IsString()
   campaignId?: string;
+}
 
+export class InitialMetadataDto {
   @IsOptional()
   @IsString()
   targetAudience?: string;
@@ -58,6 +60,13 @@ export class CreateVideoWorkflowDto {
   aspectRatio?: string;
 }
 
+export class CreateVideoWorkflowWithMetadataDto extends CreateVideoWorkflowDto {
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => InitialMetadataDto)
+  metadata?: InitialMetadataDto;
+}
+
 export class RefinePromptDto {
   @IsOptional()
   @IsString()
@@ -66,6 +75,14 @@ export class RefinePromptDto {
   @IsOptional()
   @IsString()
   refinementModel?: string;
+
+  /**
+   * Alias for refinementModel (for backward compatibility)
+   * @deprecated Use refinementModel instead
+   */
+  @IsOptional()
+  @IsString()
+  model?: string;
 }
 
 export class GenerateFramesDto {
@@ -78,6 +95,14 @@ export class GenerateFramesDto {
   @IsOptional()
   @IsString()
   frameModel?: string;
+
+  /**
+   * Alias for frameModel (for backward compatibility)
+   * @deprecated Use frameModel instead
+   */
+  @IsOptional()
+  @IsString()
+  model?: string;
 }
 
 export class FrameApprovalDto {
@@ -94,11 +119,21 @@ export class FrameApprovalDto {
 }
 
 export class ReviewFramesDto {
-  @IsNotEmpty()
+  @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => FrameApprovalDto)
-  frameApprovals!: FrameApprovalDto[];
+  frameApprovals?: FrameApprovalDto[];
+
+  /**
+   * Alias for frameApprovals (for backward compatibility)
+   * @deprecated Use frameApprovals instead
+   */
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => FrameApprovalDto)
+  frameReviews?: FrameApprovalDto[];
 }
 
 export class GenerateVideoDto {
@@ -106,17 +141,42 @@ export class GenerateVideoDto {
   @IsString()
   videoModel?: string;
 
+  /**
+   * Alias for videoModel (for backward compatibility)
+   * @deprecated Use videoModel instead
+   */
+  @IsOptional()
+  @IsString()
+  model?: string;
+
   @IsOptional()
   @IsNumber()
-  @Min(10)
+  @Min(4)
   @Max(300)
-  duration?: number;
+  duration?: number; // For Veo 3.1: only 4, 6, or 8 seconds are valid (will auto-adjust)
 
   @IsOptional()
   @IsNumber()
   @Min(24)
   @Max(60)
   fps?: number;
+
+  @IsOptional()
+  @IsString()
+  resolution?: '720p' | '1080p';
+
+  @IsOptional()
+  @IsString()
+  aspectRatio?: '9:16' | '16:9' | '1:1';
+
+  @IsOptional()
+  @IsBoolean()
+  generateAudio?: boolean;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  referenceImages?: string[];
 }
 
 export class RegenerateFramesDto {
