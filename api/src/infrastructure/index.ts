@@ -5,6 +5,7 @@
  * - Decorators: Transaction management
  * - Context: Tenant context for request scoping
  * - Repositories: Base repository implementation
+ * - Adapters: Infrastructure-specific implementations
  * - Interfaces: Infrastructure-level interfaces
  */
 
@@ -18,6 +19,9 @@ export type { RequestContext, TenantContextOptions } from './context/tenant-cont
 
 // Repositories
 export { MongooseBaseRepository, AdvancedMongooseRepository } from './repositories/base.repository';
+
+// Adapters
+export { PoeContentGeneratorAdapter, R2StorageAdapter } from './adapters';
 
 // Interfaces
 export type { JwtPayload } from './interfaces/jwt-payload.interface';
