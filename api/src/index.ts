@@ -58,36 +58,11 @@ export * from './meta-ads';
 export * from './storage';
 
 // ============================================================================
-// BILLING (PACKAGES) MODULE
+// DOMAIN LAYER (Interfaces, Ports, Repositories)
 // ============================================================================
-export * from './billing';
+export * from './domain';
 
 // ============================================================================
-// COMMON / SHARED INFRASTRUCTURE
+// INFRASTRUCTURE LAYER (Decorators, Context, Repositories)
 // ============================================================================
-// Export common services, decorators, and utilities that are used across modules
-export * from './common/decorators';
-export * from './common/filters';
-export * from './common/guards';
-export * from './common/interceptors';
-export * from './common/middleware';
-
-// ============================================================================
-// ENGINES MODULE (AI & Content Generation)
-// ============================================================================
-export * from './engines';
-
-// ============================================================================
-// CLIENT MODULES
-// ============================================================================
-export * from './clients/poe.client';
-export * from './clients/replicate.client';
-export * from './clients/ayrshare.client';
-export * from './clients/meta-graph.client';
-
-// ============================================================================
-// UTILITIES
-// ============================================================================
-export * from './utils/logger';
-export * from './utils/validation';
-export * from './utils/transformers';
+export * from './infrastructure';
