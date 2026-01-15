@@ -7,6 +7,7 @@ import { useAuth } from "../../hooks/useAuth";
 import { parseJwt } from "../../../lib/parseJwt";
 import { VideoCreationWizard } from "../components/VideoCreationWizard";
 import { ModelPickerModal } from "../../components/ModelPickerModal";
+import { getAuthHeaders } from "@/lib/utils/auth-headers";
 
 type Creative = { 
   _id: string; 
@@ -37,15 +38,6 @@ function isVideo(url: string | undefined) {
   if (!url) return false;
   const base = url.split("?")[0] || url;
   return /\.(mp4|webm|mov|m4v|ogg)$/i.test(base) || url.includes("video");
-}
-
-function getAuthHeaders(): Record<string, string> {
-  const headers: Record<string, string> = {};
-  const token =
-    typeof window !== "undefined" &&
-    (localStorage.getItem("token") || localStorage.getItem("auth_token"));
-  if (token) headers.Authorization = `Bearer ${token}`;
-  return headers;
 }
 
 export default function CreativesPage() {

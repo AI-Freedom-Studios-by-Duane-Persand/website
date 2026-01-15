@@ -5,6 +5,7 @@ import CampaignsPanel from "./CampaignsPanel";
 import SocialConnectionsCard from "../components/SocialConnectionsCard";
 import EarlyAccessGate from "../../components/EarlyAccessGate";
 import SubscriptionGate from "../../components/SubscriptionGate";
+import { getAuthHeaders } from "@/lib/utils/auth-headers";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -54,12 +55,6 @@ async function checkSubscription() {
 
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "";
     console.log("DEBUG: Calling API URL:", `${apiUrl}/api/auth/me`);
-
-    function getAuthHeaders(): Record<string, string> {
-      const token =
-        typeof window !== "undefined" ? localStorage.getItem("token") : null;
-      return token ? { Authorization: `Bearer ${token}` } : {};
-    }
 
     fetch(`${apiUrl}/api/auth/me`, {
       credentials: "include",

@@ -3,6 +3,7 @@
 import { Toaster, toast } from 'react-hot-toast';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { getAuthHeaders } from '@/lib/utils/auth-headers';
 // Uses AdminLayout from layout.tsx (applied automatically by Next.js App Router)
 
 // PLAN STEP LOGGING (from plan-campaignOs.prompt.md)
@@ -25,12 +26,6 @@ function logPlanSteps() {
     console.info(`[PLAN] Step ${idx + 1}: ${step}`);
   });
   console.info('[PLAN] --- End of Plan Steps ---');
-}
-
-function getAuthHeaders(): Record<string, string> {
-  if (typeof window === 'undefined') return {};
-  const token = localStorage.getItem('token');
-  return token ? { Authorization: `Bearer ${token}` } : {}; // Ensure headers are always a valid Record<string, string>
 }
 
 export default function AdminTenantsPage() {

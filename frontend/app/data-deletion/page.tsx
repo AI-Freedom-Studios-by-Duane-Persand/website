@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { toast, Toaster } from "react-hot-toast";
+import { getAuthHeaders } from "@/lib/utils/auth-headers";
 
 export default function DataDeletionPage() {
   const [email, setEmail] = useState("");
@@ -9,15 +10,6 @@ export default function DataDeletionPage() {
   const [submitting, setSubmitting] = useState(false);
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-
-  function getAuthHeaders(): Record<string, string> {
-    const headers: Record<string, string> = {};
-    const token =
-      typeof window !== "undefined" &&
-      (localStorage.getItem("token") || localStorage.getItem("auth_token"));
-    if (token) headers.Authorization = `Bearer ${token}`;
-    return headers;
-  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

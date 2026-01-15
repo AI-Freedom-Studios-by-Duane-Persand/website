@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect, useRef, useMemo } from "react";
+import { getAuthHeaders } from "@/lib/utils/auth-headers";
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "";
@@ -10,15 +11,6 @@ type Props = {
   editCampaignId?: string | null;
   onCampaignUpdated?: () => void;
 };
-
-function getAuthHeaders(): Record<string, string> {
-  const headers: Record<string, string> = {};
-  const token =
-    typeof window !== "undefined" &&
-    (localStorage.getItem("token") || localStorage.getItem("auth_token"));
-  if (token) headers.Authorization = `Bearer ${token}`;
-  return headers;
-}
 
 export default function CampaignChatBot({ userId, editCampaignId = null, onCampaignUpdated }: Props) {
   const [sessionId, setSessionId] = useState("");

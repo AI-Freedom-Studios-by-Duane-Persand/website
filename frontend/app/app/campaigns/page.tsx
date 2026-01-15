@@ -2,22 +2,16 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import CampaignChatBot from "./components/CampaignChatBot";
-import CampaignList from "./components/CampaignList";
-import Stepper from "./components/Stepper";
+import { CampaignList, Stepper } from "../../components/campaigns";
 import SocialConnectionsCard from "../components/SocialConnectionsCard";
 import EarlyAccessGate from "../../components/EarlyAccessGate";
-import SubscriptionGate from "../../components/SubscriptionGate";
+import SubscriptionGate from "../../components/subscriptions/SubscriptionGate";
 import { useAuth } from "../../hooks/useAuth";
+import { useCampaigns } from "@/lib/hooks/useCampaigns";
+import { getAuthHeaders } from "@/lib/utils/auth-headers";
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "";
-
-function getAuthHeaders(): HeadersInit {
-  const token =
-    typeof window !== "undefined" &&
-    (localStorage.getItem("token") || localStorage.getItem("auth_token"));
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
 
 function asArray<T>(payload: any): T[] {
   if (Array.isArray(payload)) return payload;

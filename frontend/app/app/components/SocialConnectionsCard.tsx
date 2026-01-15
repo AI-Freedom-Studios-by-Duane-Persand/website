@@ -1,15 +1,9 @@
 "use client";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { getAuthHeaders } from "@/lib/utils/auth-headers";
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "";
-
-function getAuthHeaders(): Record<string, string> {
-  const token =
-    typeof window !== "undefined" &&
-    (localStorage.getItem("token") || localStorage.getItem("auth_token"));
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
 
 export type SocialConnectionsCardProps = {
   title?: string;

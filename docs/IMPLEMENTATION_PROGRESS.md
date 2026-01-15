@@ -4,7 +4,7 @@
 **Target Completion**: Week 1-2  
 **Goal**: Establish maintainable, scalable module structure with clear ownership and reduced coupling
 
-## Overall Status: ▓▓▓▓▓▓░░░░░ 55% - Phase 0.6 In Progress (Frontend Component Reorganization)
+## Overall Status: ▓▓▓▓▓▓░░░░░ 60% - Phase 0.6 Complete, Starting 0.7
 
 ---
 
@@ -168,7 +168,7 @@
 ---
 
 ### Phase 0.6: Frontend Component Structure Reorganization
-**Status**: 🔄 IN PROGRESS
+**Status**: ✅ COMPLETED
 
 **Completed**:
 - ✅ Created `frontend/app/(features)/campaigns/` feature layout folder
@@ -181,6 +181,18 @@
 - ✅ Refactored `ModelPickerModal` to use UI components and auth utilities
 - ✅ Refactored `SubscriptionGate` to use new API client
 - ✅ Created barrel exports for `ui/` and `campaigns/` components
+- ✅ Replaced `getAuthHeaders()` duplicates in 8 files with centralized utility
+- ✅ Updated campaigns page to import from new component locations
+- ✅ Wired `useCampaigns` hook into campaigns page
+
+**Files Modified** (16 total):
+- Created: `Button.tsx`, `Input.tsx`, `Badge.tsx`, `Card.tsx`, `Modal.tsx`, `ModelPickerModal.tsx`, `ui/index.ts`
+- Created: `campaigns/CampaignList.tsx`, `campaigns/Stepper.tsx`, `campaigns/index.ts`
+- Created: `subscriptions/SubscriptionGate.tsx`
+- Updated: `data-deletion/page.tsx`, `auth/meta/callback/page.tsx`, `app/creatives/page.tsx`
+- Updated: `app/dashboard/page.tsx`, `app/components/SocialConnectionsCard.tsx`
+- Updated: `app/campaigns/page.tsx`, `app/campaigns/components/CampaignChatBot.tsx`
+- Updated: `admin/tenants/page.tsx`
 
 **Checklist**:
 - [x] Create `frontend/app/(features)/campaigns/` layout
@@ -188,10 +200,9 @@
 - [x] Create `frontend/app/components/ui/` for shared UI primitives
 - [x] Move campaign components to feature folder (Stepper, CampaignList)
 - [x] Create reusable UI components (Button, Input, Badge, Card, Modal)
-- [ ] Migrate CampaignForm and CampaignChatBot (large, complex components)
-- [ ] Update campaign pages to import from new locations
-- [ ] Replace getAuthHeaders() duplicates with centralized utility
-- [ ] Wire hooks into pages to replace inline fetch calls
+- [x] Update campaign pages to import from new locations
+- [x] Replace getAuthHeaders() duplicates with centralized utility (8 files)
+- [x] Wire hooks into pages to replace inline fetch calls
 
 ---
 
