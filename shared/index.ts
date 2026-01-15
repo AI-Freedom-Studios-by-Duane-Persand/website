@@ -76,6 +76,11 @@ export * from './meta-ads.dto';
 export * from './asset.dto';
 
 // ============================================================================
+// ERROR RESPONSE (cross-cutting concern, stays in shared/)
+// ============================================================================
+export * from './error-response';
+
+// ============================================================================
 // CROSS-CUTTING TYPES (remain in shared/)
 // These types are used across multiple modules and don't belong to any single module
 // ============================================================================
