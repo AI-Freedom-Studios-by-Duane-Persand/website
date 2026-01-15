@@ -157,6 +157,12 @@ None yet.
 ---
 
 ## Next Steps
-1. ✅ Create folder structure (Phase 0.1)
-2. ⏳ Start DTO migration (Phase 0.2)
-3. ⏳ Start model migration (Phase 0.3)
+1. ✅ Create folder structure (Phase 0.1) — COMPLETED
+2. 🔄 Continue DTO migration (Phase 0.2) — Consolidate existing `campaigns/dto/` → `dtos/`; move remaining DTOs from `shared/`
+3. ⏳ Start model migration (Phase 0.3) — Move `api/models/*` and `api/src/models/*` to respective module `schemas/`
+4. ⏳ Create barrel exports (Phase 0.4) — Add `index.ts` to each module
+5. ⏳ Frontend API layer (Phase 0.5) — Create `frontend/lib/api/client.ts` and feature APIs
+
+## Commit History
+- `049e2c7`: Phase 0.1 foundation: DTO folder structure established, campaign/user/subscription DTOs migrated
+- Previous: Veo 3.1 integration, video workflow fixes, intelligent fallback system
