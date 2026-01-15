@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, Query } from '@nestjs/common';
 import { CreativesService } from './creatives.service';
-import { CreateCreativeDto, UpdateCreativeDto } from '../../../shared/creative.dto';
+import { CreateCreativeDto, UpdateCreativeDto } from './dtos/creative.dto';
 import { SubscriptionRequired } from '../auth/subscription-required.decorator';
 import { SubscriptionRequiredGuard } from '../auth/subscription-required.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';

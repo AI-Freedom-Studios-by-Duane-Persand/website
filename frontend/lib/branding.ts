@@ -1,4 +1,4 @@
-import { BrandingConfig } from '../../shared/branding.dto';
+import { BrandingConfig } from '../../api/src/campaigns/dtos/branding.dto';
 
 export async function getBrandingConfig(): Promise<BrandingConfig> {
   try {

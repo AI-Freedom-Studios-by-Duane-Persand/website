@@ -3,7 +3,7 @@ import { Request as ExpressRequest } from 'express';
 import { UserJwt } from '../../../shared/user-jwt.interface';
 import { AuthGuard } from '@nestjs/passport';
 import { SubscriptionsService } from './subscriptions.service';
-import { CreateSubscriptionDto, UpdateSubscriptionDto } from '../../../shared/subscription.dto';
+import { CreateSubscriptionDto, UpdateSubscriptionDto } from './dtos/subscription.dto';
 
 @Controller('subscriptions')
 export class SubscriptionsController {

@@ -2,7 +2,7 @@ import { Injectable, NotFoundException, BadRequestException, Logger, HttpExcepti
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Creative } from '../../../shared/types';
-import { CreateCreativeDto, UpdateCreativeDto } from '../../../shared/creative.dto';
+import { CreateCreativeDto, UpdateCreativeDto } from './dtos/creative.dto';
 import { CreativeDocument } from './schemas/creative.schema';
 import { InjectModel as InjectTenantModel } from '@nestjs/mongoose';
 import { TenantDocument } from '../tenants/schemas/tenant.schema';
