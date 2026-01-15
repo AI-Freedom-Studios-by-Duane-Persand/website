@@ -1,37 +1,37 @@
 import { Injectable, NotFoundException, Logger, Inject, forwardRef } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { CampaignDocument } from '../models/campaign.schema';
 import { CreateCampaignDto } from '../../../shared';
 import { StrategyEngine } from '../engines/strategy.engine';
 import { CopyEngine } from '../engines/copy.engine';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { StorageService } from '../storage/storage.service';
 import { ContentService } from './services/content.service';
+import { CampaignRepository } from './repositories/campaign.repository';
+import { TenantContextService } from '../infrastructure/context/tenant-context';
+import { Transactional } from '../infrastructure/decorators/transactional.decorator';
+import { CampaignDocument } from '../models/campaign.schema';
 
 @Injectable()
 export class CampaignsService {
   private readonly logger = new Logger(CampaignsService.name);
 
   constructor(
-    @InjectModel('Campaign') private readonly campaignModel: Model<CampaignDocument>,
+    private readonly campaignRepository: CampaignRepository,
+    private readonly tenantContext: TenantContextService,
     private readonly strategyEngine: StrategyEngine,
     private readonly copyEngine: CopyEngine,
-    private readonly subscriptionsService: SubscriptionsService, // Replaced SubscriptionsModule with SubscriptionsService
-    private readonly storageService: StorageService, // Inject StorageService
+    private readonly subscriptionsService: SubscriptionsService,
+    private readonly storageService: StorageService,
     @Inject(forwardRef(() => ContentService))
-    private readonly contentService: ContentService // Inject ContentService for asset generation
+    private readonly contentService: ContentService
   ) {}
 
-  async create(createCampaignDto: CreateCampaignDto & { createdBy: string; tenantId: string }): Promise<any> {
+  @Transactional()
+  async create(createCampaignDto: CreateCampaignDto & { createdBy: string; tenantId?: string }): Promise<any> {
     try {
       this.logger.log('Starting campaign creation process');
 
-      const tenantId = createCampaignDto.tenantId;
-      if (!tenantId) {
-        this.logger.error('tenantId is required (must come from authenticated user)');
-        throw new Error('Missing tenantId for campaign creation');
-      }
+      // Get tenantId from context (automatically scoped from JWT)
+      const tenantId = this.tenantContext.getTenantId();
       this.logger.log(`[create] tenantId=${tenantId}`);
 
       // Patch required fields for CreateCampaignDto compatibility
@@ -152,7 +152,7 @@ export class CampaignsService {
         invalidated: false,
       };
 
-      const newCampaign = new this.campaignModel({
+      const campaignData = {
         tenantId,
         name: createCampaignDto.name,
         status: 'draft',
@@ -174,11 +174,11 @@ export class CampaignsService {
           changes: { created: true },
           note: 'Initial campaign creation',
         }],
-      });
+      };
 
       let savedCampaign;
       try {
-        savedCampaign = await newCampaign.save();
+        savedCampaign = await this.campaignRepository.create(campaignData as any, tenantId);
         this.logger.log(`Campaign created successfully with ID: ${savedCampaign._id}`);
       } catch (err) {
         const errorMessage = (typeof err === 'object' && err !== null && 'message' in err) ? (err as any).message : undefined;
@@ -187,7 +187,7 @@ export class CampaignsService {
           errorMessage,
           errorStack,
           err,
-          campaignData: newCampaign
+          campaignData
         });
         throw new Error('Failed to save campaign to database.');
       }
@@ -207,7 +207,8 @@ export class CampaignsService {
 
   // Add a new strategy version and invalidate downstream approvals/content
   async addStrategyVersion(campaignId: string, strategyData: any, userId: string, note?: string, tenantId?: string) {
-    const campaign = await this.campaignModel.findOne({ _id: campaignId, tenantId }).exec();
+    const resolvedTenantId = tenantId || this.tenantContext.getTenantId();
+    const campaign = await this.campaignRepository.findById(campaignId, resolvedTenantId);
     if (!campaign) throw new NotFoundException('Campaign not found');
     const newVersion = (campaign.strategyVersions?.length || 0) + 1;
     const now = new Date();
@@ -224,13 +225,14 @@ export class CampaignsService {
     campaign.status = 'draft';
     campaign.statusHistory.push({ status: 'draft', changedAt: now, changedBy: userId, note });
     campaign.revisionHistory.push({ revision: (campaign.revisionHistory?.length || 0) + 1, changedAt: now, changedBy: userId, changes: { strategyVersion: newVersion }, note });
-    await campaign.save();
-    return campaign;
+    const updated = await this.campaignRepository.updateById(campaign._id, campaign, resolvedTenantId);
+    return updated;
   }
 
   // Add a new content version (AI/manual/hybrid)
   async addContentVersion(campaignId: string, contentData: any, userId: string, note?: string, tenantId?: string) {
-    const campaign = await this.campaignModel.findOne({ _id: campaignId, tenantId }).exec();
+    const resolvedTenantId = tenantId || this.tenantContext.getTenantId();
+    const campaign = await this.campaignRepository.findById(campaignId, resolvedTenantId);
     if (!campaign) throw new NotFoundException('Campaign not found');
     const newVersion = (campaign.contentVersions?.length || 0) + 1;
     const now = new Date();
@@ -239,20 +241,21 @@ export class CampaignsService {
     campaign.status = 'draft';
     campaign.statusHistory.push({ status: 'draft', changedAt: now, changedBy: userId, note });
     campaign.revisionHistory.push({ revision: (campaign.revisionHistory?.length || 0) + 1, changedAt: now, changedBy: userId, changes: { contentVersion: newVersion }, note });
-    await campaign.save();
-    return campaign;
+    const updated = await this.campaignRepository.updateById(campaign._id, campaign, resolvedTenantId);
+    return updated;
   }
 
   // Approve a section (strategy, content, schedule, ads)
   async approveSection(campaignId: string, section: string, userId: string, note?: string, tenantId?: string) {
-    const campaign = await this.campaignModel.findOne({ _id: campaignId, tenantId }).exec();
+    const resolvedTenantId = tenantId || this.tenantContext.getTenantId();
+    const campaign = await this.campaignRepository.findById(campaignId, resolvedTenantId);
     if (!campaign) throw new NotFoundException('Campaign not found');
     campaign.approvalStates[section] = 'approved';
     const now = new Date();
     campaign.statusHistory.push({ status: `approved_${section}`, changedAt: now, changedBy: userId, note });
     campaign.revisionHistory.push({ revision: (campaign.revisionHistory?.length || 0) + 1, changedAt: now, changedBy: userId, changes: { approved: section }, note });
-    await campaign.save();
-    return campaign;
+    const updated = await this.campaignRepository.updateById(campaign._id, campaign, resolvedTenantId);
+    return updated;
   }
 
   // Rollback to a previous revision
@@ -264,22 +267,26 @@ export class CampaignsService {
     return { message: 'Rollback not yet implemented' };
   }
 
-  async findAll(tenantId: string): Promise<CampaignDocument[]> {
-    return this.campaignModel.find({ tenantId }).exec();
+  async findAll(tenantId?: string): Promise<any[]> {
+    const resolvedTenantId = tenantId || this.tenantContext.getTenantId();
+    return this.campaignRepository.find({}, resolvedTenantId);
   }
 
-  async findOne(id: string, tenantId: string): Promise<CampaignDocument> {
-    const campaign = await this.campaignModel.findOne({ _id: id, tenantId }).exec();
+  async findOne(id: string, tenantId?: string): Promise<any> {
+    const resolvedTenantId = tenantId || this.tenantContext.getTenantId();
+    const campaign = await this.campaignRepository.findById(id, resolvedTenantId);
     if (!campaign) {
       throw new NotFoundException(`Campaign with ID ${id} not found`);
     }
     return campaign;
   }
 
-  async update(id: string, updateData: Partial<CampaignDocument>, tenantId: string, userId?: string): Promise<CampaignDocument> {
+  @Transactional()
+  async update(id: string, updateData: Partial<any>, tenantId?: string, userId?: string): Promise<any> {
     try {
+      const resolvedTenantId = tenantId || this.tenantContext.getTenantId();
       // Fetch the existing campaign first to detect strategy changes
-      const existingCampaign = await this.campaignModel.findOne({ _id: id, tenantId }).exec();
+      const existingCampaign = await this.campaignRepository.findById(id, resolvedTenantId);
       if (!existingCampaign) {
         throw new NotFoundException(`Campaign with ID ${id} not found`);
       }
@@ -288,11 +295,11 @@ export class CampaignsService {
       const strategyFieldsChanged = this.detectStrategyChanges(existingCampaign, updateData);
       
       // Apply the update
-      const updatedCampaign = await this.campaignModel.findOneAndUpdate(
-        { _id: id, tenantId },
+      const updatedCampaign = await this.campaignRepository.updateById(
+        id,
         updateData,
-        { new: true },
-      ).exec();
+        resolvedTenantId,
+      );
       
       if (!updatedCampaign) {
         throw new NotFoundException(`Campaign with ID ${id} not found`);
@@ -303,7 +310,7 @@ export class CampaignsService {
         this.logger.log(`Strategy changed for campaign ${id}, triggering asset regeneration`);
         
         // Trigger async asset generation (non-blocking)
-        this.regenerateAssetsAfterStrategyChange(id, tenantId, userId).catch(err => {
+        this.regenerateAssetsAfterStrategyChange(id, resolvedTenantId, userId).catch(err => {
           this.logger.error(`Failed to regenerate assets for campaign ${id}: ${err.message}`, err.stack);
         });
       }
@@ -319,7 +326,7 @@ export class CampaignsService {
   /**
    * Detect if strategy-related fields have changed
    */
-  private detectStrategyChanges(existing: CampaignDocument, updates: Partial<CampaignDocument>): boolean {
+  private detectStrategyChanges(existing: any, updates: Partial<any>): boolean {
     const strategyFields = [
       'name',
       'platforms', 
@@ -350,7 +357,7 @@ export class CampaignsService {
       this.logger.log(`[regenerateAssetsAfterStrategyChange] Starting for campaign ${campaignId}`);
       
       // Get the campaign to check if it has existing content
-      const campaign = await this.campaignModel.findOne({ _id: campaignId, tenantId }).exec();
+      const campaign = await this.campaignRepository.findById(campaignId, tenantId);
       if (!campaign) {
         this.logger.warn(`Campaign ${campaignId} not found for asset regeneration`);
         return;
@@ -408,8 +415,10 @@ export class CampaignsService {
     }
   }
 
-  async delete(id: string, tenantId: string): Promise<CampaignDocument> {
-    const deletedCampaign = await this.campaignModel.findOneAndDelete({ _id: id, tenantId }).exec();
+  @Transactional()
+  async delete(id: string, tenantId?: string): Promise<any> {
+    const resolvedTenantId = tenantId || this.tenantContext.getTenantId();
+    const deletedCampaign = await this.campaignRepository.deleteById(id, resolvedTenantId);
     if (!deletedCampaign) {
       throw new NotFoundException(`Campaign with ID ${id} not found`);
     }

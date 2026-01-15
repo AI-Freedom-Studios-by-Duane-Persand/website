@@ -1,90 +1,59 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
 import { User } from '../../../shared/types';
 import { CreateUserDto, UpdateUserDto } from './dto/user.dto';
-import { UserDocument } from './schemas/user.schema';
+import { UserRepository } from './repositories/user.repository';
+import { TenantContextService } from '../infrastructure/context/tenant-context';
+import { Transactional } from '../infrastructure/decorators/transactional.decorator';
 
 @Injectable()
 export class UsersService {
   constructor(
-    @InjectModel('User') private readonly userModel: Model<UserDocument>,
+    private readonly userRepository: UserRepository,
+    private readonly tenantContext: TenantContextService,
   ) {}
 
 
-  async findAll(query: any): Promise<User[]> {
-    const docs = await this.userModel.find(query).exec();
-    return docs.map(doc => ({
-      _id: doc._id,
-      email: doc.email,
-      passwordHash: doc.passwordHash,
-      tenantId: doc.tenantId,
-      roles: doc.roles || [],
-      isEarlyAccess: doc.isEarlyAccess ?? false,
-      createdAt: doc.createdAt,
-      updatedAt: doc.updatedAt,
-    }));
+  async findAll(query?: any, tenantId?: string): Promise<User[]> {
+    const resolvedTenantId = tenantId || this.tenantContext.getTenantId();
+    const filter = query || {};
+    return (await this.userRepository.find(filter as any, resolvedTenantId)) as any;
   }
 
 
-  async findOne(id: string): Promise<User> {
-    const user = await this.userModel.findById(id).exec();
+  async findOne(id: string, tenantId?: string): Promise<User> {
+    const resolvedTenantId = tenantId || this.tenantContext.getTenantId();
+    const user = await this.userRepository.findById(id, resolvedTenantId);
     if (!user) throw new NotFoundException('User not found');
-    return {
-      _id: user._id,
-      email: user.email,
-      passwordHash: user.passwordHash,
-      tenantId: user.tenantId,
-      roles: user.roles || [],
-      isEarlyAccess: user.isEarlyAccess ?? false,
-      createdAt: user.createdAt,
-      updatedAt: user.updatedAt,
-    };
+    return user as any;
   }
 
 
-  async create(createUserDto: CreateUserDto, session?: any): Promise<User> {
-    const options = { session };
-    const createdUser = new this.userModel(createUserDto);
-    return createdUser.save(options);
+  @Transactional()
+  async create(createUserDto: CreateUserDto, tenantId?: string): Promise<User> {
+    const resolvedTenantId = tenantId || this.tenantContext.getTenantId();
+    const userData = { ...createUserDto, tenantId: resolvedTenantId };
+    return (await this.userRepository.create(userData as any, resolvedTenantId)) as any;
   }
 
 
   async findByEmail(email: string, tenantId?: string): Promise<User | null> {
-    const query: any = { email };
-    if (tenantId) query.tenantId = tenantId;
-    const user = await this.userModel.findOne(query).exec();
-    if (!user) return null;
-    return {
-      _id: user._id,
-      email: user.email,
-      passwordHash: user.passwordHash,
-      tenantId: user.tenantId,
-      roles: user.roles || [],
-      isEarlyAccess: user.isEarlyAccess ?? false,
-      createdAt: user.createdAt,
-      updatedAt: user.updatedAt,
-    };
+    const resolvedTenantId = tenantId || this.tenantContext.getTenantId();
+    return (await this.userRepository.findByEmail(email, resolvedTenantId)) as any;
   }
 
 
-  async update(id: string, updateUserDto: UpdateUserDto): Promise<User> {
-    const user = await this.userModel.findByIdAndUpdate(id, updateUserDto, { new: true }).exec();
+  @Transactional()
+  async update(id: string, updateUserDto: UpdateUserDto, tenantId?: string): Promise<User> {
+    const resolvedTenantId = tenantId || this.tenantContext.getTenantId();
+    const user = await this.userRepository.updateById(id, updateUserDto as any, resolvedTenantId);
     if (!user) throw new NotFoundException('User not found');
-    return {
-      _id: user._id,
-      email: user.email,
-      passwordHash: user.passwordHash,
-      tenantId: user.tenantId,
-      roles: user.roles || [],
-      isEarlyAccess: user.isEarlyAccess ?? false,
-      createdAt: user.createdAt,
-      updatedAt: user.updatedAt,
-    };
+    return user as any;
   }
 
-  async remove(id: string): Promise<{ deleted: boolean }> {
-    const res = await this.userModel.deleteOne({ _id: id }).exec();
-    return { deleted: res.deletedCount > 0 };
+  @Transactional()
+  async remove(id: string, tenantId?: string): Promise<{ deleted: boolean }> {
+    const resolvedTenantId = tenantId || this.tenantContext.getTenantId();
+    const result = await this.userRepository.deleteById(id, resolvedTenantId);
+    return { deleted: result };
   }
 }

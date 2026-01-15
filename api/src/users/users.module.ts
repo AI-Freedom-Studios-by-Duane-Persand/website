@@ -4,7 +4,9 @@ import { UsersService } from './users.service';
 import { UsersController } from './users.controller';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ModelsModule } from '../models/models.module';
+import { InfrastructureModule } from '../infrastructure/infrastructure.module';
 import { UserSchema } from './schemas/user.schema';
+import { UserRepository } from './repositories/user.repository';
 
 @Injectable()
 export class UsersModuleLogger {
@@ -14,8 +16,8 @@ export class UsersModuleLogger {
 }
 
 @Module({
-  imports: [ModelsModule],
-  providers: [UsersService, UsersModuleLogger],
+  imports: [ModelsModule, InfrastructureModule, MongooseModule.forFeature([{ name: 'User', schema: UserSchema }])],
+  providers: [UsersService, UsersModuleLogger, UserRepository],
   controllers: [UsersController],
   exports: [UsersService],
 })

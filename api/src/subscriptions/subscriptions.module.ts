@@ -4,11 +4,13 @@ import { SubscriptionsService } from './subscriptions.service';
 import { SubscriptionsController } from './subscriptions.controller';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ModelsModule } from '../models/models.module';
+import { InfrastructureModule } from '../infrastructure/infrastructure.module';
 import { Subscription, SubscriptionSchema } from '../models/subscriptionV2.model';
+import { SubscriptionRepository } from './repositories/subscription.repository';
 
 @Module({
-  imports: [ModelsModule],
-  providers: [SubscriptionsService],
+  imports: [ModelsModule, InfrastructureModule, MongooseModule.forFeature([{ name: Subscription.name, schema: SubscriptionSchema }])],
+  providers: [SubscriptionsService, SubscriptionRepository],
   controllers: [SubscriptionsController],
   exports: [SubscriptionsService],
 })
