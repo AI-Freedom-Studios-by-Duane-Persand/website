@@ -4,7 +4,7 @@
 **Target Completion**: Week 1-2  
 **Goal**: Establish maintainable, scalable module structure with clear ownership and reduced coupling
 
-## Overall Status: ▓▓▓▓▓▓▓▓░░ 75% - Phase 0 Complete, Phase 1 (60%) - Infrastructure Foundation Implemented
+## Overall Status: ▓▓▓▓▓▓▓▓▓░ 85% - Phase 0 Complete, Phase 1 Complete (100%), Phase 2 (40%) - Repositories & Adapters
 
 ---
 
@@ -327,6 +327,57 @@
 
 ---
 
+## Phase 2: Refactoring & Adapter Implementation (40% Complete)
+
+### Phase 2.1: Concrete Repository Implementations
+**Status**: ✅ COMPLETED
+**Files Created**:
+- `api/src/campaigns/repositories/campaign.repository.ts` (CampaignRepository extends AdvancedMongooseRepository<Campaign>)
+  - Queries: findByStatus, findActive, findByStrategyId, findByUserId, search, getPaginated
+  - Statistics: getStatistics (total, byStatus, active, published)
+  - Date range queries: findByDateRange
+- `api/src/users/repositories/user.repository.ts` (UserRepository extends AdvancedMongooseRepository<User>)
+  - Queries: findByEmail, findByEmailGlobal, findByRole, findActive, findBySubscriptionStatus
+  - User management: deactivateUser, reactivateUser, updateLastLogin
+  - Statistics: getStatistics (total, active, deactivated, byRole)
+  - Inactivity tracking: findInactiveUsers
+- `api/src/subscriptions/repositories/subscription.repository.ts` (SubscriptionRepository extends AdvancedMongooseRepository<Subscription>)
+  - Queries: findActive, findExpired, findByStatus, findByPlanId, findByUserId, findExpiringBefore
+  - Renewal management: renewSubscription, cancelSubscription, markExpired
+  - Statistics: getStatistics (total, active, expired, autoRenewing, byPlan, totalRevenue)
+
+**Features**:
+- All repositories extend AdvancedMongooseRepository for pagination and aggregation
+- Automatic tenant scoping on all queries
+- Custom business-logic queries (e.g., findActive, findInactiveUsers)
+- Aggregation pipelines for statistics and reporting
+- Pagination support with sorting
+
+### Phase 2.2: Infrastructure Adapters
+**Status**: ✅ COMPLETED
+**Files Created**:
+- `api/src/infrastructure/adapters/poe-content-generator.adapter.ts` (PoeContentGeneratorAdapter implements IContentGenerator)
+  - Methods: generate, generateStream, isModelAvailable, getAvailableModels, estimateCost
+  - Models: gpt-3.5-turbo (text), dall-e-3 (image), runway (video)
+  - Features: Model availability checks, stream support, cost estimation, fallback models
+- `api/src/infrastructure/adapters/r2-storage.adapter.ts` (R2StorageAdapter implements IStorageProvider)
+  - Methods: upload, download, getMetadata, exists, delete, deleteMany, listByPrefix, getSignedUrl, copy, move
+  - Features: S3-compatible R2 API, metadata management, signed URLs, bulk operations
+  - Metadata flattening/unflattening for S3 compatibility
+
+**Adapter Pattern Benefits**:
+- Domain logic decoupled from Poe API/R2 specifics
+- Easy to add new adapters (ReplicateContentGenerator, S3Storage, etc.)
+- Testable with mock implementations
+- Clear separation of concerns
+
+### Phase 2.3: Adapter Exports
+**Status**: ✅ COMPLETED
+**File**: `api/src/infrastructure/adapters/index.ts`
+**Exports**: PoeContentGeneratorAdapter, R2StorageAdapter
+
+---
+
 ## Blocked Issues
 None yet.
 
@@ -352,15 +403,24 @@ None yet.
 12. ✅ Transaction decorator (Phase 1.4) — COMPLETED
 13. ✅ Tenant context manager (Phase 1.5) — COMPLETED
 14. ✅ Mongoose repository impl (Phase 1.6) — COMPLETED
-15. ⏳ **NEXT**: Create concrete repositories (CampaignRepository, UserRepository, SubscriptionRepository, etc.)
-16. ⏳ Create infrastructure adapters (PoeContentGenerator, R2Storage, MetaPublisher, AyrsharePublisher)
-17. ⏳ Wire repositories into services (Phase 2)
-18. ⏳ Update services to use @Transactional decorator and inject repositories
-19. ⏳ Frontend integration (wire hooks into all pages)
-20. ⏳ Security & testing (httpOnly cookies, refresh tokens, unit tests)
+15. ✅ Concrete repositories (Phase 2.1) — COMPLETED
+16. ✅ Infrastructure adapters (Phase 2.2) — COMPLETED
+17. ⏳ **NEXT**: Refactor CampaignsService to use CampaignRepository
+18. ⏳ Refactor UsersService to use UserRepository
+19. ⏳ Update services to use @Transactional decorator
+20. ⏳ Refactor engines to use adapter pattern (dependency injection)
+21. ⏳ Frontend integration (wire hooks into all pages)
+22. ⏳ Security & testing (httpOnly cookies, refresh tokens, unit tests)
 
 ## Commit History
-- **NEW** `feat(phase-1): Infrastructure foundation - decorators, context, repositories`
+- **NEW** `20d8eea`: feat(phase-2): Repository implementations and infrastructure adapters
+  - ✅ CampaignRepository with business queries (findActive, search, statistics)
+  - ✅ UserRepository with user management (updateLastLogin, deactivate, inactivity tracking)
+  - ✅ SubscriptionRepository with renewal/expiry management
+  - ✅ PoeContentGeneratorAdapter for IContentGenerator interface
+  - ✅ R2StorageAdapter for IStorageProvider interface
+- `3e942ba`: fix: resolve export conflicts in api/src/index.ts
+- `98ca38c`: feat(phase-1.4-1.6): Infrastructure foundation - decorators, context, repositories
   - ✅ @Transactional() decorator for automatic session management
   - ✅ TenantContextService for REQUEST-scoped tenant context extraction
   - ✅ MongooseBaseRepository<T> implementing IBaseRepository<T>
