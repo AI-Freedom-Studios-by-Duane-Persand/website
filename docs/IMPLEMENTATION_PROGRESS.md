@@ -4,7 +4,7 @@
 **Target Completion**: Week 1-2  
 **Goal**: Establish maintainable, scalable module structure with clear ownership and reduced coupling
 
-## Overall Status: ▓▓▓▓░░░░░░░░ 35% - Phase 0.2-0.4 Complete, Starting 0.5
+## Overall Status: ▓▓▓▓▓░░░░░░ 50% - Phase 0.5 Complete, Starting 0.6
 
 ---
 
@@ -143,16 +143,27 @@
 ---
 
 ### Phase 0.5: Create Frontend API Client Layer
-**Status**: ⏳ PENDING
+**Status**: ✅ COMPLETED
+
+**Completed**:
+- ✅ Created `frontend/lib/api/client.ts` (base client, auth handling, error formatting)
+- ✅ Created `frontend/lib/api/campaigns.api.ts`
+- ✅ Created `frontend/lib/api/auth.api.ts`
+- ✅ Created `frontend/lib/api/subscriptions.api.ts`
+- ✅ Created `frontend/lib/error-handler.ts` (centralized error parsing/toasts)
+- ✅ Created `frontend/lib/utils/auth-headers.ts` (centralized auth headers)
+- ✅ Created hooks: `useCampaigns`, `useAuth`, `useSubscriptions`
+- ✅ Added barrel exports in `frontend/lib/api/index.ts`
+- ✅ Frontend build verified (Next.js prod build succeeds)
 
 **Checklist**:
-- [ ] Create `frontend/lib/api/client.ts` — Base HTTP client
-- [ ] Create `frontend/lib/api/campaigns.api.ts`
-- [ ] Create `frontend/lib/api/auth.api.ts`
-- [ ] Create `frontend/lib/api/subscriptions.api.ts`
-- [ ] Create `frontend/lib/utils/auth-headers.ts`
-- [ ] Create `frontend/lib/error-handler.ts`
-- [ ] Test API client with sample calls
+- [x] Create `frontend/lib/api/client.ts` — Base HTTP client
+- [x] Create `frontend/lib/api/campaigns.api.ts`
+- [x] Create `frontend/lib/api/auth.api.ts`
+- [x] Create `frontend/lib/api/subscriptions.api.ts`
+- [x] Create `frontend/lib/utils/auth-headers.ts`
+- [x] Create `frontend/lib/error-handler.ts`
+- [x] Test API client with sample calls (build verification)
 
 ---
 
