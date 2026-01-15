@@ -25,7 +25,7 @@ export class PoeController {
     try {
       this.logger.log('[improvePrompt] Improving prompt for user', {
         promptLength: body.prompt.length,
-        userId: user.userId,
+        userId: user.sub!,
       });
 
       // PoeClient builds its own system prompt; pass prompt/context only
@@ -109,7 +109,7 @@ export class PoeController {
       this.logger.log('[validateModelForContentType] Validating model', {
         model: body.model,
         contentType: body.contentType,
-        userId: user.userId,
+        userId: user.sub!,
       });
 
       const isValid = this.poeClient.canModelHandleContentType(body.model, body.contentType);
@@ -147,7 +147,7 @@ export class PoeController {
       this.logger.log('[generateContentWithModel] Generating content with selected model', {
         contentType: body.contentType,
         model: body.model,
-        userId: user.userId,
+        userId: user.sub!,
       });
 
       // Validate model can handle this content type

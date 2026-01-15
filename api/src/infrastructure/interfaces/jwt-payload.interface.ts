@@ -5,6 +5,7 @@
 
 export interface JwtPayload {
   sub: string; // User ID (standard JWT subject claim)
+  userId?: string; // Alias for sub (for backward compatibility)
   email?: string;
   tenantId?: string;
   role?: string;

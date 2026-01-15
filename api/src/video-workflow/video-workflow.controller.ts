@@ -39,7 +39,7 @@ export class VideoWorkflowController {
   async createWorkflow(@CurrentUser() user: JwtPayload, @Body() dto: CreateVideoWorkflowWithMetadataDto) {
     return this.videoWorkflowService.createWorkflow({
       ...dto,
-      userId: user.userId,
+      userId: user.sub!,
     });
   }
 
@@ -51,7 +51,7 @@ export class VideoWorkflowController {
     @CurrentUser() user: JwtPayload,
     @Query('campaignId') campaignId?: string,
   ) {
-    return this.videoWorkflowService.getUserWorkflows(user.userId, campaignId);
+    return this.videoWorkflowService.getUserWorkflows(user.sub!, campaignId);
   }
 
   /**
@@ -59,7 +59,7 @@ export class VideoWorkflowController {
    */
   @Get(':workflowId')
   async getWorkflow(@CurrentUser() user: JwtPayload, @Param('workflowId') workflowId: string) {
-    return this.videoWorkflowService.getWorkflow(workflowId, user.userId);
+    return this.videoWorkflowService.getWorkflow(workflowId, user.sub!);
   }
 
   /**
@@ -71,7 +71,7 @@ export class VideoWorkflowController {
     @Param('workflowId') workflowId: string,
     @Body() dto: RefinePromptDtoValidator,
   ) {
-    return this.videoWorkflowService.refinePrompt(workflowId, user.userId, dto);
+    return this.videoWorkflowService.refinePrompt(workflowId, user.sub!, dto);
   }
 
   /**
@@ -83,7 +83,7 @@ export class VideoWorkflowController {
     @Param('workflowId') workflowId: string,
     @Body() dto: GenerateFramesDtoValidator,
   ) {
-    return this.videoWorkflowService.generateFrames(workflowId, user.userId, dto);
+    return this.videoWorkflowService.generateFrames(workflowId, user.sub!, dto);
   }
 
   /**
@@ -95,7 +95,7 @@ export class VideoWorkflowController {
     @Param('workflowId') workflowId: string,
     @Body() dto: ReviewFramesDtoValidator,
   ) {
-    return this.videoWorkflowService.reviewFrames(workflowId, user.userId, dto);
+    return this.videoWorkflowService.reviewFrames(workflowId, user.sub!, dto);
   }
 
   /**
@@ -109,7 +109,7 @@ export class VideoWorkflowController {
   ) {
     return this.videoWorkflowService.regenerateFrames(
       workflowId,
-      user.userId,
+      user.sub!,
       dto.frameNumbers,
       dto.customPrompts,
     );
@@ -124,7 +124,7 @@ export class VideoWorkflowController {
     @Param('workflowId') workflowId: string,
     @Body() dto: GenerateVideoDtoValidator,
   ) {
-    return this.videoWorkflowService.generateVideo(workflowId, user.userId, dto);
+    return this.videoWorkflowService.generateVideo(workflowId, user.sub!, dto);
   }
 
   /**
@@ -132,7 +132,7 @@ export class VideoWorkflowController {
    */
   @Delete(':workflowId')
   async deleteWorkflow(@CurrentUser() user: JwtPayload, @Param('workflowId') workflowId: string) {
-    await this.videoWorkflowService.deleteWorkflow(workflowId, user.userId);
+    await this.videoWorkflowService.deleteWorkflow(workflowId, user.sub!);
     return { message: 'Workflow deleted successfully' };
   }
 }
