@@ -1,7 +1,3 @@
-/**
- * Subscriptions API Client
- * All endpoints related to subscription management and billing
- */
 import { apiClient } from './client';
 
 export interface SubscriptionDto {
@@ -28,65 +24,47 @@ export interface PackageDto {
 }
 
 export const subscriptionsApi = {
-  /**
-   * Get available packages
-   */
+  // Get available packages
   listPackages: async () => {
     return apiClient.get<PackageDto[]>('/subscriptions/packages');
   },
 
-  /**
-   * Get package by ID
-   */
+  // Get package by ID
   getPackage: async (id: string) => {
     return apiClient.get<PackageDto>(`/subscriptions/packages/${id}`);
   },
 
-  /**
-   * Get current user's subscription
-   */
+  // Get current user's subscription
   getCurrentSubscription: async () => {
     return apiClient.get<SubscriptionDto>('/subscriptions/current');
   },
 
-  /**
-   * Get subscription by ID
-   */
+  // Get subscription by ID
   getSubscription: async (id: string) => {
     return apiClient.get<SubscriptionDto>(`/subscriptions/${id}`);
   },
 
-  /**
-   * Create subscription
-   */
+  // Create subscription
   create: async (packageId: string) => {
     return apiClient.post('/subscriptions', { packageId });
   },
 
-  /**
-   * Upgrade subscription
-   */
+  // Upgrade subscription
   upgrade: async (subscriptionId: string, packageId: string) => {
     return apiClient.put(`/subscriptions/${subscriptionId}`, { packageId });
   },
 
-  /**
-   * Cancel subscription
-   */
+  // Cancel subscription
   cancel: async (subscriptionId: string) => {
     return apiClient.post(`/subscriptions/${subscriptionId}/cancel`, {});
   },
 
-  /**
-   * Get subscription history
-   */
+  // Get subscription history
   getHistory: async () => {
     return apiClient.get<SubscriptionDto[]>('/subscriptions/history');
   },
 
-  /**
-   * Create checkout session
-   */
+  // Create checkout session
   createCheckoutSession: async (packageId: string) => {
     return apiClient.post<{ sessionId: string; url: string }>(
       '/subscriptions/checkout',

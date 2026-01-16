@@ -3,7 +3,8 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { parseJwt } from "../../lib/parseJwt";
+import { authApi } from "../../lib/api/auth.api";
+import { apiClient } from "../../lib/api/client";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -29,69 +30,29 @@ export default function LoginPage() {
     e.preventDefault();
     setError("");
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
-      const res = await fetch(`${apiUrl}/api/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Login failed");
+      const res = await authApi.login({ email, password });
+      const token = res.access_token || res.token;
+      if (!token) throw new Error("Login failed: no token");
 
-      // Save JWT token to localStorage
-      if (data.token) {
-        localStorage.setItem("token", data.token);
-        document.cookie = `auth_token=${data.token}; path=/; SameSite=Lax;`;
-        setIsAuthenticated(true);
+      // Persist token for transitional client-side checks and middleware
+      try {
+        localStorage.setItem("token", token);
+        document.cookie = `auth_token=${token}; path=/; SameSite=Lax;`;
+      } catch {}
+      setIsAuthenticated(true);
 
-        console.log("[LOGIN] Set localStorage token:", localStorage.getItem("token"));
-        console.log("[LOGIN] Set cookie:", document.cookie);
+      const payload = apiClient.parseToken();
+      const role = payload?.role;
+      const roles = Array.isArray(payload?.roles) ? payload?.roles : role ? [role] : [];
+      const isAdmin = roles.includes("superadmin") || roles.includes("admin") || role === "superadmin" || role === "admin";
 
-        const payload = parseJwt(data.token);
-        console.log("[LOGIN] JWT payload after login:", payload);
-
-        const cookieMatch = document.cookie.match(/(?:^|; )auth_token=([^;]*)/);
-        console.log("[LOGIN] Cookie match:", cookieMatch ? cookieMatch[1] : null);
-
-        if (payload) {
-          const role = payload.role;
-          const roles = Array.isArray(payload.roles) ? payload.roles : [payload.role];
-          const isAdmin =
-            role === "superadmin" ||
-            role === "admin" ||
-            roles.includes("superadmin") ||
-            roles.includes("admin");
-
-          console.log("[LOGIN] Redirect decision:", { role, roles, isAdmin });
-
-          if (isAdmin) {
-            try {
-              console.log('[LOGIN] Attempting router.replace("/admin")');
-              router.replace("/admin");
-              setTimeout(() => {
-                console.log('[LOGIN] After router.replace("/admin")');
-              }, 1000);
-            } catch (navErr) {
-              setError("Navigation to /admin failed.");
-              console.error("[LOGIN] Navigation to /admin failed:", navErr);
-            }
-            return;
-          }
-        }
-
-        try {
-          console.log('[LOGIN] Attempting router.replace("/app/dashboard")');
-          router.replace("/app/dashboard");
-          setTimeout(() => {
-            console.log('[LOGIN] After router.replace("/app/dashboard")');
-          }, 1000);
-        } catch (navErr) {
-          setError("Navigation to dashboard failed.");
-          console.error("[LOGIN] Navigation to dashboard failed:", navErr);
-        }
+      if (isAdmin) {
+        router.replace("/admin");
+        return;
       }
+      router.replace("/app/dashboard");
     } catch (err: any) {
-      setError(err.message || "Login failed");
+      setError(err?.message || "Login failed");
     }
   }
 

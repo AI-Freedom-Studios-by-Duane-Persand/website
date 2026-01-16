@@ -1,110 +1,109 @@
 /**
- * Base API Client for Frontend
- * Handles authentication, error handling, and centralized HTTP requests
+ * Base API Client (Next.js 14)
+ * - Centralizes base URL, headers, error handling
+ * - Supports typed responses and bodies
+ * - Cookie-based auth via credentials: 'include'
+ * - Optional bearer token support (transitional, Phase 4 will deprecate)
  */
-export interface UserJwt {
-  sub: string;
-  email: string;
-  name: string;
-  role: string;
-  tenantId: string;
-  iat: number;
-  exp: number;
+
+export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+
+export interface ApiClientOptions {
+  baseUrl?: string;
+  defaultHeaders?: Record<string, string>;
+}
+
+export interface RequestOptions<TBody = unknown> {
+  query?: Record<string, string | number | boolean | undefined>;
+  headers?: Record<string, string>;
+  body?: TBody;
+  signal?: AbortSignal;
+  noThrow?: boolean;
 }
 
 export interface ApiErrorResponse {
   statusCode: number;
   message: string;
   userFriendlyMessage?: string;
-  validationErrors?: Array<{
-    field: string;
-    message: string;
-  }>;
-  timestamp: string;
-  path: string;
+  validationErrors?: unknown[];
+  timestamp?: string;
+  path?: string;
 }
 
-export interface ApiResponse<T = any> {
-  success: boolean;
-  data?: T;
-  error?: ApiErrorResponse;
+export class ApiError extends Error {
+  status: number;
+  data?: ApiErrorResponse | unknown;
+  constructor(message: string, status: number, data?: unknown) {
+    super(message);
+    this.status = status;
+    this.data = data;
+  }
+}
+
+function buildQueryString(query?: Record<string, string | number | boolean | undefined>) {
+  if (!query) return '';
+  const params = Object.entries(query)
+    .filter(([, v]) => v !== undefined)
+    .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`)
+    .join('&');
+  return params ? `?${params}` : '';
+}
+
+export interface UserJwt {
+  sub: string;
+  email: string;
+  name?: string;
+  role?: string;
+  roles?: string[];
+  tenantId: string;
+  iat?: number;
+  exp?: number;
 }
 
 export class ApiClient {
   private baseUrl: string;
+  private defaultHeaders: Record<string, string>;
   private authToken: string | null = null;
 
-  constructor(baseUrl: string = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000') {
-    this.baseUrl = baseUrl;
+  constructor(opts: ApiClientOptions = {}) {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+    this.baseUrl = opts.baseUrl || apiUrl;
+    this.defaultHeaders = {
+      'Content-Type': 'application/json',
+      ...opts.defaultHeaders,
+    };
     this.loadAuthToken();
   }
 
-  /**
-   * Load auth token from localStorage or cookies
-   */
   private loadAuthToken(): void {
     if (typeof window === 'undefined') return;
-
     try {
-      // Try to get from localStorage first
-      const token = localStorage.getItem('authToken');
-      if (token) {
-        this.authToken = token;
-      }
-    } catch (error) {
-      console.warn('Failed to load auth token:', error);
-    }
+      const token = localStorage.getItem('authToken') || localStorage.getItem('token');
+      if (token) this.authToken = token;
+    } catch {}
   }
 
-  /**
-   * Set auth token manually
-   */
   setAuthToken(token: string): void {
     this.authToken = token;
     if (typeof window !== 'undefined') {
       try {
         localStorage.setItem('authToken', token);
-      } catch (error) {
-        console.warn('Failed to save auth token:', error);
-      }
+      } catch {}
     }
   }
 
-  /**
-   * Clear auth token
-   */
   clearAuthToken(): void {
     this.authToken = null;
     if (typeof window !== 'undefined') {
       try {
         localStorage.removeItem('authToken');
-      } catch (error) {
-        console.warn('Failed to clear auth token:', error);
-      }
+        localStorage.removeItem('token');
+      } catch {}
     }
   }
 
-  /**
-   * Get auth headers
-   */
-  private getHeaders(): Record<string, string> {
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    };
-
-    if (this.authToken) {
-      headers['Authorization'] = `Bearer ${this.authToken}`;
-    }
-
-    return headers;
-  }
-
-  /**
-   * Parse JWT token
-   */
   parseToken(): UserJwt | null {
     if (!this.authToken) return null;
-
     try {
       const base64Url = this.authToken.split('.')[1];
       const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
@@ -115,140 +114,71 @@ export class ApiClient {
           .join('')
       );
       return JSON.parse(jsonPayload);
-    } catch (error) {
-      console.error('Failed to parse JWT token:', error);
+    } catch {
       return null;
     }
   }
 
-  /**
-   * Make HTTP GET request
-   */
-  async get<T = any>(endpoint: string, options?: RequestInit): Promise<T> {
-    return this.request<T>(endpoint, {
-      ...options,
-      method: 'GET',
-    });
+  private buildHeaders(extra?: Record<string, string>): Record<string, string> {
+    const headers = { ...this.defaultHeaders, ...(extra || {}) };
+    if (this.authToken) headers['Authorization'] = `Bearer ${this.authToken}`;
+    return headers;
   }
 
-  /**
-   * Make HTTP POST request
-   */
-  async post<T = any>(endpoint: string, body?: any, options?: RequestInit): Promise<T> {
-    return this.request<T>(endpoint, {
-      ...options,
-      method: 'POST',
-      body: body ? JSON.stringify(body) : undefined,
-    });
-  }
+  async request<TResponse = unknown, TBody = unknown>(
+    method: HttpMethod,
+    path: string,
+    options: RequestOptions<TBody> = {}
+  ): Promise<TResponse> {
+    const url = `${this.baseUrl}${path}${buildQueryString(options.query)}`;
+    const headers = this.buildHeaders(options.headers);
 
-  /**
-   * Make HTTP PUT request
-   */
-  async put<T = any>(endpoint: string, body?: any, options?: RequestInit): Promise<T> {
-    return this.request<T>(endpoint, {
-      ...options,
-      method: 'PUT',
-      body: body ? JSON.stringify(body) : undefined,
-    });
-  }
-
-  /**
-   * Make HTTP PATCH request
-   */
-  async patch<T = any>(endpoint: string, body?: any, options?: RequestInit): Promise<T> {
-    return this.request<T>(endpoint, {
-      ...options,
-      method: 'PATCH',
-      body: body ? JSON.stringify(body) : undefined,
-    });
-  }
-
-  /**
-   * Make HTTP DELETE request
-   */
-  async delete<T = any>(endpoint: string, options?: RequestInit): Promise<T> {
-    return this.request<T>(endpoint, {
-      ...options,
-      method: 'DELETE',
-    });
-  }
-
-  /**
-   * Core request method with error handling
-   */
-  private async request<T = any>(
-    endpoint: string,
-    options: RequestInit = {}
-  ): Promise<T> {
-    const url = `${this.baseUrl}${endpoint}`;
-    const headers = { ...this.getHeaders(), ...(options.headers as Record<string, string>) };
-
-    try {
-      const response = await fetch(url, {
-        ...options,
-        headers,
-      });
-
-      // Handle 401 Unauthorized - token may have expired
-      if (response.status === 401) {
-        this.clearAuthToken();
-        // Trigger auth state update (can dispatch to store or call callback)
-        if (typeof window !== 'undefined') {
-          window.dispatchEvent(new CustomEvent('auth-expired'));
-        }
-        throw new Error('Authentication expired. Please login again.');
-      }
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        const errorResponse: ApiErrorResponse = data || {
-          statusCode: response.status,
-          message: response.statusText,
-          userFriendlyMessage: this.getUserFriendlyMessage(response.status),
-          timestamp: new Date().toISOString(),
-          path: endpoint,
-        };
-
-        throw this.formatError(errorResponse);
-      }
-
-      return data as T;
-    } catch (error) {
-      if (error instanceof Error) {
-        throw error;
-      }
-      throw new Error(`Request failed: ${String(error)}`);
-    }
-  }
-
-  /**
-   * Format error response for frontend consumption
-   */
-  private formatError(error: ApiErrorResponse): Error & { details?: ApiErrorResponse } {
-    const message = error.userFriendlyMessage || error.message;
-    const err = new Error(message) as Error & { details?: ApiErrorResponse };
-    err.details = error;
-    return err;
-  }
-
-  /**
-   * Get user-friendly error message based on HTTP status
-   */
-  private getUserFriendlyMessage(statusCode: number): string {
-    const messages: Record<number, string> = {
-      400: 'Invalid request. Please check your input.',
-      401: 'Please login to continue.',
-      403: 'You do not have permission to perform this action.',
-      404: 'Resource not found.',
-      429: 'Too many requests. Please try again later.',
-      500: 'Server error. Please try again later.',
+    const init: RequestInit = {
+      method,
+      headers,
+      credentials: 'include',
+      signal: options.signal,
     };
+    if (options.body !== undefined && method !== 'GET') {
+      init.body = headers['Content-Type']?.includes('application/json')
+        ? JSON.stringify(options.body)
+        : (options.body as any);
+    }
 
-    return messages[statusCode] || 'An unexpected error occurred. Please try again.';
+    const res = await fetch(url, init);
+    const contentType = res.headers.get('content-type') || '';
+    const isJson = contentType.includes('application/json');
+    const payload = isJson ? await res.json().catch(() => undefined) : await res.text().catch(() => undefined);
+
+    if (!res.ok) {
+      if (res.status === 401) this.clearAuthToken();
+      const message = (payload && (payload.message || (payload as any)?.userFriendlyMessage)) || res.statusText || 'Request failed';
+      if (options.noThrow) return payload as TResponse;
+      throw new ApiError(message, res.status, payload);
+    }
+
+    return (payload as unknown) as TResponse;
+  }
+
+  get<TResponse = unknown>(path: string, options?: RequestOptions): Promise<TResponse> {
+    return this.request<TResponse>('GET', path, options);
+  }
+
+  post<TResponse = unknown, TBody = unknown>(path: string, body?: TBody, options?: Omit<RequestOptions<TBody>, 'body'>): Promise<TResponse> {
+    return this.request<TResponse, TBody>('POST', path, { ...(options || {}), body });
+  }
+
+  put<TResponse = unknown, TBody = unknown>(path: string, body?: TBody, options?: Omit<RequestOptions<TBody>, 'body'>): Promise<TResponse> {
+    return this.request<TResponse, TBody>('PUT', path, { ...(options || {}), body });
+  }
+
+  patch<TResponse = unknown, TBody = unknown>(path: string, body?: TBody, options?: Omit<RequestOptions<TBody>, 'body'>): Promise<TResponse> {
+    return this.request<TResponse, TBody>('PATCH', path, { ...(options || {}), body });
+  }
+
+  delete<TResponse = unknown>(path: string, options?: RequestOptions): Promise<TResponse> {
+    return this.request<TResponse>('DELETE', path, options);
   }
 }
 
-// Export singleton instance
 export const apiClient = new ApiClient();

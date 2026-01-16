@@ -1,7 +1,8 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { parseJwt } from "../../lib/parseJwt";
+import { authApi } from "../../lib/api/auth.api";
+import { apiClient } from "../../lib/api/client";
 
 export default function SignupPage() {
   const [email, setEmail] = useState<string>("");
@@ -31,11 +32,10 @@ export default function SignupPage() {
     }
 
     if (token) {
-      const payload = parseJwt(token);
+      const payload = apiClient.parseToken();
       if (payload) {
-        setUserId(payload.userId || "");
-        const roles = Array.isArray(payload.roles) ? payload.roles : [payload.role];
-
+        setUserId((payload as any).userId || payload.sub || "");
+        const roles = Array.isArray(payload.roles) ? payload.roles : payload.role ? [payload.role] : [];
         if (roles.includes("superadmin") || roles.includes("admin")) {
           router.replace("/admin");
           return;
@@ -50,27 +50,22 @@ export default function SignupPage() {
     setError("");
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
-      const res = await fetch(`${apiUrl}/api/auth/signup`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email,
-          password,
-          tenant: tenantName, // ✅ string
-          title,
-          description,
-          budget,
-          userId,
-        }),
+      const response = await authApi.signup({
+        email,
+        password,
+        tenant: tenantName,
+        title,
+        description,
+        budget,
+        userId,
       });
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        const errorMessage = errorData.message || "Signup failed";
-        throw new Error(errorMessage);
+      const token = response.access_token || response.token;
+      if (token) {
+        try {
+          localStorage.setItem("token", token);
+          document.cookie = `auth_token=${token}; path=/; SameSite=Lax;`;
+        } catch {}
       }
-      
       router.push("/app/dashboard");
     } catch (err: any) {
       setError(err?.message || "Signup failed");
