@@ -32,6 +32,7 @@ import { StrategiesModule } from './strategies/strategies.module';
 import { PromptingModule } from './prompting/prompting.module';
 import { VideoWorkflowModule } from './video-workflow/video-workflow.module';
 import { DataDeletionModule } from './data-deletion/data-deletion.module';
+import { VideoGenerationModule } from './video/video-generation.module';
 
 const logger = new Logger('AppModule');
 
@@ -95,18 +96,22 @@ export class AppModuleLogger {
     TenantsModule,
     BillingModule,
     AdminModule,
-    SubscriptionsV2Module,
+    // Conditionally include Subscriptions v2 or v1 based on env flag
+    ...( (process.env.USE_SUBSCRIPTIONS_V2 ?? 'true').toLowerCase() === 'true'
+      ? [SubscriptionsV2Module]
+      : [SubscriptionsModule]
+    ),
     SocialAccountsModule,
     MetaPostsModule,
     CampaignsModule,
     MetaAdsModule,
-    SubscriptionsModule,
     EnginesModule,
     CampaignChatModule,
     ApprovalsModule,
     StrategiesModule,
     PromptingModule,
     VideoWorkflowModule,
+    VideoGenerationModule,
     DataDeletionModule,
   ],
   controllers: [PlatformsController],

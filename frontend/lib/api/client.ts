@@ -131,7 +131,12 @@ export class ApiClient {
     options: RequestOptions<TBody> = {}
   ): Promise<TResponse> {
     const url = `${this.baseUrl}${path}${buildQueryString(options.query)}`;
+    const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
     const headers = this.buildHeaders(options.headers);
+    if (isFormData && headers['Content-Type']) {
+      // Let the browser set multipart boundaries
+      delete headers['Content-Type'];
+    }
 
     const init: RequestInit = {
       method,
@@ -140,9 +145,13 @@ export class ApiClient {
       signal: options.signal,
     };
     if (options.body !== undefined && method !== 'GET') {
-      init.body = headers['Content-Type']?.includes('application/json')
-        ? JSON.stringify(options.body)
-        : (options.body as any);
+      if (isFormData) {
+        init.body = options.body as any;
+      } else {
+        init.body = headers['Content-Type']?.includes('application/json')
+          ? JSON.stringify(options.body)
+          : (options.body as any);
+      }
     }
 
     const res = await fetch(url, init);

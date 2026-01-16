@@ -3,6 +3,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { adminApi } from '@/lib/api/admin.api';
+import { apiClient } from '@/lib/api/client';
+import { parseApiError, getUserMessage } from '@/lib/error-handler';
 
 const APIURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
@@ -26,49 +29,39 @@ export default function AdminStoragePage() {
   const [testingConnection, setTestingConnection] = useState(false);
   const [refreshingCreatives, setRefreshingCreatives] = useState(false);
   const [refreshSummary, setRefreshSummary] = useState<string | null>(null);
-  const [token, setToken] = useState<string>('');
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
     
-    const authToken = localStorage.getItem('token') || '';
-    if (!authToken) {
+    const token = apiClient.parseToken();
+    if (!token) {
       router.push('/login');
       return;
     }
-    
-    setToken(authToken);
+
     loadConfig();
   }, [router]);
 
   async function loadConfig() {
     try {
       setLoading(true);
-      
-      const res = await fetch(`${APIURL}/api/admin/storage/config`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-      });
 
-      if (!res.ok) {
-        if (res.status === 404) {
-          setConfig({ bucketName: '', endpoint: '', accessKeyId: '', secretAccessKey: '', publicBaseUrl: '', region: 'auto' });
+      try {
+        const data = await adminApi.getStorageConfig();
+        setConfig(data);
+        setFormData(data);
+        setError(null);
+      } catch (err) {
+        const parsed = parseApiError(err);
+        if ((parsed as any)?.statusCode === 404) {
+          const emptyCfg = { bucketName: '', endpoint: '', accessKeyId: '', secretAccessKey: '', publicBaseUrl: '', region: 'auto' };
+          setConfig(emptyCfg);
           setFormData({ region: 'auto' });
-          return;
+        } else {
+          setError(`Failed to load config: ${getUserMessage(parsed)}`);
+          console.error('[AdminStoragePage] Load config error:', parsed);
         }
-        throw new Error(`HTTP ${res.status}`);
       }
-
-      const data: R2Config = await res.json();
-      setConfig(data);
-      setFormData(data);
-      setError(null);
-    } catch (err: any) {
-      setError(`Failed to load config: ${err.message}`);
-      console.error('[AdminStoragePage] Load config error:', err);
     } finally {
       setLoading(false);
     }
@@ -80,27 +73,14 @@ export default function AdminStoragePage() {
       setError(null);
       setSuccess(null);
       
-      const res = await fetch(`${APIURL}/api/admin/storage/config`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify(formData),
-      });
-
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}: ${await res.text()}`);
-      }
-
-      const updated: R2Config = await res.json();
+      const updated: R2Config = await adminApi.saveStorageConfig(formData);
       setConfig(updated);
       setFormData(updated);
       setSuccess('Configuration saved successfully');
     } catch (err: any) {
-      setError(`Failed to save config: ${err.message}`);
-      console.error('[AdminStoragePage] Save config error:', err);
+      const parsed = parseApiError(err);
+      setError(`Failed to save config: ${getUserMessage(parsed)}`);
+      console.error('[AdminStoragePage] Save config error:', parsed);
     }
   }
 
@@ -110,25 +90,12 @@ export default function AdminStoragePage() {
       setSuccess(null);
       setTestingConnection(true);
       
-      const res = await fetch(`${APIURL}/api/admin/storage/test`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify(formData),
-      });
-
-      if (!res.ok) {
-        throw new Error(`Connection test failed: HTTP ${res.status}`);
-      }
-
-      const result = await res.json();
+      const result = await adminApi.testStorage(formData);
       setSuccess(`Connection successful! Bucket: ${result.bucketName}, Accessible: ${result.accessible ? 'Yes' : 'No'}`);
     } catch (err: any) {
-      setError(`Connection test failed: ${err.message}`);
-      console.error('[AdminStoragePage] Test connection error:', err);
+      const parsed = parseApiError(err);
+      setError(`Connection test failed: ${getUserMessage(parsed)}`);
+      console.error('[AdminStoragePage] Test connection error:', parsed);
     } finally {
       setTestingConnection(false);
     }
@@ -141,27 +108,14 @@ export default function AdminStoragePage() {
       setRefreshSummary(null);
       setRefreshingCreatives(true);
 
-      const res = await fetch(`${APIURL}/api/admin/storage/refresh-creative-image-urls`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({}),
-      });
-
-      if (!res.ok) {
-        throw new Error(`Refresh failed: HTTP ${res.status}`);
-      }
-
-      const result = await res.json();
+      const result = await adminApi.refreshCreativeImageUrls();
       const summary = `Refreshed creative image URLs. Total: ${result.total}, Updated: ${result.updated}, Errors: ${result.errors}`;
       setRefreshSummary(summary);
       setSuccess('Creative image URLs refreshed successfully');
     } catch (err: any) {
-      setError(`Failed to refresh creative image URLs: ${err.message}`);
-      console.error('[AdminStoragePage] Refresh creative image URLs error:', err);
+      const parsed = parseApiError(err);
+      setError(`Failed to refresh creative image URLs: ${getUserMessage(parsed)}`);
+      console.error('[AdminStoragePage] Refresh creative image URLs error:', parsed);
     } finally {
       setRefreshingCreatives(false);
     }

@@ -3,28 +3,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-
-const APIURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
-
-interface ApprovalState {
-  scope: 'strategy' | 'content' | 'schedule' | 'ads';
-  status: 'pending' | 'approved' | 'rejected' | 'needs_review';
-  approvedBy?: string;
-  approvedAt?: Date;
-  rejectionReason?: string;
-  rejectedAt?: Date;
-  rejectedBy?: string;
-  invalidatedAt?: Date;
-  invalidationReason?: string;
-}
-
-interface Campaign {
-  _id: string;
-  name: string;
-  status: string;
-  approvalStates: Record<string, ApprovalState>;
-  createdAt: Date;
-}
+import { apiClient } from '@/lib/api/client';
+import { campaignsApi } from '@/lib/api/campaigns.api';
+import { approvalsApi, type ApprovalState, type CampaignWithApprovals } from '@/lib/api/approvals.api';
+import { parseApiError, getUserMessage } from '@/lib/error-handler';
 
 const SCOPE_COLORS: Record<string, { bg: string; text: string; icon: string }> = {
   strategy: { bg: 'bg-purple-500/20', text: 'text-purple-400', icon: '📋' },
@@ -43,78 +25,53 @@ const STATUS_COLORS: Record<string, { bg: string; text: string; label: string }>
 export default function ApprovalsPage() {
   const router = useRouter();
 
-  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [campaigns, setCampaigns] = useState<CampaignWithApprovals[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
+  const [selectedCampaign, setSelectedCampaign] = useState<CampaignWithApprovals | null>(null);
   const [rejectReason, setRejectReason] = useState<string>('');
   const [rejectionScope, setRejectionScope] = useState<'strategy' | 'content' | 'schedule' | 'ads' | null>(null);
-  const [token, setToken] = useState<string>('');
   const [tenantId, setTenantId] = useState<string>('');
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    
-    const authToken = localStorage.getItem('token') || '';
-    if (!authToken) {
+
+    const token = apiClient.parseToken();
+    if (!token) {
       router.push('/login');
       return;
     }
-    
-    // Get tenant ID from localStorage or parse from token
-    const storedTenantId = localStorage.getItem('tenantId') || '';
-    
-    setToken(authToken);
-    setTenantId(storedTenantId);
-    loadCampaigns();
+
+    const tenant = token.tenantId || localStorage.getItem('tenantId') || '';
+    setTenantId(tenant);
+    void loadCampaigns(tenant);
   }, [router]);
 
-  async function loadCampaigns() {
+  const loadCampaigns = async (currentTenantId?: string) => {
     try {
       setLoading(true);
       setError(null);
 
-      const res = await fetch(`${APIURL}/api/campaigns?tenantId=${tenantId}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-      });
-
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-      const data = await res.json();
+      const data = await campaignsApi.list(currentTenantId ? { tenantId: currentTenantId } : undefined);
       setCampaigns(Array.isArray(data) ? data : []);
-    } catch (err: any) {
-      setError(`Failed to load campaigns: ${err.message}`);
-      console.error('[ApprovalsPage] Load error:', err);
+    } catch (err) {
+      const parsed = parseApiError(err);
+      setError(getUserMessage(parsed));
+      console.error('[ApprovalsPage] Load error:', parsed);
     } finally {
       setLoading(false);
     }
-  }
+  };
 
   async function handleApprove(campaignId: string, scope: string) {
     try {
-      const userId = localStorage.getItem('userId') || 'system';
-
-      const res = await fetch(`${APIURL}/api/approvals/${campaignId}/approve`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({ scope, approvedBy: userId }),
-      });
-
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-      // Refresh campaigns
-      await loadCampaigns();
-    } catch (err: any) {
-      setError(`Failed to approve: ${err.message}`);
-      console.error('[ApprovalsPage] Approve error:', err);
+      const userId = apiClient.parseToken()?.sub || 'system';
+      await approvalsApi.approve(campaignId, scope, userId);
+      await loadCampaigns(tenantId);
+    } catch (err) {
+      const parsed = parseApiError(err);
+      setError(getUserMessage(parsed));
+      console.error('[ApprovalsPage] Approve error:', parsed);
     }
   }
 
@@ -125,27 +82,16 @@ export default function ApprovalsPage() {
     }
 
     try {
-      const userId = localStorage.getItem('userId') || 'system';
+      const userId = apiClient.parseToken()?.sub || 'system';
+      await approvalsApi.reject(campaignId, scope, rejectReason, userId);
 
-      const res = await fetch(`${APIURL}/api/approvals/${campaignId}/reject`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({ scope, rejectedBy: userId, reason: rejectReason }),
-      });
-
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-      // Reset form
       setRejectReason('');
       setRejectionScope(null);
-      await loadCampaigns();
-    } catch (err: any) {
-      setError(`Failed to reject: ${err.message}`);
-      console.error('[ApprovalsPage] Reject error:', err);
+      await loadCampaigns(tenantId);
+    } catch (err) {
+      const parsed = parseApiError(err);
+      setError(getUserMessage(parsed));
+      console.error('[ApprovalsPage] Reject error:', parsed);
     }
   }
 
@@ -191,12 +137,12 @@ export default function ApprovalsPage() {
                     <div>
                       <h2 className="text-2xl font-bold text-white">{campaign.name}</h2>
                       <p className="text-slate-400 text-sm mt-1">
-                        Created {new Date(campaign.createdAt).toLocaleDateString()}
+                        Created {campaign.createdAt ? new Date(campaign.createdAt).toLocaleDateString() : '-'}
                       </p>
                     </div>
-                    <div className={`px-3 py-1 rounded text-sm font-semibold ${STATUS_COLORS[campaign.status]?.bg || 'bg-slate-700'}`}>
-                      <span className={STATUS_COLORS[campaign.status]?.text || 'text-slate-400'}>
-                        {campaign.status.toUpperCase()}
+                    <div className={`px-3 py-1 rounded text-sm font-semibold ${STATUS_COLORS[campaign.status || 'pending']?.bg || 'bg-slate-700'}`}>
+                      <span className={STATUS_COLORS[campaign.status || 'pending']?.text || 'text-slate-400'}>
+                        {(campaign.status || 'pending').toUpperCase()}
                       </span>
                     </div>
                   </div>

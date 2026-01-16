@@ -272,7 +272,7 @@ export class AIModelsService {
       if (contentType === 'image-generation') {
         return [
           { model: 'sdxl', displayName: 'Stable Diffusion XL', provider: 'replicate', recommended: false, description: 'Advanced quality control via num steps & guidance' },
-          { model: 'flux-schnell', displayName: 'Flux Schnell', provider: 'replicate', recommended: false, description: 'Fast generation with good results' },
+          { model: 'nano-banana', displayName: 'Google Nano Banana', provider: 'replicate', recommended: true, description: 'Fast, balanced image generation' },
         ];
       }
       if (contentType === 'video-generation') {
@@ -348,8 +348,8 @@ export class AIModelsService {
           const guidanceScale = parsed.guidanceScale ?? parsed.quality?.guidanceScale;
           const scheduler = parsed.scheduler ?? parsed.quality?.scheduler;
 
-          if (model === 'sdxl' || model === 'flux-schnell') {
-            return await this.replicateClient.generateImageWithModel(model as 'sdxl' | 'flux-schnell', prompt, {
+          if (model === 'sdxl' || model === 'flux-schnell' || model === 'nano-banana') {
+            return await this.replicateClient.generateImageWithModel(model as 'sdxl' | 'flux-schnell' | 'nano-banana', prompt, {
               width,
               height,
               negativePrompt,

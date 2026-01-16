@@ -1,6 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
 import { Toaster, toast } from "react-hot-toast";
+import { adminApi } from "@/lib/api/admin.api";
+import { parseApiError, getUserMessage } from "@/lib/error-handler";
 
 export default function AdminSubscriptionsPage() {
   const [subscriptions, setSubscriptions] = useState<any[]>([]);
@@ -10,35 +12,38 @@ export default function AdminSubscriptionsPage() {
   const [editData, setEditData] = useState<any>({});
   const [creating, setCreating] = useState(false);
   const [newData, setNewData] = useState<any>({});
-  const API_BASE = typeof window !== "undefined" && process.env.NEXT_PUBLIC_API_BASE
-    ? process.env.NEXT_PUBLIC_API_BASE
-    : "/api";
-
   const [tenantOptions, setTenantOptions] = useState<{ label: string; value: string }[]>([]);
   const [planOptions, setPlanOptions] = useState<{ label: string; value: string }[]>([]);
 
   useEffect(() => {
     // Fetch tenant and plan options for dropdowns
-    fetch(`${API_BASE}/tenants/ids-names`, { credentials: "include" })
-      .then(res => res.json())
-      .then(data => setTenantOptions(data.map((t: any) => ({ label: t.name, value: t.id }))))
-      .catch(() => setTenantOptions([]));
-    fetch(`${API_BASE}/admin/packages/ids-names`, { credentials: "include" })
-      .then(res => res.json())
-      .then(data => setPlanOptions(data.map((p: any) => ({ label: p.name, value: p.id }))))
-      .catch(() => setPlanOptions([]));
-  }, [API_BASE]);
+    (async () => {
+      try {
+        const tenants = await adminApi.listTenantOptions();
+        setTenantOptions(tenants?.map(t => ({ label: t.label || (t as any).name, value: t.value || (t as any).id })) || []);
+      } catch (err) {
+        setTenantOptions([]);
+      }
+      try {
+        const plans = await adminApi.listPlanOptions();
+        setPlanOptions(plans?.map(p => ({ label: p.label || (p as any).name, value: p.value || (p as any).id })) || []);
+      } catch (err) {
+        setPlanOptions([]);
+      }
+    })();
+  }, []);
   useEffect(() => {
-    fetch(`${API_BASE}/subscriptions`, { credentials: "include" })
-      .then((res) => res.json())
-      .then((data) => {
-        setSubscriptions(data);
+    (async () => {
+      try {
+        const data = await adminApi.listAdminSubscriptions();
+        setSubscriptions(data || []);
+      } catch (err) {
+        const parsed = parseApiError(err);
+        setError(getUserMessage(parsed) || "Failed to load subscriptions");
+      } finally {
         setLoading(false);
-      })
-      .catch(() => {
-        setError("Failed to load subscriptions");
-        setLoading(false);
-      });
+      }
+    })();
   }, []);
 
   function handleEdit(id: string) {
@@ -49,63 +54,46 @@ export default function AdminSubscriptionsPage() {
   async function handleUpdate() {
     if (!editId) return;
     try {
-      const res = await fetch(`${API_BASE}/subscriptions/${editId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(editData),
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Failed to update subscription");
+      await adminApi.updateSubscription(editId, editData);
       toast.success("Subscription updated");
 
       setEditId(null);
       setEditData({});
 
-      const updated = await fetch(`${API_BASE}/subscriptions`, {
-        credentials: "include",
-      }).then((r) => r.json());
-      setSubscriptions(updated);
+      const updated = await adminApi.listAdminSubscriptions();
+      setSubscriptions(updated || []);
     } catch (err: any) {
-      toast.error(err.message || "Error updating subscription");
+      const parsed = parseApiError(err);
+      toast.error(getUserMessage(parsed));
     }
   }
 
   async function handleDelete(id: string) {
     if (!window.confirm("Delete this subscription?")) return;
     try {
-      const res = await fetch(`${API_BASE}/subscriptions/${id}`, {
-        method: "DELETE",
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Failed to delete subscription");
+      await adminApi.deleteSubscription(id);
       toast.success("Subscription deleted");
       setSubscriptions(subscriptions.filter((s) => s._id !== id));
     } catch (err: any) {
-      toast.error(err.message || "Error deleting subscription");
+      const parsed = parseApiError(err);
+      toast.error(getUserMessage(parsed));
     }
   }
 
   async function handleCreate() {
     setCreating(true);
     try {
-      const res = await fetch(`${API_BASE}/subscriptions`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newData),
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Failed to create subscription");
+      await adminApi.createSubscription(newData);
 
       toast.success("Subscription created");
       setNewData({});
       setCreating(false);
 
-      const updated = await fetch("/api/subscriptions", {
-        credentials: "include",
-      }).then((r) => r.json());
-      setSubscriptions(updated);
+      const updated = await adminApi.listAdminSubscriptions();
+      setSubscriptions(updated || []);
     } catch (err: any) {
-      toast.error(err.message || "Error creating subscription");
+      const parsed = parseApiError(err);
+      toast.error(getUserMessage(parsed));
       setCreating(false);
     }
   }

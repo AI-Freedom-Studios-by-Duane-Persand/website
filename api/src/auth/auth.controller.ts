@@ -74,7 +74,7 @@ export class AuthController {
       throw new BadRequestException('User ID not found');
     }
 
-    const userRecord = await this.usersService.findOne(userId); // Corrected method to match service definition
+    const userRecord = await this.usersService.findOneGlobal(userId); // Use global method to bypass tenant context
     if (!userRecord) {
       console.error('[AuthController][me] User not found for userId:', userId);
       throw new NotFoundException('User not found');

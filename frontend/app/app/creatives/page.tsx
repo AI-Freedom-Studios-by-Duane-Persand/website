@@ -7,7 +7,10 @@ import { useAuth } from "../../hooks/useAuth";
 import { parseJwt } from "../../../lib/parseJwt";
 import { VideoCreationWizard } from "../components/VideoCreationWizard";
 import { ModelPickerModal } from "../../components/ModelPickerModal";
-import { getAuthHeaders } from "@/lib/utils/auth-headers";
+import { creativesApi } from "@/lib/api/creatives.api";
+import { storageApi } from "@/lib/api/storage.api";
+import { campaignsApi } from "@/lib/api/campaigns.api";
+import { parseApiError, getUserMessage } from "@/lib/error-handler";
 
 type Creative = { 
   _id: string; 
@@ -111,28 +114,22 @@ export default function CreativesPage() {
 
   async function fetchCreatives() {
     try {
-      const res = await fetch(`${apiUrl}/api/creatives`, {
-        headers: getAuthHeaders(),
-      });
-      if (!res.ok) throw new Error("Failed to fetch creatives");
-      setCreatives(await res.json());
+      const data = await creativesApi.list();
+      setCreatives(data || []);
     } catch (err: any) {
-      toast.error(err.message || "Error loading creatives");
+      const parsed = parseApiError(err);
+      toast.error(getUserMessage(parsed));
     }
   }
 
   async function fetchCampaigns() {
     setCampaignsError(null);
     try {
-      const res = await fetch(`${apiUrl}/api/campaigns`, {
-        headers: getAuthHeaders(),
-      });
-      if (!res.ok) throw new Error("Failed to fetch campaigns");
-      setCampaigns(await res.json());
-      setCampaignsError(null);
+      const data = await campaignsApi.list();
+      setCampaigns((data || []) as Campaign[]);
     } catch (err: any) {
-      const message = err?.message || "Error loading campaigns";
-      setCampaignsError(message);
+      const parsed = parseApiError(err);
+      setCampaignsError(getUserMessage(parsed));
     }
   }
 
@@ -203,16 +200,7 @@ export default function CreativesPage() {
         }
       }
 
-      const res = await fetch(`${apiUrl}/api/creatives`, {
-        method: "POST",
-        headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.message || "Failed to create creative");
-      }
+      await creativesApi.create(payload);
 
       // Reset form
       setShowCreateModal(false);
@@ -244,17 +232,7 @@ export default function CreativesPage() {
     setUrl("");
 
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-
-      const res = await fetch(`${apiUrl}/storage/upload`, {
-        method: "POST",
-        headers: getAuthHeaders(),
-        body: formData,
-      });
-
-      if (!res.ok) throw new Error("Upload failed");
-      const data = await res.json();
+      const data = await storageApi.upload(file);
       setUrl(data.url);
       fetchCreatives();
       setFile(null);
@@ -275,19 +253,14 @@ export default function CreativesPage() {
     if (!editingId) return;
 
     try {
-      const res = await fetch(`${apiUrl}/api/creatives/${editingId}/edit-caption`, {
-        method: "PUT",
-        headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
-        body: JSON.stringify({ caption: editCaption }),
-      });
-
-      if (!res.ok) throw new Error("Failed to update creative");
+      await creativesApi.editCaption(editingId, editCaption);
       setEditingId(null);
       setEditCaption("");
       toast.success("Caption updated successfully");
       fetchCreatives();
     } catch (err: any) {
-      toast.error(err.message || "Error updating creative");
+      const parsed = parseApiError(err);
+      toast.error(getUserMessage(parsed));
     }
   }
 
@@ -311,7 +284,7 @@ export default function CreativesPage() {
       // Provide higher-quality defaults per media type
       const qualityPayload = type === 'image'
         ? {
-            model: 'flux-schnell',
+            model: 'nano-banana',
               width: 1280,
               height: 720,
             negativePrompt: 'low quality, blurry, artifacts, watermark, distorted anatomy',
@@ -328,19 +301,8 @@ export default function CreativesPage() {
             guidanceScale: 7,
           };
 
-      const res = await fetch(`${apiUrl}/api/creatives/${creativeId}/render`, {
-        method: "POST",
-        headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
-        body: JSON.stringify(qualityPayload),
-      });
-
-      const data = await res.json();
+      const res = await creativesApi.render(creativeId, qualityPayload);
       
-      if (!res.ok) {
-        const errorMessage = data?.userFriendlyMessage || data?.message || `Failed to start ${type} generation`;
-        throw new Error(errorMessage);
-      }
-
       if (loadingToastId) {
         toast.dismiss(loadingToastId);
         toast.success(
@@ -386,20 +348,14 @@ export default function CreativesPage() {
     setImprovingPrompt(true);
     
     try {
-      const res = await fetch(`${apiUrl}/api/poe/improve-prompt`, {
-        method: "POST",
-        headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
-        body: JSON.stringify({
-          prompt: improvePromptText,
-          context: 'professional creative asset generation for social media and marketing campaigns',
-        }),
+      const data = await creativesApi.improvePrompt({
+        prompt: improvePromptText,
+        context: 'professional creative asset generation for social media and marketing campaigns',
       });
-
-      if (!res.ok) throw new Error("Failed to improve prompt");
-      const data = await res.json();
       setImprovedPrompt(data.improved_prompt ?? data.improvedPrompt ?? "");
     } catch (err: any) {
-      toast.error(err.message || "Error improving prompt");
+      const parsed = parseApiError(err);
+      toast.error(getUserMessage(parsed));
     } finally {
       setImprovingPrompt(false);
     }
@@ -415,18 +371,11 @@ export default function CreativesPage() {
       if (!creative) throw new Error("Creative not found");
       
       if (creative.type === 'image' || creative.type === 'video') {
-        const res = await fetch(`${apiUrl}/api/creatives/${improvePromptId}/edit-prompt`, {
-          method: "PUT",
-          headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
-          body: JSON.stringify({ prompt: improvedPrompt }),
-        });
-        if (!res.ok) throw new Error("Failed to update prompt");
+        await creativesApi.editPrompt(improvePromptId, improvedPrompt);
         
         // Auto-regenerate with new prompt
         await handleRenderMedia(improvePromptId, creative.type as 'image' | 'video');
-      }
-      
-      setShowImprovePromptModal(false);
+      }      setShowImprovePromptModal(false);
       setImprovePromptId(null);
       setImprovePromptText("");
       setImprovedPrompt("");
@@ -463,12 +412,7 @@ export default function CreativesPage() {
         const prompt = recreatePrompt?.trim()
           || storedPrompt
           || `Regenerate caption preserving tone and length of the original: ${creative.copy?.caption || ''}`;
-        const res = await fetch(`${apiUrl}/api/creatives/${recreateId}/regenerate`, {
-          method: "PUT",
-          headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
-          body: JSON.stringify({ model: 'gpt-4o', prompt, scope: 'all' }),
-        });
-        if (!res.ok) throw new Error("Failed to regenerate creative");
+        await creativesApi.regenerate(recreateId, { model: 'gpt-4o', prompt, scope: 'all' });
       }
       
       setShowRecreateModal(false);
@@ -1037,7 +981,7 @@ export default function CreativesPage() {
                 {/* Text Creative */}
                 {createType === 'text' && (
                   <div className="space-y-4">
-                    <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between">
+                    {/* <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between">
                       <div>
                         <p className="text-sm font-medium text-slate-700">📊 Selected Model:</p>
                         <p className="text-xs text-slate-600 mt-1">{textModel || 'Default (GPT-4O)'}</p>
@@ -1051,7 +995,7 @@ export default function CreativesPage() {
                       >
                         Change
                       </button>
-                    </div>
+                    </div> */}
                     <div>
                       <label className="block text-sm font-semibold text-slate-700 mb-2">
                         Caption <span className="text-red-500">*</span>
@@ -1087,7 +1031,7 @@ export default function CreativesPage() {
                 {/* Image Creative */}
                 {createType === 'image' && (
                   <div className="space-y-4">
-                    <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg flex items-center justify-between">
+                    {/* <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg flex items-center justify-between">
                       <div>
                         <p className="text-sm font-medium text-slate-700">🎨 Selected Model:</p>
                         <p className="text-xs text-slate-600 mt-1">{imageModel || 'Default (DALL-E 3)'}</p>
@@ -1101,7 +1045,7 @@ export default function CreativesPage() {
                       >
                         Change
                       </button>
-                    </div>
+                    </div> */}
                     <div>
                       <label className="block text-sm font-semibold text-slate-700 mb-2">
                         Image Prompt <span className="text-red-500">*</span>
@@ -1145,7 +1089,7 @@ export default function CreativesPage() {
                       />
                     </div>
 
-                    <div className="flex items-center gap-3 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+                    {/* <div className="flex items-center gap-3 p-4 bg-blue-50 border border-blue-200 rounded-xl">
                       <input
                         type="checkbox"
                         id="generateImageNow"
@@ -1156,14 +1100,14 @@ export default function CreativesPage() {
                       <label htmlFor="generateImageNow" className="text-sm text-slate-700">
                         Generate image immediately (takes ~15 seconds)
                       </label>
-                    </div>
+                    </div> */}
                   </div>
                 )}
 
                 {/* Video Creative */}
                 {createType === 'video' && (
                   <div className="space-y-4">
-                    <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg flex items-center justify-between">
+                    {/* <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg flex items-center justify-between">
                       <div>
                         <p className="text-sm font-medium text-slate-700">🎬 Selected Model:</p>
                         <p className="text-xs text-slate-600 mt-1">{videoModel || 'Default (Video-Generator-PRO)'}</p>
@@ -1177,34 +1121,16 @@ export default function CreativesPage() {
                       >
                         Change
                       </button>
-                    </div>
-                    <div className="p-4 bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-xl">
-                      <div className="flex items-center justify-between mb-2">
-                        <h3 className="text-sm font-bold text-slate-900">✨ AI-Powered Video Creation</h3>
-                        <span className="text-xs bg-purple-600 text-white px-2 py-1 rounded-full">NEW</span>
-                      </div>
-                      <p className="text-xs text-slate-600 mb-3">
-                        Use our advanced workflow: AI refinement → Sample frames → Review → Final video
-                      </p>
-                      <button
-                        onClick={() => {
-                          setShowCreateModal(false);
-                          setShowVideoWizard(true);
-                        }}
-                        className="w-full px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg text-sm font-semibold hover:from-purple-700 hover:to-blue-700 transition"
-                      >
-                        🎬 Open Video Wizard
-                      </button>
-                    </div>
+                    </div> */}
 
-                    <div className="relative">
+                    {/* <div className="relative">
                       <div className="absolute inset-0 flex items-center">
                         <div className="w-full border-t border-slate-200" />
                       </div>
                       <div className="relative flex justify-center">
                         <span className="bg-white px-3 text-xs text-slate-500">OR</span>
                       </div>
-                    </div>
+                    </div> */}
 
                     <div>
                       <label className="block text-sm font-semibold text-slate-700 mb-2">
@@ -1271,7 +1197,7 @@ export default function CreativesPage() {
                       />
                     </div>
 
-                    <div className="flex items-center gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+                    {/* <div className="flex items-center gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl">
                       <input
                         type="checkbox"
                         id="generateVideoNow"
@@ -1282,7 +1208,7 @@ export default function CreativesPage() {
                       <label htmlFor="generateVideoNow" className="text-sm text-slate-700">
                         Generate video immediately (takes 1-3 minutes)
                       </label>
-                    </div>
+                    </div> */}
                   </div>
                 )}
 

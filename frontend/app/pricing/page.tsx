@@ -1,5 +1,7 @@
 // frontend/app/pricing/page.tsx
 "use client";
+import { billingApi } from "@/lib/api/billing.api";
+import { parseApiError, getUserMessage } from "@/lib/error-handler";
 export default function PricingPage() {
   const plans = [
     { id: "basic", name: "Basic", price: 29, features: ["Up to 3 campaigns", "Asset uploads", "Basic scheduling"] },
@@ -7,16 +9,13 @@ export default function PricingPage() {
   ];
 
   async function handleCheckout(planId: string) {
-    // Call backend to create Stripe checkout session
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
-    const res = await fetch(`${apiUrl}/api/billing/checkout`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ planId }),
-    });
-    if (!res.ok) return alert("Failed to start checkout");
-    const { url } = await res.json();
-    window.location.href = url;
+    try {
+      const { url } = await billingApi.createCheckoutSession(planId);
+      window.location.href = url;
+    } catch (err) {
+      const parsed = parseApiError(err);
+      alert(getUserMessage(parsed));
+    }
   }
 
   return (

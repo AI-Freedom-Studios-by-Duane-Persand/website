@@ -1,5 +1,7 @@
 "use client";
 import React, { useState, useRef } from "react";
+import { adminApi } from "@/lib/api/admin.api";
+import { parseApiError, getUserMessage } from "@/lib/error-handler";
 
 export default function AdminBrandingPage() {
   const [logoPreview, setLogoPreview] = useState<string>("");
@@ -16,13 +18,20 @@ export default function AdminBrandingPage() {
 
   const logoInputRef = useRef<HTMLInputElement>(null);
   const faviconInputRef = useRef<HTMLInputElement>(null);
-  const APIURL = process.env.NEXT_PUBLIC_API_URL || "";
-
   React.useEffect(() => {
-    fetch(`${APIURL}/api/admin/branding/config`, { credentials: "include" })
-      .then((res) => res.json())
-      .then((data) => setBranding(data))
-      .catch(() => setBranding({ logoUrl: "", faviconUrl: "" }));
+    const load = async () => {
+      try {
+        const data = await adminApi.getBrandingConfig();
+        setBranding({
+          logoUrl: data?.logoUrl || "",
+          faviconUrl: data?.faviconUrl || "",
+        });
+      } catch {
+        setBranding({ logoUrl: "", faviconUrl: "" });
+      }
+    };
+
+    void load();
   }, []);
 
   function handleLogoChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -57,15 +66,7 @@ export default function AdminBrandingPage() {
       if (logoFile) formData.append("files", logoFile);
       if (faviconFile) formData.append("files", faviconFile);
 
-      const res = await fetch(`${APIURL}/api/admin/branding/upload`, {
-        method: "POST",
-        body: formData,
-        credentials: "include",
-      });
-
-      if (!res.ok) throw new Error("Upload failed");
-
-      const result = await res.json();
+      const result = await adminApi.uploadBranding(formData) as any;
       setSuccess("Branding updated successfully!");
 
       setLogoFile(null);
@@ -81,7 +82,8 @@ export default function AdminBrandingPage() {
         faviconUrl: result.faviconUrl || b.faviconUrl,
       }));
     } catch (err: any) {
-      setError(err.message || "Upload error");
+      const parsed = parseApiError(err);
+      setError(getUserMessage(parsed));
     } finally {
       setUploading(false);
     }

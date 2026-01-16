@@ -97,7 +97,7 @@ export default function SignupPage() {
             <label className="text-sm font-medium text-gray-700">Email Address</label>
             <input
               type="email"
-              placeholder="john@example.com"
+              placeholder="you@company.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required

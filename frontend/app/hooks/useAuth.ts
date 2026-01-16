@@ -26,7 +26,7 @@ export function useAuth() {
 
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || '';
 
-    fetch(`${apiUrl}/api/auth/me`, {
+    fetch(`${apiUrl}/auth/me`, {
       credentials: 'include',
       headers: {
         Authorization: `Bearer ${token}`,

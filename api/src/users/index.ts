@@ -18,9 +18,8 @@ export { UserRepository } from './repositories/user.repository';
 // DTOs
 export { 
   CreateUserDto, 
-  UpdateUserDto,
-  UserRole
-} from './dtos/user.dto';
+  UpdateUserDto
+} from './dto/user.dto';
 
 // Schemas
 export { UserDocument, UserSchema } from './schemas/user.schema';

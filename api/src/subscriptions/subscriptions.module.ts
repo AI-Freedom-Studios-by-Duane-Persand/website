@@ -1,5 +1,5 @@
 // api/src/subscriptions/subscriptions.module.ts
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { SubscriptionsService } from './subscriptions.service';
 import { SubscriptionsController } from './subscriptions.controller';
 import { MongooseModule } from '@nestjs/mongoose';
@@ -9,7 +9,7 @@ import { Subscription, SubscriptionSchema } from '../models/subscriptionV2.model
 import { SubscriptionRepository } from './repositories/subscription.repository';
 
 @Module({
-  imports: [ModelsModule, InfrastructureModule, MongooseModule.forFeature([{ name: Subscription.name, schema: SubscriptionSchema }])],
+  imports: [ModelsModule, forwardRef(() => InfrastructureModule)],
   providers: [SubscriptionsService, SubscriptionRepository],
   controllers: [SubscriptionsController],
   exports: [SubscriptionsService],

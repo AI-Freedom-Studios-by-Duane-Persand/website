@@ -11,6 +11,7 @@ import { Subscription, SubscriptionDocument } from '../models/subscriptionV2.mod
 import { TenantDocument } from '../tenants/schemas/tenant.schema';
 import { EngineRunDocument } from '../models/engineRun.schema';
 import { IntegrationConfigDocument } from '../models/integrationConfig.schema';
+import { Package, PackageDocument } from '../models/package.model';
 
 @Injectable()
 export class AdminService {
@@ -24,11 +25,17 @@ export class AdminService {
     @InjectModel('Tenant') private readonly tenantModel: Model<TenantDocument>,
     @InjectModel('EngineRun') private readonly engineRunModel: Model<EngineRunDocument>,
     @InjectModel('IntegrationConfig') private readonly integrationConfigModel: Model<IntegrationConfigDocument>,
+    @InjectModel(Package.name) private readonly packageModel: Model<PackageDocument>,
   ) {}
 
 
   async listUsers() {
     return this.userModel.find({}, { passwordHash: 0 });
+  }
+
+  async getPlans() {
+    const plans = await this.packageModel.find({ active: true }).select('_id name').lean();
+    return plans.map((p: any) => ({ id: p._id, name: p.name }));
   }
 
   async updateUserRoles(userId: string, roles: string[]) {
@@ -45,6 +52,26 @@ export class AdminService {
 
   async listTenants() {
     return this.tenantsService.findAll({});
+  }
+
+  async listAdminSubscriptions() {
+    return this.subscriptionModel.find({});
+  }
+
+  async getAdminSubscription(id: string) {
+    return this.subscriptionModel.findById(id);
+  }
+
+  async updateAdminSubscription(id: string, update: any) {
+    return this.subscriptionModel.findByIdAndUpdate(id, update, { new: true });
+  }
+
+  async deleteAdminSubscription(id: string) {
+    return this.subscriptionModel.findByIdAndDelete(id);
+  }
+
+  async createAdminSubscription(payload: any) {
+    return this.subscriptionModel.create(payload);
   }
 
   async updateTenantSubscription(tenantId: string, update: any) {

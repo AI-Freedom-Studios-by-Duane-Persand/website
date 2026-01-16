@@ -13,6 +13,7 @@ import { TenantsModule } from '../tenants/tenants.module';
 import { JwtStrategy } from './jwt.strategy';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
+import { SubscriptionsV2Module } from '../subscriptions/subscriptionsV2.module';
 import { EarlyAccessRequestSchema } from './early-access-requests.schema';
 
 @Module({
@@ -27,7 +28,11 @@ import { EarlyAccessRequestSchema } from './early-access-requests.schema';
     UsersModule,
     TenantsModule,
     LoggerModule,
-    SubscriptionsModule, // Added SubscriptionsModule to resolve dependency
+    // Conditionally include subscriptions module based on env flag
+    ...( (process.env.USE_SUBSCRIPTIONS_V2 ?? 'true').toLowerCase() === 'true'
+      ? [SubscriptionsV2Module]
+      : [SubscriptionsModule]
+    ),
   ],
   providers: [
     AuthService,

@@ -1,15 +1,14 @@
 "use client";
 import { useState } from "react";
 import { toast, Toaster } from "react-hot-toast";
-import { getAuthHeaders } from "@/lib/utils/auth-headers";
+import { dataDeletionApi } from "@/lib/api/data-deletion.api";
+import { parseApiError, getUserMessage } from "@/lib/error-handler";
 
 export default function DataDeletionPage() {
   const [email, setEmail] = useState("");
   const [reason, setReason] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -22,23 +21,15 @@ export default function DataDeletionPage() {
     setSubmitting(true);
 
     try {
-      const res = await fetch(`${apiUrl}/api/data-deletion/request`, {
-        method: "POST",
-        headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
-        body: JSON.stringify({ email, reason }),
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data?.message || "Failed to submit deletion request");
-      }
+      await dataDeletionApi.requestDeletion({ email, reason });
 
       toast.success("Data deletion request submitted successfully. We will process your request within 30 days.");
       setEmail("");
       setReason("");
       setConfirmDelete(false);
     } catch (err: any) {
-      toast.error(err.message || "Error submitting deletion request");
+      const parsed = parseApiError(err);
+      toast.error(getUserMessage(parsed));
     } finally {
       setSubmitting(false);
     }

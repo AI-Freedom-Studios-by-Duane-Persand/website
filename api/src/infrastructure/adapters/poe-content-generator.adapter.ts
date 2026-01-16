@@ -12,17 +12,7 @@
 
 import { Injectable } from '@nestjs/common';
 import { IContentGenerator, GenerateContentOptions, GeneratedContent } from '../../domain/ports/content-generator.interface';
-
-/**
- * Poe API client type (adjust based on actual poe.client.ts interface)
- */
-interface PoeClient {
-  generateContent(prompt: string, model: string, options?: any): Promise<string>;
-  generateContentStream(prompt: string, model: string, onChunk: (chunk: string) => void): Promise<string>;
-  isModelAvailable(modelId: string): Promise<boolean>;
-  getAvailableModels(): Promise<string[]>;
-  estimateCost(contentType: string, prompt: string, model: string): Promise<number>;
-}
+import { PoeClient } from '../../engines/poe.client';
 
 /**
  * Poe Content Generator Adapter
@@ -40,7 +30,6 @@ export class PoeContentGeneratorAdapter implements IContentGenerator {
   constructor(
     /**
      * Inject the actual Poe client from infrastructure layer
-     * This assumes poe.client.ts exports a singleton service
      */
     private readonly poeClient: PoeClient,
   ) {}
@@ -53,27 +42,20 @@ export class PoeContentGeneratorAdapter implements IContentGenerator {
     const startTime = Date.now();
 
     try {
-      // Validate model is available
-      const isAvailable = await this.isModelAvailable(model);
-      if (!isAvailable) {
-        throw new Error(`Model ${model} is not available`);
-      }
+      // Map content type to engine type
+      const engineType = this.mapContentTypeToEngineType(options.contentType);
 
-      // Build prompt with reference images if needed
-      let enhancedPrompt = options.prompt;
-      if (options.referenceImages && options.referenceImages.length > 0) {
-        enhancedPrompt += `\n\nReference images: ${options.referenceImages.join(', ')}`;
-      }
+      // Build input with prompt and metadata
+      const input = {
+        model,
+        contents: JSON.stringify({
+          prompt: options.prompt,
+          ...options.metadata,
+        }),
+      };
 
       // Call Poe API
-      const content = await this.poeClient.generateContent(
-        enhancedPrompt,
-        model,
-        {
-          metadata: options.metadata,
-          provider: 'poe',
-        },
-      );
+      const content = await this.poeClient.generateContent(engineType, input);
 
       const duration = Date.now() - startTime;
 
@@ -95,103 +77,70 @@ export class PoeContentGeneratorAdapter implements IContentGenerator {
   }
 
   /**
-   * Generate content with streaming (for long-running operations)
+   * Map content type to Poe engine type
+   */
+  private mapContentTypeToEngineType(contentType: string): string {
+    switch (contentType) {
+      case 'text':
+        return 'creative-text';
+      case 'image':
+        return 'image-generation';
+      case 'video':
+        return 'video-generation';
+      default:
+        return 'creative-text';
+    }
+  }
+
+  /**
+   * Generate content with streaming (stub implementation)
    */
   async generateStream(
     options: GenerateContentOptions,
     onChunk: (chunk: string) => void,
   ): Promise<GeneratedContent> {
-    const model = options.model || this.getDefaultModel(options.contentType);
-    const startTime = Date.now();
-
-    try {
-      const isAvailable = await this.isModelAvailable(model);
-      if (!isAvailable) {
-        throw new Error(`Model ${model} is not available`);
-      }
-
-      let enhancedPrompt = options.prompt;
-      if (options.referenceImages && options.referenceImages.length > 0) {
-        enhancedPrompt += `\n\nReference images: ${options.referenceImages.join(', ')}`;
-      }
-
-      // Stream content generation
-      let fullContent = '';
-      const wrappedOnChunk = (chunk: string) => {
-        fullContent += chunk;
-        onChunk(chunk);
-      };
-
-      await this.poeClient.generateContentStream(
-        enhancedPrompt,
-        model,
-        wrappedOnChunk,
-      );
-
-      const duration = Date.now() - startTime;
-
-      return {
-        content: fullContent,
-        type: options.contentType,
-        model,
-        provider: 'poe',
-        generatedAt: new Date(),
-        duration,
-        usage: {
-          inputTokens: 0,
-          outputTokens: 0,
-        },
-      };
-    } catch (error) {
-      throw new Error(`Poe stream generation failed: ${error instanceof Error ? error.message : String(error)}`);
-    }
+    // Fallback to non-streaming for now
+    const result = await this.generate(options);
+    onChunk(result.content);
+    return result;
   }
 
   /**
-   * Check if a model is available
+   * Check if model is available (stub implementation)
    */
   async isModelAvailable(modelId: string): Promise<boolean> {
-    try {
-      return await this.poeClient.isModelAvailable(modelId);
-    } catch {
-      return false;
-    }
+    // For now, assume all models are available
+    return true;
   }
 
   /**
-   * Get available models by content type
+   * Get available models by content type (stub implementation)
    */
   async getAvailableModels(contentType: 'text' | 'image' | 'video'): Promise<string[]> {
-    try {
-      const allModels = await this.poeClient.getAvailableModels();
-      
-      // Filter models by type (in real implementation, would have metadata)
-      return allModels.filter((model) => {
-        switch (contentType) {
-          case 'image':
-            return model.includes('dall-e') || model.includes('image');
-          case 'video':
-            return model.includes('runway') || model.includes('video');
-          case 'text':
-          default:
-            return !model.includes('dall-e') && !model.includes('runway');
-        }
-      });
-    } catch {
-      return this.getDefaultModels(contentType);
+    switch (contentType) {
+      case 'image':
+        return ['dall-e-3', 'nano-banana'];
+      case 'video':
+        return ['Video-Generator-PRO', 'veo-3'];
+      case 'text':
+      default:
+        return ['gpt-4o', 'gpt-3.5-turbo', 'claude-3-opus-20240229'];
     }
   }
 
   /**
-   * Estimate cost of content generation
+   * Estimate cost (stub implementation)
    */
   async estimateCost(options: GenerateContentOptions): Promise<number> {
-    try {
-      const model = options.model || this.getDefaultModel(options.contentType);
-      return await this.poeClient.estimateCost(options.contentType, options.prompt, model);
-    } catch {
-      // Return fallback estimate
-      return this.getFallbackCost(options.contentType, options.prompt.length);
+    // Stub: return base cost estimates
+    switch (options.contentType) {
+      case 'image':
+        return 20; // 20 cents
+      case 'video':
+        return 100; // 100 cents
+      case 'text':
+      default:
+        return 1; // 1 cent
     }
   }
 
@@ -208,41 +157,5 @@ export class PoeContentGeneratorAdapter implements IContentGenerator {
       default:
         return this.DEFAULT_TEXT_MODEL;
     }
-  }
-
-  /**
-   * Get default available models for content type
-   */
-  private getDefaultModels(contentType: 'text' | 'image' | 'video'): string[] {
-    switch (contentType) {
-      case 'image':
-        return ['dall-e-3', 'dall-e-2'];
-      case 'video':
-        return ['runway-gen2', 'runway-gen3'];
-      case 'text':
-      default:
-        return ['gpt-3.5-turbo', 'gpt-4', 'claude-3-opus'];
-    }
-  }
-
-  /**
-   * Get fallback cost estimate (in USD cents)
-   */
-  private getFallbackCost(contentType: string, promptLength: number): number {
-    const baseCost = {
-      text: 0.5, // 0.5 cents per 1000 chars
-      image: 20, // 20 cents per image
-      video: 100, // 100 cents per video
-    };
-
-    const type = contentType as keyof typeof baseCost;
-    const cost = baseCost[type] || 1;
-
-    // Adjust for prompt length (text only)
-    if (contentType === 'text') {
-      return Math.round(cost * (promptLength / 1000));
-    }
-
-    return cost;
   }
 }

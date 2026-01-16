@@ -15,6 +15,23 @@ export class SubscriptionsController {
   }
 
   @UseGuards(AuthGuard('jwt'))
+  @Get('current')
+  async getCurrentSubscription(@Request() req: ExpressRequest) {
+    const user = req.user as any;
+    const userId: string | undefined = user?.sub;
+    const tenantId: string | undefined = user?.tenantId;
+
+    console.debug('[SubscriptionsController][getCurrentSubscription] userId:', userId, 'tenantId:', tenantId);
+
+    if (!userId) {
+      throw new Error('User ID not found in request.');
+    }
+
+    // Fetch by userId while explicitly providing tenantId to avoid relying on TenantContextService
+    return this.subscriptionsService.findByUserId(userId, tenantId);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
   @Get(':id')
   async findOne(@Param('id') id: string, @Request() req: ExpressRequest) {
     const user = req.user as any; // or as UserJwt if it matches

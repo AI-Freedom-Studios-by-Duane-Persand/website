@@ -32,7 +32,7 @@ async function fetchAdminSummary() {
     console.log("[fetchAdminSummary] JWT token:", token);
 
     const base = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "/api";
-    const res = await fetch(`${base}/api/admin/summary`, {
+    const res = await fetch(`${base}/admin/summary`, {
       credentials: "include",
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     });

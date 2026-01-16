@@ -9,6 +9,7 @@ export interface Campaign {
   tenantId?: string;
   strategyVersions?: any[];
   contentVersions?: any[];
+  approvalStates?: Record<string, any>;
   createdAt?: string;
   updatedAt?: string;
 }

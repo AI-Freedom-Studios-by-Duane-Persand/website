@@ -63,6 +63,13 @@ export class SubscriptionsController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Get('current')
+  async getCurrentSubscription(@Req() req: { user: UserJwt }) {
+    const userId = this.getUserId(req);
+    return this.subscriptionModel.findOne({ userId }).populate('packageId');
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Post('create')
   async createSubscription(
     @Req() req: { user: UserJwt },

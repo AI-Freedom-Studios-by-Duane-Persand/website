@@ -4,6 +4,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import EarlyAccessGate from "../../components/EarlyAccessGate";
 import SubscriptionGate from "../../components/SubscriptionGate";
 import { useAuth } from "../../hooks/useAuth";
+import { schedulingApi } from "@/lib/api/scheduling.api";
+import { parseApiError, getUserMessage } from "@/lib/error-handler";
 
 interface ScheduledPost {
   _id: string;
@@ -43,11 +45,11 @@ export default function CalendarPage() {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("/api/scheduling");
-      if (!res.ok) throw new Error("Failed to fetch scheduled posts");
-      setPosts(await res.json());
+      const data = await schedulingApi.list();
+      setPosts(data || []);
     } catch (err: any) {
-      setError(err.message || "Error loading posts");
+      const parsed = parseApiError(err);
+      setError(getUserMessage(parsed));
     } finally {
       setLoading(false);
     }
@@ -64,18 +66,14 @@ export default function CalendarPage() {
     e.preventDefault();
     setError("");
     try {
-      const res = await fetch("/api/scheduling", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content, assetUrl, scheduledAt }),
-      });
-      if (!res.ok) throw new Error("Failed to schedule post");
+      await schedulingApi.create({ content, assetUrl, scheduledAt });
       setContent("");
       setAssetUrl("");
       setScheduledAt(nowLocalDefault);
       fetchPosts();
     } catch (err: any) {
-      setError(err.message || "Error scheduling post");
+      const parsed = parseApiError(err);
+      setError(getUserMessage(parsed));
     }
   }
 

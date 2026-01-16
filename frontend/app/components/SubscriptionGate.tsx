@@ -2,6 +2,9 @@
 
 import React, { useEffect, useState } from "react";
 import SubscriptionPanel from "../app/dashboard/SubscriptionPanel";
+import { apiClient } from "@/lib/api/client";
+import { subscriptionsApi } from "@/lib/api/subscriptions.api";
+import { parseApiError, getUserMessage } from "@/lib/error-handler";
 
 interface SubscriptionGateProps {
   children: React.ReactNode;
@@ -17,38 +20,40 @@ export default function SubscriptionGate({ children }: SubscriptionGateProps) {
   const [error, setError] = useState<string>("");
 
   useEffect(() => {
-    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
-    if (!token) {
-      setHasSubscription(false);
-      setLoading(false);
-      return;
-    }
+    let isMounted = true;
 
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "";
-
-    fetch(`${apiUrl}/api/subscriptions/my`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    })
-      .then(async (res) => {
-        if (!res.ok) {
-          const text = await res.text().catch(() => "");
-          throw new Error(text || `Request failed with ${res.status}`);
+    const loadSubscription = async () => {
+      const token = apiClient.parseToken();
+      if (!token) {
+        if (isMounted) {
+          setHasSubscription(false);
+          setLoading(false);
         }
-        return res.json();
-      })
-      .then((data) => {
-        const status = data?.status || data?.subscription?.status;
+        return;
+      }
+
+      try {
+        const data = await subscriptionsApi.getCurrentSubscription();
+        if (!isMounted) return;
+        const status = (data as any)?.status || (data as any)?.subscription?.status;
         setHasSubscription(status === "active");
-        setLoading(false);
-      })
-      .catch((err) => {
-        console.error("[SubscriptionGate] Failed to load subscription status", err);
-        setError("Unable to verify subscription. Please refresh.");
-        setHasSubscription(false);
-        setLoading(false);
-      });
+      } catch (err) {
+        const parsed = parseApiError(err);
+        console.error("[SubscriptionGate] Failed to load subscription status", parsed);
+        if (isMounted) {
+          setError(getUserMessage(parsed));
+          setHasSubscription(false);
+        }
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    void loadSubscription();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   if (loading) {

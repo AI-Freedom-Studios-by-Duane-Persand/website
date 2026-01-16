@@ -1,5 +1,12 @@
 # Model Selection API Quick Reference
 
+## Subscriptions Controller Toggle
+
+- Set `USE_SUBSCRIPTIONS_V2=true` in `.env` to use the newer `subscriptionsV2.controller` implementation and routes.
+- Set `USE_SUBSCRIPTIONS_V2=false` to fall back to the legacy `subscriptions.controller` implementation.
+- The app dynamically includes only one module at startup, avoiding route conflicts.
+
+
 ## 🎯 New Endpoints
 
 ### 1. Get Available Models for Content Type

@@ -1,10 +1,9 @@
 import { Module } from '@nestjs/common';
-import { MongooseModule } from '@nestjs/mongoose';
+import { ModelsModule } from '../models/models.module';
 import { AdminPackagesController } from './admin-packages.controller';
-import { Package, PackageSchema } from '../models/package.model';
 
 @Module({
-  imports: [MongooseModule.forFeature([{ name: Package.name, schema: PackageSchema }])],
+  imports: [ModelsModule],
   controllers: [AdminPackagesController],
 })
 export class AdminPackagesModule {}

@@ -1,6 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
 import { Toaster, toast } from "react-hot-toast";
+import { adminApi } from "@/lib/api/admin.api";
+import { parseApiError, getUserMessage } from "@/lib/error-handler";
 
 export default function AdminIntegrationsPage() {
   const [integrations, setIntegrations] = useState<any[]>([]);
@@ -16,35 +18,34 @@ export default function AdminIntegrationsPage() {
   const [r2Edit, setR2Edit] = useState<string>("");
   const [r2Loading, setR2Loading] = useState(false);
   const [r2Saving, setR2Saving] = useState(false);
-  const API_BASE = typeof window !== "undefined" && process.env.NEXT_PUBLIC_API_BASE
-    ? process.env.NEXT_PUBLIC_API_BASE
-    : "/api";
 
   useEffect(() => {
-    fetch(`${API_BASE}/admin/integrations`, { credentials: "include" })
-      .then((res) => res.json())
-      .then((data) => {
-        setIntegrations(data);
+    const load = async () => {
+      try {
+        const data = await adminApi.listIntegrations();
+        setIntegrations(data || []);
+      } catch (err) {
+        const parsed = parseApiError(err);
+        setError(getUserMessage(parsed) || "Failed to load integrations");
+      } finally {
         setLoading(false);
-      })
-      .catch(() => {
-        setError("Failed to load integrations");
-        setLoading(false);
-      });
-    // Fetch R2 config
-    setR2Loading(true);
-    fetch(`${API_BASE}/admin/r2-config`, { credentials: "include" })
-      .then((res) => res.json())
-      .then((data) => {
-        setR2Config(JSON.stringify(data, null, 2));
-        setR2Edit(JSON.stringify(data, null, 2));
-        setR2Loading(false);
-      })
-      .catch(() => {
+      }
+
+      setR2Loading(true);
+      try {
+        const cfg = await adminApi.getR2Config();
+        const json = JSON.stringify(cfg, null, 2);
+        setR2Config(json);
+        setR2Edit(json);
+      } catch (err) {
         setR2Config("");
         setR2Edit("");
+      } finally {
         setR2Loading(false);
-      });
+      }
+    };
+
+    void load();
   }, []);
   async function handleR2Save(e: React.FormEvent) {
     e.preventDefault();
@@ -52,18 +53,14 @@ export default function AdminIntegrationsPage() {
     setError("");
     try {
       const parsed = JSON.parse(r2Edit);
-      const res = await fetch(`${API_BASE}/admin/r2-config`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(parsed),
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Failed to update R2 config");
+      await adminApi.updateR2Config(parsed);
       setR2Config(JSON.stringify(parsed, null, 2));
       toast.success("R2 config updated successfully");
     } catch (err: any) {
-      setError(err.message || "Error updating R2 config");
-      toast.error(err.message || "Error updating R2 config");
+      const parsed = parseApiError(err);
+      const msg = getUserMessage(parsed);
+      setError(msg);
+      toast.error(msg);
     } finally {
       setR2Saving(false);
     }
@@ -75,24 +72,16 @@ export default function AdminIntegrationsPage() {
 
     try {
       JSON.parse(editConfig[id]);
-      const res = await fetch(`${API_BASE}/admin/integrations/${id}/config`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ config: editConfig[id] }),
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Failed to update config");
-
-      const updated = await fetch(`${API_BASE}/admin/integrations`, {
-        credentials: "include",
-      }).then((r) => r.json());
-
-      setIntegrations(updated);
+      await adminApi.updateIntegrationConfig(id, editConfig[id]);
+      const updated = await adminApi.listIntegrations();
+      setIntegrations(updated || []);
       setEditConfig((e) => ({ ...e, [id]: "" }));
       toast.success("Config updated successfully");
     } catch (err: any) {
-      setError(err.message || "Error updating config");
-      toast.error(err.message || "Error updating config");
+      const parsed = parseApiError(err);
+      const msg = getUserMessage(parsed);
+      setError(msg);
+      toast.error(msg);
     } finally {
       setSaving((s) => ({ ...s, [id]: false }));
     }
@@ -106,22 +95,10 @@ export default function AdminIntegrationsPage() {
     try {
       JSON.parse(newConfig);
 
-      const res = await fetch(`${API_BASE}/admin/integrations`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          service: newService,
-          scope: newScope,
-          config: newConfig,
-        }),
-        credentials: "include",
-      });
+      const payload = { service: newService, scope: newScope, config: newConfig };
+      await adminApi.createIntegration(payload);
 
-      if (!res.ok) throw new Error("Failed to create integration");
-
-      const updated = await fetch(`${API_BASE}/admin/integrations`, {
-        credentials: "include",
-      }).then((r) => r.json());
+      const updated = await adminApi.listIntegrations();
 
       setIntegrations(updated);
       setNewService("");
@@ -130,8 +107,10 @@ export default function AdminIntegrationsPage() {
 
       toast.success("Integration created successfully");
     } catch (err: any) {
-      setError(err.message || "Error creating integration");
-      toast.error(err.message || "Error creating integration");
+      const parsed = parseApiError(err);
+      const msg = getUserMessage(parsed);
+      setError(msg);
+      toast.error(msg);
     } finally {
       setCreating(false);
     }
@@ -141,17 +120,15 @@ export default function AdminIntegrationsPage() {
     if (!window.confirm("Delete this integration?")) return;
 
     try {
-      const res = await fetch(`${API_BASE}/admin/integrations/${id}`, {
-        method: "DELETE",
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Failed to delete integration");
+      await adminApi.deleteIntegration(id);
 
       setIntegrations((ints) => ints.filter((i) => i._id !== id));
       toast.success("Integration deleted successfully");
     } catch (err: any) {
-      setError(err.message || "Error deleting integration");
-      toast.error(err.message || "Error deleting integration");
+      const parsed = parseApiError(err);
+      const msg = getUserMessage(parsed);
+      setError(msg);
+      toast.error(msg);
     }
   }
 

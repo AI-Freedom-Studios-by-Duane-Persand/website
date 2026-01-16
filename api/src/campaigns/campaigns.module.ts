@@ -6,6 +6,7 @@ import { CampaignsService } from './campaigns.service';
 import { CampaignSchema } from '../models/campaign.schema';
 import { EnginesModule } from '../engines/engines.module';
 import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
+import { SubscriptionsV2Module } from '../subscriptions/subscriptionsV2.module';
 import { StorageModule } from '../storage/storage.module';
 import { StrategyService } from './services/strategy.service';
 import { ApprovalService } from './services/approval.service';
@@ -19,11 +20,13 @@ import { InfrastructureModule } from '../infrastructure/infrastructure.module';
 @Module({
   imports: [
     EnginesModule,
-    SubscriptionsModule,
+    ...( (process.env.USE_SUBSCRIPTIONS_V2 ?? 'true').toLowerCase() === 'true'
+      ? [SubscriptionsV2Module]
+      : [SubscriptionsModule]
+    ),
     StorageModule,
     ModelsModule,
     InfrastructureModule,
-    MongooseModule.forFeature([{ name: 'Campaign', schema: CampaignSchema }]),
   ],
   controllers: [CampaignsController],
   providers: [

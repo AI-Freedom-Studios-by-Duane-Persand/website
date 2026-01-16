@@ -16,7 +16,7 @@ export class UsersModuleLogger {
 }
 
 @Module({
-  imports: [ModelsModule, InfrastructureModule, MongooseModule.forFeature([{ name: 'User', schema: UserSchema }])],
+  imports: [ModelsModule, InfrastructureModule],
   providers: [UsersService, UsersModuleLogger, UserRepository],
   controllers: [UsersController],
   exports: [UsersService],

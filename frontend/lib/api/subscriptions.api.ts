@@ -3,7 +3,8 @@ import { apiClient } from './client';
 export interface SubscriptionDto {
   _id?: string;
   userId: string;
-  packageId: string;
+  packageId: string | PackageDto;
+  package?: PackageDto;
   status: 'active' | 'pending' | 'cancelled' | 'expired';
   stripeSessionId?: string;
   paymentLink?: string;

@@ -101,7 +101,7 @@ export default function CampaignChatBot({ userId, editCampaignId = null, onCampa
 
   const loadMessageHistory = async (sessionId: string) => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/campaign-chat/messages/${sessionId}`, {
+      const res = await fetch(`${API_BASE_URL}/campaign-chat/messages/${sessionId}`, {
         method: "GET",
         headers: { ...getAuthHeaders() },
       });
@@ -125,7 +125,7 @@ export default function CampaignChatBot({ userId, editCampaignId = null, onCampa
 
   const loadCreatives = async (sessionId: string) => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/campaign-chat/creatives/${sessionId}`, {
+      const res = await fetch(`${API_BASE_URL}/campaign-chat/creatives/${sessionId}`, {
         method: 'GET',
         headers: { ...getAuthHeaders() },
       });
@@ -143,7 +143,7 @@ export default function CampaignChatBot({ userId, editCampaignId = null, onCampa
     setError("");
     try {
       const campaignId = editCampaignId || 'new';
-      const res = await fetch(`${API_BASE_URL}/api/campaign-chat/start/${campaignId}`, {
+      const res = await fetch(`${API_BASE_URL}/campaign-chat/start/${campaignId}`, {
         method: "POST",
         headers: { ...getAuthHeaders() },
       });
@@ -177,7 +177,7 @@ export default function CampaignChatBot({ userId, editCampaignId = null, onCampa
           setMessages((prev) => [...prev, { sender: "system", message: data.firstPrompt }]);
         } else {
           // Fallback: fetch first prompt if not included (backward compatibility)
-          const stepRes = await fetch(`${API_BASE_URL}/api/campaign-chat/message/${newSessionId}`, {
+          const stepRes = await fetch(`${API_BASE_URL}/campaign-chat/message/${newSessionId}`, {
             method: "POST",
             headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
             body: JSON.stringify({ message: "" }),
@@ -238,7 +238,7 @@ export default function CampaignChatBot({ userId, editCampaignId = null, onCampa
       if (action === "skip") body = { skip: true };
       if (action === "recommend") body = { recommend: true };
 
-      const res = await fetch(`${API_BASE_URL}/api/campaign-chat/message/${sessionId}`, {
+      const res = await fetch(`${API_BASE_URL}/campaign-chat/message/${sessionId}`, {
         method: "POST",
         headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -334,7 +334,7 @@ export default function CampaignChatBot({ userId, editCampaignId = null, onCampa
         : `📎 Uploaded ${fileNames.length} files: ${fileNames.join(', ')}`;
       setMessages(prev => [...prev, { sender: 'user', message: fileListMsg }]);
       
-      const res = await fetch(`${API_BASE_URL}/api/campaign-chat/upload/${sessionId}`, {
+      const res = await fetch(`${API_BASE_URL}/campaign-chat/upload/${sessionId}`, {
         method: 'POST',
         headers: { ...getAuthHeaders() },
         body: formData,
@@ -365,7 +365,7 @@ export default function CampaignChatBot({ userId, editCampaignId = null, onCampa
   const generateViaChat = async (kind: 'text' | 'image' | 'video' | 'all') => {
     if (!sessionId) return;
     try {
-      const res = await fetch(`${API_BASE_URL}/api/campaign-chat/generate/${sessionId}`, {
+      const res = await fetch(`${API_BASE_URL}/campaign-chat/generate/${sessionId}`, {
         method: 'POST',
         headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ kind, model: selectedModel }),
@@ -386,7 +386,7 @@ export default function CampaignChatBot({ userId, editCampaignId = null, onCampa
       return;
     }
     try {
-      const res = await fetch(`${API_BASE_URL}/api/creatives/${creativeId}/assets`, {
+      const res = await fetch(`${API_BASE_URL}/creatives/${creativeId}/assets`, {
         method: 'PUT',
         headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: last.url, type }),
@@ -407,7 +407,7 @@ export default function CampaignChatBot({ userId, editCampaignId = null, onCampa
       return;
     }
     try {
-      const res = await fetch(`${API_BASE_URL}/api/creatives/${creativeId}/regenerate`, {
+      const res = await fetch(`${API_BASE_URL}/creatives/${creativeId}/regenerate`, {
         method: 'PUT',
         headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ model: selectedModel, prompt, scope }),
@@ -424,7 +424,7 @@ export default function CampaignChatBot({ userId, editCampaignId = null, onCampa
     const caption = inlineEditText;
     if (!caption) return;
     try {
-      const res = await fetch(`${API_BASE_URL}/api/creatives/${creativeId}/edit-caption`, {
+      const res = await fetch(`${API_BASE_URL}/creatives/${creativeId}/edit-caption`, {
         method: 'PUT',
         headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ caption }),
@@ -443,7 +443,7 @@ export default function CampaignChatBot({ userId, editCampaignId = null, onCampa
     const hashtags = inlineEditText;
     if (!hashtags) return;
     try {
-      const res = await fetch(`${API_BASE_URL}/api/creatives/${creativeId}/edit-hashtags`, {
+      const res = await fetch(`${API_BASE_URL}/creatives/${creativeId}/edit-hashtags`, {
         method: 'PUT',
         headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ hashtags }),
@@ -462,7 +462,7 @@ export default function CampaignChatBot({ userId, editCampaignId = null, onCampa
     const prompt = inlineEditText;
     if (!prompt) return;
     try {
-      const res = await fetch(`${API_BASE_URL}/api/creatives/${creativeId}/edit-prompt`, {
+      const res = await fetch(`${API_BASE_URL}/creatives/${creativeId}/edit-prompt`, {
         method: 'PUT',
         headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt }),
@@ -484,7 +484,7 @@ export default function CampaignChatBot({ userId, editCampaignId = null, onCampa
       // Show user message with website link
       setMessages(prev => [...prev, { sender: 'user', message: `🌐 Website for analysis: ${websiteUrl}` }]);
       
-      const res = await fetch(`${API_BASE_URL}/api/campaign-chat/message/${sessionId}`, {
+      const res = await fetch(`${API_BASE_URL}/campaign-chat/message/${sessionId}`, {
         method: 'POST',
         headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ websiteUrl }),
@@ -671,6 +671,7 @@ export default function CampaignChatBot({ userId, editCampaignId = null, onCampa
               <button className="px-3 py-2 rounded-xl bg-blue-500/10 text-blue-200 border border-blue-500/20 text-sm hover:bg-blue-500/20 transition" onClick={() => generateViaChat('image')}>🖼️ Images</button>
               <button className="px-3 py-2 rounded-xl bg-purple-500/10 text-purple-200 border border-purple-500/20 text-sm hover:bg-purple-500/20 transition" onClick={() => generateViaChat('video')}>🎬 Videos</button>
             </div>
+
             <div className="max-h-[150px] overflow-y-auto rounded-2xl bg-white/5 border border-white/10 p-3">
               <div className="flex items-center justify-between mb-3">
                 <div className="text-[11px] uppercase tracking-wide font-semibold text-slate-300">Creatives {filteredCreatives.length > 0 && `(${filteredCreatives.length})`}</div>
@@ -717,10 +718,25 @@ export default function CampaignChatBot({ userId, editCampaignId = null, onCampa
                         <div className="text-slate-100">{c.copy?.caption || '(no caption)'}</div>
                       )}
                       {c.type === 'image' && (
-                        <div className="text-slate-100">Prompt: {c.visual?.prompt || '(no prompt)'}</div>
+                        <div className="space-y-1">
+                          {c.visual?.url && (
+                            <img src={c.visual.url} alt="Generated" className="w-full h-20 object-cover rounded" />
+                          )}
+                          <div className="text-slate-100 text-[10px]">{c.visual?.prompt || '(no prompt)'}</div>
+                        </div>
                       )}
                       {c.type === 'video' && (
-                        <div className="text-slate-100">{c.script?.hook || ''}</div>
+                        <div className="space-y-1">
+                          {c.visual?.url && (
+                            <video src={c.visual.url} className="w-full h-20 object-cover rounded" controls />
+                          )}
+                          <div className="text-slate-100 text-[10px]">
+                            {c.visual?.prompt || c.script?.hook || '(no description)'}
+                          </div>
+                          {c.visual?.model && (
+                            <div className="text-slate-400 text-[9px]">Model: {c.visual.model}</div>
+                          )}
+                        </div>
                       )}
                     </div>
                   ))}

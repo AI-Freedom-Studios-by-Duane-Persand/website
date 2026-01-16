@@ -58,6 +58,18 @@ export class UserRepository extends AdvancedMongooseRepository<User> {
   }
 
   /**
+   * Find user by ID globally (across all tenants)
+   * Used for /api/auth/me endpoint where user is already authenticated
+   */
+  async findByIdGlobal(id: string): Promise<User | null> {
+    try {
+      return await this.model.findById(id).exec();
+    } catch (error) {
+      throw this.handleError(error, `Failed to find user by ID: ${id}`);
+    }
+  }
+
+  /**
    * Find users by role
    */
   async findByRole(role: string, tenantId: string): Promise<User[]> {

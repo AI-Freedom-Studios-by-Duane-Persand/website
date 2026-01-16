@@ -12,7 +12,8 @@ export class AuthService {
   ) {}
 
   async validateUser(email: string, password: string) {
-    const user = await this.usersService.findByEmail(email);
+    // Use findByEmailGlobal for login - no tenant context available yet
+    const user = await this.usersService.findByEmailGlobal(email);
     if (!user) return null;
     const valid = await bcrypt.compare(password, user.passwordHash);
     if (!valid) return null;

@@ -2,80 +2,61 @@
 
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-
-interface Package {
-  _id: string;
-  name: string;
-  price: number;
-  description?: string;
-  features?: string[];
-}
-
-interface Subscription {
-  _id: string;
-  status: string;
-  paymentLink?: string;
-  validUntil?: string;
-  packageId: Package;
-}
-
-function buildAuthHeaders(extra?: Record<string, string>) {
-  const headers = new Headers(extra);
-
-  if (typeof window !== "undefined") {
-    const token = localStorage.getItem("token");
-    if (token) headers.set("Authorization", `Bearer ${token}`);
-  }
-
-  return headers; // Headers is valid HeadersInit
-}
+import { apiClient } from "@/lib/api/client";
+import { subscriptionsApi, type PackageDto, type SubscriptionDto } from "@/lib/api/subscriptions.api";
+import { parseApiError, getUserMessage } from "@/lib/error-handler";
 
 export default function SubscriptionPanel() {
   const router = useRouter();
-  const [packages, setPackages] = useState<Package[]>([]);
-  const [subscription, setSubscription] = useState<Subscription | null>(null);
+  const [packages, setPackages] = useState<PackageDto[]>([]);
+  const [subscription, setSubscription] = useState<SubscriptionDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [payingId, setPayingId] = useState<string | null>(null);
 
   useEffect(() => {
-    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    const token = apiClient.parseToken();
     if (!token) {
       router.push("/");
       return;
     }
 
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
+    const load = async () => {
+      try {
+        const [pkgs, sub] = await Promise.all([
+          subscriptionsApi.listPackages(),
+          subscriptionsApi.getCurrentSubscription(),
+        ]);
 
-    Promise.all([
-      fetch(`${apiUrl}/api/admin/packages`, { headers: buildAuthHeaders() }).then((res) => res.json()),
-      fetch(`${apiUrl}/api/subscriptions/my`, { headers: buildAuthHeaders() }).then((res) => res.json()),
-    ])
-      .then(([pkgs, sub]) => {
         setPackages(Array.isArray(pkgs) ? pkgs : []);
-        setSubscription(sub && sub._id ? sub : null);
+        setSubscription(sub && (sub as SubscriptionDto)._id ? (sub as SubscriptionDto) : null);
+      } catch (err) {
+        const parsed = parseApiError(err);
+        setError(getUserMessage(parsed));
+      } finally {
         setLoading(false);
-      })
-      .catch(() => {
-        setError("Failed to load subscription info");
-        setLoading(false);
-      });
+      }
+    };
+
+    void load();
   }, [router]);
 
   const handleSubscribe = async (packageId: string) => {
     setPayingId(packageId);
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
-
-    const res = await fetch(`${apiUrl}/api/subscriptions/create`, {
-      method: "POST",
-      headers: buildAuthHeaders({ "Content-Type": "application/json" }),
-      body: JSON.stringify({ packageId }),
-    });
-
-    const data = await res.json();
-    setPayingId(null);
-
-    if (data?.paymentLink) window.location.href = data.paymentLink;
+    try {
+      const data = await subscriptionsApi.create(packageId);
+      const paymentLink = (data as any)?.paymentLink || (data as any)?.url;
+      if (paymentLink) {
+        window.location.href = paymentLink;
+      } else {
+        setSubscription(data as SubscriptionDto);
+      }
+    } catch (err) {
+      const parsed = parseApiError(err);
+      setError(getUserMessage(parsed));
+    } finally {
+      setPayingId(null);
+    }
   };
 
   return (
@@ -103,7 +84,11 @@ export default function SubscriptionPanel() {
         <div className="rounded-xl border border-gray-200 p-5 bg-gray-50">
           <p className="text-gray-700">
             You are subscribed to{" "}
-            <span className="font-semibold text-gray-900">{subscription.packageId?.name}</span>.
+            <span className="font-semibold text-gray-900">
+              {typeof subscription.packageId === "object"
+                ? subscription.packageId?.name
+                : subscription.package?.name || "Current plan"}
+            </span>.
           </p>
           <p className="text-sm text-gray-600 mt-1">
             Valid until:{" "}
@@ -119,6 +104,7 @@ export default function SubscriptionPanel() {
           <div className="space-y-4">
             {packages.map((pkg) => {
               const isPaying = payingId === pkg._id;
+              const packageId = pkg._id;
 
               return (
                 <div
@@ -159,8 +145,8 @@ export default function SubscriptionPanel() {
 
                       <button
                         className="h-11 px-5 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed w-full md:w-auto"
-                        onClick={() => handleSubscribe(pkg._id)}
-                        disabled={!!payingId}
+                        onClick={() => packageId && handleSubscribe(packageId)}
+                        disabled={!!payingId || !packageId}
                       >
                         {isPaying ? "Redirecting..." : "Subscribe"}
                       </button>

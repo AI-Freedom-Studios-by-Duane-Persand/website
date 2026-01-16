@@ -41,6 +41,22 @@ export class UsersService {
     return (await this.userRepository.findByEmail(email, resolvedTenantId)) as any;
   }
 
+  /**
+   * Find user by email without tenant context
+   * Used for authentication where tenant context is not yet available
+   */
+  async findByEmailGlobal(email: string): Promise<User | null> {
+    return (await this.userRepository.findByEmailGlobal(email)) as any;
+  }
+
+  /**
+   * Find user by ID without tenant context
+   * Used for /api/auth/me endpoint where user is already authenticated
+   */
+  async findOneGlobal(id: string): Promise<User | null> {
+    return (await this.userRepository.findByIdGlobal(id)) as any;
+  }
+
 
   @Transactional()
   async update(id: string, updateUserDto: UpdateUserDto, tenantId?: string): Promise<User> {

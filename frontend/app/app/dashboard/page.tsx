@@ -5,7 +5,10 @@ import CampaignsPanel from "./CampaignsPanel";
 import SocialConnectionsCard from "../components/SocialConnectionsCard";
 import EarlyAccessGate from "../../components/EarlyAccessGate";
 import SubscriptionGate from "../../components/SubscriptionGate";
-import { getAuthHeaders } from "@/lib/utils/auth-headers";
+import { authApi } from "@/lib/api/auth.api";
+import { subscriptionsApi } from "@/lib/api/subscriptions.api";
+import { apiClient } from "@/lib/api/client";
+import { parseApiError, getUserMessage } from "@/lib/error-handler";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -16,69 +19,34 @@ export default function DashboardPage() {
 
 async function checkSubscription() {
   try {
-    const apiUrl =
-      process.env.NEXT_PUBLIC_API_URL ||
-      process.env.NEXT_PUBLIC_API_BASE_URL ||
-      "";
-
-    const token =
-      typeof window !== "undefined" ? localStorage.getItem("token") : null;
-
-    const res = await fetch(
-      `${apiUrl}/api/subscriptions/subscription-status`,
-      {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      }
-    );
-
-    if (!res.ok) return;
-
-    const data = await res.json();
-
-    setIsSubscribed(
-      Boolean(data?.isSubscribed ?? data?.active ?? data?.status === "active")
-    );
+    const current = await subscriptionsApi.getCurrentSubscription();
+    const status = (current as any)?.status;
+    setIsSubscribed(Boolean(status === 'active' || status === 'trialing' || status === true));
   } catch (err) {
-    console.error("Subscription check failed", err);
     setIsSubscribed(false);
   }
 }
 
   useEffect(() => {
-    const token =
-      typeof window !== "undefined" ? localStorage.getItem("token") : null;
-    if (!token) {
+    const tokenJwt = apiClient.parseToken();
+    if (!tokenJwt) {
       console.warn("No token found. Redirecting to homepage.");
       router.push("/");
       return;
     }
-
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "";
-    console.log("DEBUG: Calling API URL:", `${apiUrl}/api/auth/me`);
-
-    fetch(`${apiUrl}/api/auth/me`, {
-      credentials: "include",
-      headers: getAuthHeaders(),
-    })
-      .then((res) => {
-        console.log("DEBUG: Response status:", res.status);
-        if (!res.ok) {
-          throw new Error(`API Error: ${res.status} ${res.statusText}`);
-        }
-        return res.json();
-      })
-      .then((data) => {
-        console.log("DEBUG: User data received:", data);
-        setUser(data);
+    (async () => {
+      try {
+        const me = await authApi.getCurrentUser();
+        setUser(me);
         setLoading(false);
-
-         checkSubscription(); 
-      })
-      .catch((err) => {
-        console.error("ERROR: Failed to fetch user info:", err);
-        setError(err.message || "Failed to load user info");
+        checkSubscription();
+      } catch (err) {
+        const parsed = parseApiError(err);
+        console.error("ERROR: Failed to fetch user info:", parsed);
+        setError(getUserMessage(parsed));
         setLoading(false);
-      });
+      }
+    })();
   }, [router]);
 
   const roleLabel = useMemo(() => {

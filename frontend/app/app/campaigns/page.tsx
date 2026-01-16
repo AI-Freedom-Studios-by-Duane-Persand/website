@@ -114,7 +114,7 @@ export default function CampaignsPage() {
 
   const fetchUserId = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/auth/me`, {
+      const res = await fetch(`${API_BASE_URL}/auth/me`, {
         headers: { ...getAuthHeaders() },
       });
       if (res.ok) {
@@ -139,7 +139,7 @@ export default function CampaignsPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/campaigns`, {
+      const res = await fetch(`${API_BASE_URL}/campaigns`, {
         headers: { ...getAuthHeaders() },
       });
       if (!res.ok) throw new Error("Failed to fetch campaigns");
@@ -157,7 +157,7 @@ export default function CampaignsPage() {
 
   const checkSubscription = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/subscriptions/subscription-status`, {
+      const res = await fetch(`${API_BASE_URL}/subscriptions/subscription-status`, {
         headers: { ...getAuthHeaders() },
       });
       if (!res.ok) return;
@@ -173,7 +173,7 @@ export default function CampaignsPage() {
 
   const fetchMetaPosts = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/meta-posts`, {
+      const res = await fetch(`${API_BASE_URL}/meta-posts`, {
         headers: { ...getAuthHeaders() },
       });
       if (!res.ok) throw new Error("Failed to fetch meta posts");
@@ -186,7 +186,7 @@ export default function CampaignsPage() {
 
   const fetchMetaAds = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/meta-ads`, {
+      const res = await fetch(`${API_BASE_URL}/meta-ads`, {
         headers: { ...getAuthHeaders() },
       });
       if (!res.ok) throw new Error("Failed to fetch meta ads");
@@ -230,7 +230,7 @@ export default function CampaignsPage() {
     if (!adName.trim()) return;
     setPublishing(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/meta-ads/campaigns`, {
+      const res = await fetch(`${API_BASE_URL}/meta-ads/campaigns`, {
         method: "POST",
         headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -285,7 +285,7 @@ export default function CampaignsPage() {
   const deleteCampaign = useCallback(async (id: string) => {
     if (!confirm("Are you sure you want to delete this campaign?")) return;
     try {
-      const res = await fetch(`${API_BASE_URL}/api/campaigns/${id}`, {
+      const res = await fetch(`${API_BASE_URL}/campaigns/${id}`, {
         method: "DELETE",
         headers: { ...getAuthHeaders() },
       });

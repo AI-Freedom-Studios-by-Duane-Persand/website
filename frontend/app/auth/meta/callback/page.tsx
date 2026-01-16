@@ -40,13 +40,13 @@ function MetaOAuthCallbackContent() {
         // Exchange code for access token
         const appId = process.env.NEXT_PUBLIC_META_APP_ID;
         const appSecret = process.env.NEXT_PUBLIC_META_APP_SECRET;
-        const redirectUri = `${window.location.origin}/api/auth/meta/callback`;
+        const redirectUri = `${window.location.origin}/auth/meta/callback`;
 
         if (!appId || !appSecret) {
           throw new Error("Meta App credentials not configured");
         }
 
-        const tokenRes = await fetch(`${API_BASE_URL}/api/meta/auth/token`, {
+        const tokenRes = await fetch(`${API_BASE_URL}/meta/auth/token`, {
           method: "POST",
           headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
           body: JSON.stringify({ appId, appSecret, redirectUri, code }),

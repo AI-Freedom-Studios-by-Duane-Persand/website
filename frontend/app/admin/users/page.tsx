@@ -1,5 +1,7 @@
 "use client";
 import React, { useEffect, useState } from "react";
+import { adminApi } from "@/lib/api/admin.api";
+import { parseApiError, getUserMessage } from "@/lib/error-handler";
 
 // Dummy roles for selection
 const ALL_ROLES = ["superadmin", "admin", "tenantOwner", "manager", "editor"];
@@ -14,15 +16,11 @@ export default function AdminUsersPage() {
       setLoading(true);
       setError("");
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
-        const res = await fetch(`${apiUrl}/api/admin/users`, {
-          credentials: "include",
-        });
-        const data = await res.json();
-        if (res.ok) setUsers(data);
-        else setError(data.message || "Failed to load users");
+        const data = await adminApi.listUsers();
+        setUsers(data || []);
       } catch (err) {
-        setError("Network error");
+        const parsed = parseApiError(err);
+        setError(getUserMessage(parsed));
       }
       setLoading(false);
     }
@@ -31,25 +29,11 @@ export default function AdminUsersPage() {
 
   const handleRoleChange = async (userId: string, newRoles: string[]) => {
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
-      const res = await fetch(`${apiUrl}/api/admin/users/${userId}/roles`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ roles: newRoles }),
-        credentials: "include",
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        setError(data.message || "Failed to update roles");
-      } else {
-        setUsers((users) =>
-          users.map((u) =>
-            u._id === userId ? { ...u, roles: newRoles } : u
-          )
-        );
-      }
+      await adminApi.updateUserRoles(userId, newRoles);
+      setUsers((users) => users.map((u) => (u._id === userId ? { ...u, roles: newRoles } : u)));
     } catch (err) {
-      setError("Network error");
+      const parsed = parseApiError(err);
+      setError(getUserMessage(parsed));
     }
   };
 
