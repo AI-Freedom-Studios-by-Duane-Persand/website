@@ -467,7 +467,37 @@ export class ReplicateClient {
         error: error?.message,
         stack: error?.stack?.substring(0, 300),
       });
-      throw new Error(`Failed to generate video with Sora 2: ${error?.message}`);
+
+      const message = error?.message || '';
+      const looksTransient =
+        message.includes('temporarily unavailable') ||
+        message.includes('stuck at 0%') ||
+        message.includes('E004');
+
+      // If Sora is unavailable or stuck, automatically fall back to Veo 3.1 for a quick, shorter render.
+      if (looksTransient) {
+        this.logger.warn('[ReplicateClient] Sora 2 unavailable, falling back to Veo 3.1', {
+          originalError: message,
+        });
+
+        try {
+          // Veo 3.1 supports reference images and 4/6/8s durations; use 6s for balance.
+          return await this.generateVideoWithModel('veo-3.1', prompt, {
+            durationSeconds: Math.min(6, adjustedDuration),
+            referenceImages: options.referenceImages,
+            aspectRatio: options.aspectRatio as any,
+          });
+        } catch (fallbackError: any) {
+          this.logger.error('[ReplicateClient] Fallback to Veo 3.1 also failed', {
+            error: fallbackError?.message,
+          });
+          throw new Error(
+            `Failed to generate video with Sora 2 (and fallback Veo 3.1). Sora error: ${message}. Fallback error: ${fallbackError?.message}`,
+          );
+        }
+      }
+
+      throw new Error(`Failed to generate video with Sora 2: ${message}`);
     }
   }
 
