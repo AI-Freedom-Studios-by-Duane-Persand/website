@@ -2,17 +2,7 @@
 
 import React from "react";
 import { Card, Badge, Button } from "../ui";
-
-export interface Campaign {
-  _id: string;
-  name: string;
-  objective?: string;
-  status: string;
-  strategyVersions?: any[];
-  contentVersions?: any[];
-  createdAt?: string;
-  updatedAt?: string;
-}
+import type { Campaign } from "../../../lib/api/campaigns.api";
 
 export interface CampaignListProps {
   campaigns: Campaign[];

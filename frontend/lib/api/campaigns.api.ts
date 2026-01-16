@@ -1,5 +1,18 @@
 import { apiClient } from './client';
 
+export interface Campaign {
+  _id: string;
+  name: string;
+  description?: string;
+  objective?: string;
+  status?: string;
+  tenantId?: string;
+  strategyVersions?: any[];
+  contentVersions?: any[];
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface CreateCampaignDto {
   name: string;
   status?: string;

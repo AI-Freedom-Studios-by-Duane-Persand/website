@@ -2,8 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import SubscriptionPanel from "../../app/dashboard/SubscriptionPanel";
-import { subscriptionsApi } from "../../../lib/api";
-import { isAuthenticated } from "../../../lib/utils/auth-headers";
+import { subscriptionsApi, apiClient } from "../../../lib/api";
 
 interface SubscriptionGateProps {
   children: React.ReactNode;
@@ -19,7 +18,8 @@ export default function SubscriptionGate({ children }: SubscriptionGateProps) {
   const [error, setError] = useState<string>("");
 
   useEffect(() => {
-    if (!isAuthenticated()) {
+    const token = apiClient.parseToken();
+    if (!token) {
       setHasSubscription(false);
       setLoading(false);
       return;

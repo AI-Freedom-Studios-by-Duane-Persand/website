@@ -14,7 +14,7 @@ export function useCampaigns() {
     setError(null);
     try {
       const res = await campaignsApi.list();
-      setData(res);
+      setData(res as any);
     } catch (err) {
       const parsed = parseApiError(err);
       setError(getUserMessage(parsed));

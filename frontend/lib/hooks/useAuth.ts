@@ -5,14 +5,14 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import { authApi, AuthResponse, SignupRequest, LoginRequest } from '../api/auth.api';
-import { parseApiError, FormattedError } from '../error-handler';
+import { authApi, AuthResponse, LoginRequest } from '../api/auth.api';
+import { parseApiError, ApiErrorResponse } from '../error-handler';
 import { UserJwt } from '../api/client';
 
 export interface UseAuthState {
   user: UserJwt | null;
   loading: boolean;
-  error: FormattedError | null;
+  error: ApiErrorResponse | null;
   isAuthenticated: boolean;
 }
 
@@ -51,7 +51,7 @@ export function useAuth() {
     checkAuth();
   }, []);
 
-  const signup = useCallback(async (dto: SignupRequest) => {
+  const signup = useCallback(async (dto: Record<string, any>) => {
     setState((prev) => ({ ...prev, loading: true, error: null }));
     try {
       const response = await authApi.signup(dto);
@@ -141,7 +141,7 @@ export function useAuth() {
  */
 export function usePasswordReset() {
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<FormattedError | null>(null);
+  const [error, setError] = useState<ApiErrorResponse | null>(null);
   const [success, setSuccess] = useState(false);
 
   const requestReset = useCallback(async (email: string) => {

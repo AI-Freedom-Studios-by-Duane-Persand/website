@@ -9,6 +9,7 @@ import SubscriptionGate from "../../components/subscriptions/SubscriptionGate";
 import { useAuth } from "../../hooks/useAuth";
 import { useCampaigns } from "@/lib/hooks/useCampaigns";
 import { getAuthHeaders } from "@/lib/utils/auth-headers";
+import type { Campaign } from "@/lib/api/campaigns.api";
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "";
@@ -21,16 +22,6 @@ function asArray<T>(payload: any): T[] {
   if (Array.isArray(payload?.metaPosts)) return payload.metaPosts;
   return [];
 }
-
-type Campaign = {
-  _id: string;
-  name?: string;
-  objective?: string;
-  statusHistory?: { status: string; changedAt: string }[];
-  approvalStates?: Record<string, string>;
-  revisionHistory?: any[];
-  strategyVersions?: any[];
-};
 
 type MetaPost = {
   id: string;

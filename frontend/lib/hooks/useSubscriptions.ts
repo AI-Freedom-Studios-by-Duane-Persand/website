@@ -6,13 +6,13 @@
 
 import { useState, useCallback } from 'react';
 import { subscriptionsApi, SubscriptionDto, PackageDto } from '../api/subscriptions.api';
-import { parseApiError, FormattedError } from '../error-handler';
+import { parseApiError, ApiErrorResponse } from '../error-handler';
 
 export interface UseSubscriptionsState {
   packages: PackageDto[];
   currentSubscription: SubscriptionDto | null;
   loading: boolean;
-  error: FormattedError | null;
+  error: ApiErrorResponse | null;
 }
 
 /**
@@ -43,7 +43,7 @@ export function useSubscriptions() {
     setState((prev) => ({ ...prev, loading: true, error: null }));
     try {
       const subscription = await subscriptionsApi.getCurrentSubscription();
-      setState((prev) => ({ ...prev, currentSubscription: subscription, loading: false }));
+      setState((prev) => ({ ...prev, currentSubscription: subscription as SubscriptionDto, loading: false }));
       return subscription;
     } catch (error) {
       const formatted = parseApiError(error);
@@ -56,7 +56,7 @@ export function useSubscriptions() {
     setState((prev) => ({ ...prev, loading: true, error: null }));
     try {
       const subscription = await subscriptionsApi.create(packageId);
-      setState((prev) => ({ ...prev, currentSubscription: subscription, loading: false }));
+      setState((prev) => ({ ...prev, currentSubscription: subscription as SubscriptionDto, loading: false }));
       return subscription;
     } catch (error) {
       const formatted = parseApiError(error);
@@ -70,7 +70,7 @@ export function useSubscriptions() {
       setState((prev) => ({ ...prev, loading: true, error: null }));
       try {
         const subscription = await subscriptionsApi.upgrade(subscriptionId, packageId);
-        setState((prev) => ({ ...prev, currentSubscription: subscription, loading: false }));
+        setState((prev) => ({ ...prev, currentSubscription: subscription as SubscriptionDto, loading: false }));
         return subscription;
       } catch (error) {
         const formatted = parseApiError(error);
