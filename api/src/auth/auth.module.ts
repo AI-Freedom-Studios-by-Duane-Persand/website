@@ -5,6 +5,7 @@ import { LoggerModule } from '../logger.module';
 // import { WinstonModule, WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 // import * as winston from 'winston';
 import { AuthService } from './auth.service';
+import { AuthApplicationService } from './auth-application.service';
 import { AuthController } from './auth.controller';
 import { JwtModule } from '@nestjs/jwt';
 import { UsersModule } from '../users/users.module';
@@ -30,6 +31,7 @@ import { EarlyAccessRequestSchema } from './early-access-requests.schema';
   ],
   providers: [
     AuthService,
+    AuthApplicationService,
     JwtStrategy,
     JwtAuthGuard,
   ],
