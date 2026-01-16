@@ -1,5 +1,12 @@
 // api/src/engines/engines.module.ts
 
+/**
+ * Engines Module
+ * 
+ * Provides AI-powered content generation engines.
+ * Engines now depend on port interfaces (IContentGenerator, IStorageProvider)
+ * instead of concrete implementations, following hexagonal architecture.
+ */
 
 import { Module } from '@nestjs/common';
 import { EnginesService } from './engines.service';
@@ -12,17 +19,16 @@ import { ModelsModule } from '../models/models.module';
 import { SubscriptionRequiredGuard } from '../auth/subscription-required.guard';
 import { StrategyEngine } from './strategy.engine';
 import { CopyEngine } from './copy.engine';
-import { IntegrationsModule } from '../integrations/integrations.module'; // Importing IntegrationsModule
-import { StorageModule } from '../storage/storage.module'; // Importing StorageModule
-import { AIModelsService } from './ai-models.service'; // Importing AIModelsService
-import { AIModelsController } from './ai-models.controller'; // Importing AIModelsController
-import { AIExtractorService } from './ai-extractor.service'; // AI-powered conversation extractor
-
+import { IntegrationsModule } from '../integrations/integrations.module';
+import { InfrastructureModule } from '../infrastructure/infrastructure.module'; // Import infrastructure adapters
+import { AIModelsService } from './ai-models.service';
+import { AIModelsController } from './ai-models.controller';
+import { AIExtractorService } from './ai-extractor.service';
 
 @Module({
   imports: [
-    IntegrationsModule, // Imported IntegrationsModule to access IntegrationConfigModel
-    StorageModule, // Import StorageModule to provide StorageService
+    IntegrationsModule,
+    InfrastructureModule, // Provides IContentGenerator and IStorageProvider adapters
     ModelsModule,
   ],
   providers: [
@@ -31,20 +37,34 @@ import { AIExtractorService } from './ai-extractor.service'; // AI-powered conve
     PoeClient,
     ReplicateClient,
     SubscriptionRequiredGuard,
-    StrategyEngine, // Added StrategyEngine
-    CopyEngine, // Added CopyEngine
-    AIModelsService, // Added AIModelsService to providers
-    AIExtractorService, // AI conversation extractor
+    // Inject adapters into engines
+    {
+      provide: StrategyEngine,
+      useFactory: (contentGenerator: any, storageProvider: any) => {
+        return new StrategyEngine(contentGenerator, storageProvider);
+      },
+      inject: ['IContentGenerator', 'IStorageProvider'],
+    },
+    {
+      provide: CopyEngine,
+      useFactory: (contentGenerator: any, storageProvider: any) => {
+        return new CopyEngine(contentGenerator, storageProvider);
+      },
+      inject: ['IContentGenerator', 'IStorageProvider'],
+    },
+    AIModelsService,
+    AIExtractorService,
   ],
   controllers: [EnginesController, AIModelsController, PoeController],
   exports: [
     EnginesService,
-    StrategyEngine, // Exported StrategyEngine
-    CopyEngine, // Exported CopyEngine
-    PoeClient, // Exported PoeClient for external use
-    ReplicateClient, // Exported ReplicateClient for external use
-    AIModelsService, // Exported AIModelsService for external use
-    AIExtractorService, // Exported AI conversation extractor
+    StrategyEngine,
+    CopyEngine,
+    PoeClient,
+    ReplicateClient,
+    AIModelsService,
+    AIExtractorService,
   ],
 })
 export class EnginesModule {}
+
