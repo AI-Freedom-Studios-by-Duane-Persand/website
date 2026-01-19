@@ -41,19 +41,19 @@ export default function AnalyticsPage() {
   return (
     <EarlyAccessGate hasAccess={hasEarlyAccess}>
       <SubscriptionGate>
-    <main className="min-h-screen bg-gradient-to-br from-[#0f172a] via-[#020617] to-[#020617] pt-24 pb-12 px-4">
+    <main className="min-h-screen bg-gradient-to-r from-[#ef4444]/15 via-[#f97316]/12 to-[#2563eb]/15 pt-24 pb-12 px-4">
       <div className="max-w-6xl mx-auto space-y-8">
         {/* Header */}
-        <header className="text-white">
+        <header className="text-black">
           <div className="flex items-start sm:items-center justify-between gap-4 flex-col sm:flex-row">
             <div>
-              <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">Analytics</h1>
-              <p className="mt-1 text-sm text-slate-300">
+              <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Analytics</h1>
+              <p className="mt-1 text-sm text-slate-600">
                 Key performance metrics across campaigns, creatives, and revenue.
               </p>
             </div>
 
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-slate-200">
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/40 px-3 py-1 text-xs text-slate-600">
               <span className="h-2 w-2 rounded-full bg-gradient-to-r from-[#ef4444] via-[#f97316] to-[#2563eb]" />
               Live (demo data)
             </div>
@@ -61,7 +61,7 @@ export default function AnalyticsPage() {
         </header>
 
         {/* Key Metrics */}
-        <section className="bg-white/95 rounded-2xl shadow-xl border border-slate-200">
+        <section className="bg-white/20 rounded-2xl shadow-xl border border-slate-200">
           <div className="p-6 md:p-8">
             <div className="flex items-center justify-between gap-4 flex-col sm:flex-row">
               <div>
@@ -80,7 +80,7 @@ export default function AnalyticsPage() {
               {cards.map((c) => (
                 <div
                   key={c.label}
-                  className="rounded-2xl border border-slate-200 bg-white shadow-sm hover:shadow-md transition"
+                  className="rounded-2xl border border-slate-200 bg-white/40 shadow-sm hover:shadow-md transition"
                 >
                   <div className="p-4">
                     <div className="flex items-start justify-between gap-2">
@@ -105,7 +105,7 @@ export default function AnalyticsPage() {
         </section>
 
         {/* Monthly Revenue */}
-        <section className="bg-white/95 rounded-2xl shadow-xl border border-slate-200">
+        <section className="bg-white/20 rounded-2xl shadow-xl border border-slate-200">
           <div className="p-6 md:p-8">
             <div className="flex items-start justify-between gap-4 flex-col sm:flex-row">
               <div>
@@ -121,7 +121,7 @@ export default function AnalyticsPage() {
               </div>
             </div>
 
-            <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <div className="mt-6 rounded-2xl border border-slate-200 bg-white/40 p-4">
               <div className="flex items-end gap-3 sm:gap-4 h-48">
                 {analytics.monthlyRevenue.map((item) => {
                   const pct = Math.max(6, Math.round((item.revenue / maxRevenue) * 100));

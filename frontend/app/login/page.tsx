@@ -5,6 +5,8 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { authApi } from "../../lib/api/auth.api";
 import { apiClient } from "../../lib/api/client";
+import toast from "react-hot-toast";
+import { Toaster } from "react-hot-toast";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -31,6 +33,7 @@ export default function LoginPage() {
     setError("");
     try {
       const res = await authApi.login({ email, password });
+
       const token = res.access_token || res.token;
       if (!token) throw new Error("Login failed: no token");
 
@@ -45,7 +48,6 @@ export default function LoginPage() {
       const role = payload?.role;
       const roles = Array.isArray(payload?.roles) ? payload?.roles : role ? [role] : [];
       const isAdmin = roles.includes("superadmin") || roles.includes("admin") || role === "superadmin" || role === "admin";
-
       if (isAdmin) {
         router.replace("/admin");
         return;
@@ -64,16 +66,21 @@ export default function LoginPage() {
   }
 
   return (
+    
     <main
       className="
         min-h-screen flex flex-col items-center justify-center px-4
         bg-gradient-to-br from-[#fde7e1] via-[#fff8ec] to-[#e6f0ff]
       "
     >
+      <Toaster
+  position="top-right"
+  reverseOrder={false}
+/>
       {/* Branding */}
       <div className="text-center">
         <h2 className="text-3xl font-bold mt-20">Sign in to your account</h2>
-        <p className="text-gray-600 text-sm mt-1">
+        <p className="text-gray-600 text-sm mt-1 mb-4">
           Welcome back to AI Freedom Studios
         </p>
       </div>

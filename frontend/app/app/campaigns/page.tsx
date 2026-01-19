@@ -41,18 +41,18 @@ type MetaAd = {
 type TabKey = "chat" | "publishing" | "meta-posts" | "meta-ads" | "campaigns";
 
 const GhostButton =
-  "inline-flex items-center justify-center px-4 py-2.5 rounded-2xl text-sm font-semibold border border-white/10 bg-white/5 text-slate-200 hover:bg-white/10 transition";
+  "inline-flex items-center justify-center px-4 py-2.5 rounded-2xl text-sm font-semibold border border-white/10 bg-white/40 px-3 py-1 text-xs text-slate-600 hover:bg-white/60 transition";
 const ButtonDanger =
   "inline-flex items-center justify-center px-4 py-2 rounded-xl text-sm font-semibold border border-red-500/30 bg-red-500/10 text-red-200 hover:bg-red-500/15 transition";
 const InputBase =
-  "w-full px-3 py-2.5 rounded-2xl bg-slate-950/60 border border-white/10 text-slate-100 placeholder-slate-500 outline-none focus:border-[#f97316] focus:ring-2 focus:ring-[#f97316]/25";
+  "w-full px-3 py-2.5 rounded-2xl bg-white/60 border border-white/10 text-slate-600 placeholder-slate-500 outline-none focus:border-[#f97316] focus:ring-2 focus:ring-[#f97316]/25";
 const ButtonPrimary =
   "inline-flex items-center justify-center px-5 py-2.5 rounded-2xl text-sm font-semibold text-white bg-gradient-to-r from-[#ef4444] via-[#f97316] to-[#2563eb] shadow-lg hover:opacity-95 transition disabled:opacity-50 disabled:cursor-not-allowed";
 
 const StatPill = ({ label, value }: { label: string; value: any }) => (
-  <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 shadow-lg backdrop-blur">
-    <div className="text-xs text-slate-400">{label}</div>
-    <div className="text-lg font-extrabold text-white">{value}</div>
+  <div className="rounded-2xl border border-white/10 bg-white/20 px-4 py-3 shadow-lg backdrop-blur">
+    <div className="text-xs text-slate-600">{label}</div>
+    <div className="text-lg font-bold text-black">{value}</div>
   </div>
 );
 
@@ -326,28 +326,28 @@ export default function CampaignsPage() {
   return (
     <EarlyAccessGate hasAccess={hasEarlyAccess}>
       <SubscriptionGate>
-    <main className="min-h-screen bg-gradient-to-br from-[#0c1f24] via-[#0a262b] to-[#0f2e35] px-4 py-6 text-white">
+    <main className="min-h-screen bg-gradient-to-r from-[#ef4444]/15 via-[#f97316]/12 to-[#2563eb]/15 px-4 py-6 text-white">
       {showConnectModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
-          <div className="w-full max-w-lg rounded-3xl bg-slate-900 border border-white/10 p-6 shadow-2xl">
-            <h3 className="text-xl font-bold">Connect Meta Accounts</h3>
-            <p className="text-sm text-slate-300 mt-1">
+          <div className="w-full max-w-lg rounded-3xl bg-white/80 border border-white/10 p-6 shadow-2xl">
+            <h3 className="text-xl font-bold text-black">Connect Meta Accounts</h3>
+            <p className="text-sm text-slate-600 mt-1">
               Add your Meta Page ID for posts and Ad Account ID for ads. Stored locally.
             </p>
             <div className="mt-4 space-y-3">
               <div>
-                <label className="text-xs text-slate-300">Meta Page ID</label>
+                <label className="text-xs text-slate-600">Meta Page ID</label>
                 <input
-                  className="mt-1 w-full rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm outline-none focus:border-[#f97316] focus:ring-2 focus:ring-[#f97316]/25"
+                  className="mt-1 w-full rounded-xl border border-white/10 text-slate-600 bg-white/60 px-3 py-2 text-sm outline-none focus:border-[#f97316] focus:ring-2 focus:ring-[#f97316]/25"
                   value={metaPageId}
                   onChange={(e) => setMetaPageId(e.target.value)}
                   placeholder="123456789"
                 />
               </div>
               <div>
-                <label className="text-xs text-slate-300">Meta Ad Account ID</label>
+                <label className="text-xs text-slate-600">Meta Ad Account ID</label>
                 <input
-                  className="mt-1 w-full rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm outline-none focus:border-[#f97316] focus:ring-2 focus:ring-[#f97316]/25"
+                  className="mt-1 w-full rounded-xl border border-white/10 text-slate-600 bg-white/60 px-3 py-2 text-sm outline-none focus:border-[#f97316] focus:ring-2 focus:ring-[#f97316]/25"
                   value={metaAdAccountId}
                   onChange={(e) => setMetaAdAccountId(e.target.value)}
                   placeholder="xxxxxxxx"
@@ -372,14 +372,14 @@ export default function CampaignsPage() {
 
       <div className="max-w-7xl mx-auto w-full">
         <header className="relative overflow-hidden rounded-3xl bg-white/5 px-5 py-4 md:px-6 md:py-6 shadow-2xl shrink-0 mb-6 mt-32 md:mt-24">
-          <div className="absolute inset-0 bg-gradient-to-r from-[#ef4444]/15 via-[#f97316]/12 to-[#2563eb]/15 blur-3xl " />
+          <div className="absolute inset-0 bg-white/20 blur-3xl " />
           <div className="relative flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5">
             <div className="flex items-start gap-3">
               <div className="h-11 w-11 rounded-2xl bg-gradient-to-br from-[#ef4444] via-[#f97316] to-[#2563eb] shadow-xl flex items-center justify-center font-extrabold">
                 C
               </div>
               <div>
-                <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">
+                <h1 className="text-2xl md:text-3xl  text-black font-bold tracking-tight">
                   Campaigns & Publishing
                 </h1>
               </div>
@@ -390,8 +390,8 @@ export default function CampaignsPage() {
               <div
                 className={["rounded-2xl border px-4 py-3 shadow-lg backdrop-blur", isSubscribed ? "border-emerald-500/20 bg-emerald-500/10" : "border-amber-500/20 bg-amber-500/10"].join(" ")}
               >
-                <div className="text-xs text-slate-400">Subscription</div>
-                <div className="text-lg font-extrabold">{isSubscribed ? "Active" : "Inactive"}</div>
+                <div className="text-xs text-slate-600">Subscription</div>
+                <div className="text-lg font-bold text-slate-800">{isSubscribed ? "Active" : "Inactive"}</div>
               </div>
               <button type="button" onClick={fetchCampaigns} className={GhostButton}>
                 Refresh
@@ -411,9 +411,9 @@ export default function CampaignsPage() {
             <div className="flex items-center justify-between mb-4">
               <div>
                 <div className="text-[11px] uppercase tracking-wide text-slate-400">Workflow</div>
-                <div className="text-sm text-slate-200">Campaign flow</div>
+                <div className="text-sm text-slate-800">Campaign flow</div>
               </div>
-              <button className={GhostButton} onClick={() => setShowConnectModal(true)}>
+              <button  className={GhostButton} onClick={() => setShowConnectModal(true)}>
                 Connect
               </button>
             </div>
@@ -424,8 +424,8 @@ export default function CampaignsPage() {
                   onClick={() => setActiveTab(tab.id)}
                   className={`flex items-center justify-between rounded-2xl px-3 py-2 text-sm font-semibold border transition ${
                     activeTab === tab.id
-                      ? "border-white/20 bg-white/10 text-white"
-                      : "border-white/5 bg-white/5 text-slate-200 hover:border-white/15"
+                      ? "border-white/20 bg-white/60 text-black"
+                      : "border-white/5 bg-white/20 text-slate-600 hover:border-white/15"
                   }`}
                 >
                   <span>{tab.label}</span>
@@ -433,7 +433,7 @@ export default function CampaignsPage() {
                 </button>
               ))}
             </div>
-            <div className="mt-4 text-xs text-slate-300">
+            <div className="mt-4 text-xs text-slate-400">
               Meta Page: {metaPageId || "Not connected"} • Ad Account: {metaAdAccountId || "Not connected"}
             </div>
           </aside>
@@ -462,21 +462,21 @@ export default function CampaignsPage() {
             )}
 
             {activeTab === "publishing" && (
-              <section className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-2xl">
+              <section className="rounded-3xl border border-white/10 bg-white/20 p-5 shadow-2xl">
                 <div className="flex items-center justify-between mb-3">
                   <div>
-                    <h3 className="text-lg font-bold">Publishing</h3>
-                    <p className="text-xs text-slate-300">Meta posts via Ayrshare and Meta ads.</p>
+                    <h3 className="text-lg  text-black font-bold">Publishing</h3>
+                    <p className="text-xs text-slate-600">Meta posts via Ayrshare and Meta ads.</p>
                   </div>
                   <button className={GhostButton} onClick={() => setShowConnectModal(true)}>
                     Connect
                   </button>
                 </div>
                 <div className="grid md:grid-cols-2 gap-3">
-                  <div className="rounded-2xl border border-white/10 bg-slate-950/40 p-3">
-                    <div className="text-sm font-semibold">Meta Post (Ayrshare)</div>
+                  <div className="rounded-2xl border border-white/10 bg-white/30 p-3">
+                    <div className="text-sm font-semibold text-black">Meta Post (Ayrshare)</div>
                     <textarea
-                      className="mt-2 w-full rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm outline-none focus:border-[#f97316] focus:ring-2 focus:ring-[#f97316]/25"
+                      className="mt-2 w-full text-black rounded-xl border border-white/10 bg-white/60 px-3 py-2 text-sm outline-none focus:border-[#f97316] focus:ring-2 focus:ring-[#f97316]/25"
                       rows={6}
                       placeholder="Caption to post to Meta via Ayrshare"
                       value={metaContent}
@@ -491,8 +491,8 @@ export default function CampaignsPage() {
                     </button>
                   </div>
 
-                  <div className="rounded-2xl border border-white/10 bg-slate-950/40 p-3 space-y-2">
-                    <div className="text-sm font-semibold">Meta Ads</div>
+                  <div className="rounded-2xl border border-white/10 bg-white/30 p-3 space-y-2">
+                    <div className="text-sm font-semibold text-black">Meta Ads</div>
                     <input
                       className={InputBase}
                       placeholder="Ad campaign name"
@@ -541,22 +541,22 @@ export default function CampaignsPage() {
             )}
 
             {activeTab === "meta-posts" && (
-              <section className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-2xl">
+              <section className="rounded-3xl border border-white/10 bg-white/20 p-5 shadow-2xl">
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-lg font-bold">Meta Posts</h3>
+                  <h3 className="text-lg font-bold text-black">Meta Posts</h3>
                   <button className={GhostButton} onClick={fetchMetaPosts}>Refresh</button>
                 </div>
                 {!Array.isArray(metaPosts) || metaPosts.length === 0 ? (
-                  <div className="text-sm text-slate-300">No posts yet.</div>
+                  <div className="text-sm text-slate-600">No posts yet.</div>
                 ) : (
                   <ul className="space-y-2">
                     {metaPosts.map((post) => (
                       <li
                         key={post.id}
-                        className="flex items-start justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 p-4"
+                        className="flex items-start justify-between gap-3 rounded-2xl border border-white/10 bg-white/40 p-4"
                       >
                         <div className="min-w-0">
-                          <div className="text-sm text-slate-100 truncate">{post.content}</div>
+                          <div className="text-sm text-slate-600 truncate">{post.content}</div>
                           <div className="mt-1 text-xs text-slate-400">Status: {post.status}</div>
                         </div>
                         <button onClick={() => deleteMetaPost(post.id)} className={ButtonDanger}>
@@ -572,11 +572,11 @@ export default function CampaignsPage() {
             {activeTab === "meta-ads" && (
               <section className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-2xl">
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-lg font-bold">Meta Ads</h3>
+                  <h3 className="text-lg font-bold text-black">Meta Ads</h3>
                   <button className={GhostButton} onClick={fetchMetaAds}>Refresh</button>
                 </div>
                 {!Array.isArray(metaAds) || metaAds.length === 0 ? (
-                  <div className="text-sm text-slate-300">No ads yet.</div>
+                  <div className="text-sm text-slate-600">No ads yet.</div>
                 ) : (
                   <ul className="space-y-2">
                     {metaAds.map((ad) => (
@@ -602,8 +602,8 @@ export default function CampaignsPage() {
               <section className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-2xl flex flex-col max-h-[calc(100vh-15rem)] overflow-hidden">
                 <div className="flex items-center justify-between mb-4 shrink-0">
                   <div>
-                    <h3 className="text-lg font-bold">All Campaigns</h3>
-                    <p className="text-xs text-slate-300 mt-1">Manage, edit, or delete campaigns</p>
+                    <h3 className="text-lg font-bold text-black">All Campaigns</h3>
+                    <p className="text-xs text-slate-600 mt-1">Manage, edit, or delete campaigns</p>
                   </div>
                   <div className="flex items-center gap-2">
                     <button type="button" onClick={() => {

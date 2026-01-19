@@ -518,20 +518,20 @@ export default function CampaignChatBot({ userId, editCampaignId = null, onCampa
   };
 
   return (
-    <div className="w-full max-w-2xl mx-auto bg-gradient-to-b from-white/10 via-white/5 to-transparent border border-white/10 rounded-3xl shadow-2xl flex flex-col">
+    <div className="w-full max-w-2xl mx-auto bg-white/20 border border-white/10 rounded-3xl shadow-2xl flex flex-col">
       {/* Header - Fixed at top */}
       <div className="shrink-0 border-b border-white/10 bg-gradient-to-b from-white/5 to-transparent px-6 py-4">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-1 text-[11px] uppercase tracking-wide text-slate-200">
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/40 px-3 py-1 text-xs text-slate-600 px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-slate-200">
               Campaign Copilot
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
             </div>
-            <h3 className="mt-2 text-lg font-semibold text-white">Strategy Builder (15 steps)</h3>
-            <p className="text-xs text-slate-400">Comprehensive input collection for 95% campaign success rate.</p>
+            <h3 className="mt-2 text-lg font-semibold text-black">Strategy Builder (15 steps)</h3>
+            <p className="text-xs text-slate-600">Comprehensive input collection for 95% campaign success rate.</p>
           </div>
           <div className="flex items-center gap-2">
-            <span className="rounded-full px-3 py-1 text-xs font-semibold bg-white/10 border border-white/10 text-slate-200">
+            <span className="rounded-full px-3 py-1 text-xs font-semibold bg-white/40 px-3 py-1 text-xs text-slate-600 border border-white/10 text-slate-200">
               {stepKey ? `Step: ${stepKey}` : done ? "✓ Complete" : "Starting..."}
             </span>
             <button
@@ -553,7 +553,7 @@ export default function CampaignChatBot({ userId, editCampaignId = null, onCampa
       >
         {messages.map((msg, idx) => (
           <div key={idx} className={`flex ${msg.sender === "user" ? "justify-end" : "justify-start"}`}>
-            <div className={`px-4 py-3 rounded-2xl max-w-[82%] shadow ${msg.sender === "user" ? "bg-gradient-to-r from-[#f97316] to-[#2563eb] text-white" : "bg-white/10 text-slate-100 border border-white/5"}`}>
+            <div className={`px-4 py-3 rounded-2xl max-w-[82%] shadow ${msg.sender === "user" ? "bg-gradient-to-r from-[#f97316] to-[#2563eb] text-slate-400" : "bg-white/30 text-slate-600 border border-white/5"}`}>
               <div className="text-[11px] uppercase tracking-wide font-semibold opacity-80 mb-1">
                 {msg.sender === "user" ? "You" : "Copilot"}
               </div>
@@ -566,16 +566,16 @@ export default function CampaignChatBot({ userId, editCampaignId = null, onCampa
         ))}
         {prompt && (
           <div className="flex justify-start">
-            <div className="w-full rounded-2xl bg-white/10 border border-white/10 p-4 text-slate-100 shadow-inner">
+            <div className="w-full rounded-2xl bg-white/40 border border-white/10 p-4 text-slate-100 shadow-inner">
               <div className="text-[11px] uppercase tracking-wide font-semibold text-amber-200">Current Prompt</div>
-              <div className="mt-1 text-sm leading-relaxed">{prompt}</div>
+              <div className="mt-1 text-sm  text-slate-600 leading-relaxed">{prompt}</div>
               {consideration && (
-                <div className="mt-2 text-xs text-amber-100/90 bg-amber-500/10 border border-amber-500/20 rounded-xl px-3 py-2 inline-flex">
+                <div className="mt-2 text-xs text-amber-300/90 bg-amber-500/10 border border-amber-500/20 rounded-xl px-3 py-2 inline-flex">
                   {consideration}
                 </div>
               )}
               {aiRecommendation && (
-                <div className="mt-3 text-xs text-emerald-100 bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-3 py-2">
+                <div className="mt-3 text-xs text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-3 py-2">
                   AI Suggestion: {aiRecommendation}
                 </div>
               )}
@@ -748,7 +748,7 @@ export default function CampaignChatBot({ userId, editCampaignId = null, onCampa
       )}
 
       {/* Input Form - Fixed at bottom */}
-      <div className="shrink-0 border-t border-white/10 bg-gradient-to-t from-slate-950/40 to-transparent px-6 py-3">
+      <div className="shrink-0 border-t border-white/10 bg-white/40 rounded-2xl px-6 py-3">
         {!done && (
           <div className="space-y-2">
             <form
@@ -760,7 +760,7 @@ export default function CampaignChatBot({ userId, editCampaignId = null, onCampa
               <div className="flex gap-2">
                 <input
                   type="text"
-                  className="flex-1 px-3 py-3 rounded-2xl bg-slate-950/60 border border-white/10 text-slate-100 placeholder-slate-500 outline-none focus:border-[#f97316] focus:ring-2 focus:ring-[#f97316]/25"
+                  className="flex-1 px-3 py-3 rounded-2xl bg-white/60 border border-slate-300/40 text-slate-600 placeholder-slate-500 outline-none focus:border-[#f97316] focus:ring-2 focus:ring-[#f97316]/25"
                   placeholder="Type your answer..."
                   value={input}
                   onChange={e => setInput(e.target.value)}
@@ -779,7 +779,7 @@ export default function CampaignChatBot({ userId, editCampaignId = null, onCampa
             <div className="flex gap-2 items-center text-xs">
               <input
                 type="text"
-                className="flex-1 px-3 py-2 rounded-xl bg-slate-950/60 border border-white/10 text-slate-100 placeholder-slate-500 outline-none"
+                className="flex-1 px-3 py-2 rounded-xl bbg-white/60 border border-slate-300/40 text-slate-600 placeholder-slate-500 outline-none"
                 placeholder="Website URL for insights"
                 value={websiteUrl}
                 onChange={e => setWebsiteUrl(e.target.value)}
@@ -787,7 +787,7 @@ export default function CampaignChatBot({ userId, editCampaignId = null, onCampa
               />
               <button
                 type="button"
-                className="px-4 py-2 rounded-xl bg-purple-500/10 text-purple-200 font-semibold border border-purple-500/20 disabled:opacity-50"
+                className="px-4 py-2 rounded-xl bg-purple-500/50 text-purple-800 font-semibold border border-purple-500/20 disabled:opacity-50"
                 onClick={handleWebsiteSubmit}
                 disabled={loading || !websiteUrl || !sessionId}
               >
@@ -797,7 +797,7 @@ export default function CampaignChatBot({ userId, editCampaignId = null, onCampa
             <div className="flex gap-2 text-sm flex-wrap">
               <button
                 type="button"
-                className="px-4 py-2 rounded-2xl bg-white/10 text-slate-200 font-semibold border border-white/10 disabled:opacity-50"
+                className="px-4 py-2 rounded-2xl bg-white/30 text-slate-400 font-semibold border border-slate-300/40 disabled:opacity-50"
                 onClick={() => sessionId && sendMessage("skip")}
                 disabled={loading || !sessionId}
               >
@@ -805,7 +805,7 @@ export default function CampaignChatBot({ userId, editCampaignId = null, onCampa
               </button>
               <button
                 type="button"
-                className="px-4 py-2 rounded-2xl bg-emerald-500/10 text-emerald-200 font-semibold border border-emerald-500/20 disabled:opacity-50"
+                className="px-4 py-2 rounded-2xl bg-emerald-500/20 text-emerald-400 font-semibold border border-emerald-500/20 disabled:opacity-50"
                 onClick={() => sessionId && sendMessage("recommend")}
                 disabled={loading || !sessionId}
               >
@@ -821,7 +821,7 @@ export default function CampaignChatBot({ userId, editCampaignId = null, onCampa
               />
               <button
                 type="button"
-                className="px-4 py-2 rounded-2xl bg-blue-500/10 text-blue-200 font-semibold border border-blue-500/20 disabled:opacity-50"
+                className="px-4 py-2 rounded-2xl bg-blue-500/20 text-blue-400 font-semibold border border-blue-500/20 disabled:opacity-50"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploadingFiles || !sessionId}
               >

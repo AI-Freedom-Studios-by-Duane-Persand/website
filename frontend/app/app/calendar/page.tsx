@@ -86,16 +86,16 @@ export default function CalendarPage() {
   return (
     <EarlyAccessGate hasAccess={hasEarlyAccess}>
       <SubscriptionGate>
-    <main className="min-h-screen bg-gradient-to-br from-[#0f172a] via-[#020617] to-[#020617] pt-24 pb-12 px-4">
+    <main className="min-h-screen bg-gradient-to-r from-[#ef4444]/15 via-[#f97316]/12 to-[#2563eb]/15  pt-24 pb-12 px-4">
       <div className="max-w-6xl mx-auto space-y-8">
         {/* Header */}
-        <header className="text-white">
+        <header className="text-black">
           <div className="flex items-start sm:items-center justify-between gap-4 flex-col sm:flex-row">
             <div>
-              <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">
+              <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
                 Calendar
               </h1>
-              <p className="mt-1 text-sm text-slate-300">
+              <p className="mt-1 text-sm text-slate-600">
                 Schedule posts and manage your publishing queue.
               </p>
             </div>
@@ -125,7 +125,7 @@ export default function CalendarPage() {
         )}
 
         {/* Composer */}
-        <section className="bg-white/95 rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
+        <section className="bg-white/20 rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
           <div className="p-6 md:p-8">
             <div className="flex items-start justify-between gap-4 flex-col md:flex-row">
               <div>
@@ -265,7 +265,7 @@ export default function CalendarPage() {
         </section>
 
         {/* Queue */}
-        <section className="bg-white/95 rounded-2xl shadow-xl border border-slate-200">
+        <section className="bg-white/20 rounded-2xl shadow-xl border border-slate-200">
           <div className="p-6 md:p-8">
             <div className="flex items-center justify-between gap-4 flex-col sm:flex-row">
               <div>
