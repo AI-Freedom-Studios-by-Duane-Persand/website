@@ -342,10 +342,10 @@ const PackageManagementPanel: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-2xl font-semibold text-slate-100">
+          <h2 className="text-2xl font-semibold text-slate-600">
             Subscription Packages
           </h2>
-          <p className="text-sm text-slate-400">
+          <p className="text-sm text-slate-500">
             Create and manage pricing plans
           </p>
         </div>
@@ -378,16 +378,16 @@ const PackageManagementPanel: React.FC = () => {
               key={pkg._id}
               className="
                 rounded-xl
-                bg-slate-900/70
-                border border-slate-800
-                p-5
+                bg-white/40
+                border border-slate-600/10
+                 p-5
                 shadow-lg
-                hover:bg-slate-900/90
+                hover:bg-white/60
                 transition
               "
             >
               <div className="flex items-center justify-between mb-3">
-                <h3 className="text-lg font-semibold text-slate-100">
+                <h3 className="text-lg font-semibold text-slate-600">
                   {pkg.name}
                 </h3>
                 <span
@@ -401,12 +401,12 @@ const PackageManagementPanel: React.FC = () => {
                 </span>
               </div>
 
-              <div className="text-slate-400 text-sm mb-3">
-                <b className="text-slate-300">Price:</b> ${pkg.price.toFixed(2)}
+              <div className="text-slate-500 text-sm mb-3">
+                <b className="text-slate-400">Price:</b> ${pkg.price.toFixed(2)}
               </div>
 
               <div className="mb-4">
-                <p className="text-sm text-slate-300 mb-1">Features</p>
+                <p className="text-sm text-slate-500 mb-1">Features</p>
                 <ul className="text-sm text-slate-400 space-y-1 list-disc list-inside">
                   {pkg.features.map((f, i) => (
                     <li key={i}>{f}</li>
@@ -436,8 +436,8 @@ const PackageManagementPanel: React.FC = () => {
       {/* Modal */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur flex items-center justify-center">
-          <div className="w-full max-w-md rounded-xl bg-slate-900 border border-slate-800 p-6 shadow-2xl">
-            <h3 className="text-lg font-semibold text-slate-100 mb-4">
+          <div className="w-full max-w-md rounded-xl bg-white/40 border border-slate-600/10 p-6 shadow-2xl">
+            <h3 className="text-lg font-semibold text-slate-600 mb-4">
               {editing ? "Edit Package" : "Create Package"}
             </h3>
 
@@ -449,7 +449,7 @@ const PackageManagementPanel: React.FC = () => {
               className="space-y-4"
             >
               <input
-                className="w-full px-3 py-2 rounded-md bg-slate-800 border border-slate-700 text-slate-200 focus:ring-2 focus:ring-blue-500 outline-none"
+                className="w-full px-3 py-2 rounded-md bg-white/80 border border-slate-600/10 text-slate-600 focus:ring-2 focus:ring-blue-500 outline-none"
                 placeholder="Package Name"
                 value={formState.name}
                 onChange={e =>
@@ -460,7 +460,7 @@ const PackageManagementPanel: React.FC = () => {
               <input
                 type="number"
                 min={0}
-                className="w-full px-3 py-2 rounded-md bg-slate-800 border border-slate-700 text-slate-200 focus:ring-2 focus:ring-blue-500 outline-none"
+                className="w-full px-3 py-2 rounded-md bg-white/80 border border-slate-600/10 text-slate-600 focus:ring-2 focus:ring-blue-500 outline-none"
                 placeholder="Price (USD)"
                 value={formState.price}
                 onChange={e =>
@@ -469,7 +469,7 @@ const PackageManagementPanel: React.FC = () => {
               />
 
               <input
-                className="w-full px-3 py-2 rounded-md bg-slate-800 border border-slate-700 text-slate-200 focus:ring-2 focus:ring-blue-500 outline-none"
+                className="w-full px-3 py-2 rounded-md bg-white/80 border border-slate-600/10 text-slate-600 focus:ring-2 focus:ring-blue-500 outline-none"
                 placeholder="Features (comma separated)"
                 value={formState.features}
                 onChange={e =>
@@ -477,7 +477,7 @@ const PackageManagementPanel: React.FC = () => {
                 }
               />
 
-              <label className="flex items-center gap-2 text-sm text-slate-300">
+              <label className="flex items-center gap-2 text-sm text-slate-600">
                 <input
                   type="checkbox"
                   checked={formState.isActive}

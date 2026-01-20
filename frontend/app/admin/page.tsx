@@ -85,7 +85,7 @@ export default function AdminHomePage() {
     <main
       className="
         min-h-screen
-        bg-gradient-to-br from-[#0f172a] via-[#020617] to-[#020617]
+        bg-white/20
         pt-16 pb-12 px-4
       "
     >
@@ -95,43 +95,43 @@ export default function AdminHomePage() {
           <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-br from-[#ef4444] via-[#f97316] to-[#2563eb] shadow-xl mb-3">
             <span className="font-extrabold text-lg">ADM</span>
           </div>
-          <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight">
+          <h1 className="text-3xl md:text-4xl font-bold text-black tracking-tight">
             Admin Dashboard
           </h1>
-          <p className="mt-2 text-sm md:text-base text-slate-300">
+          <p className="mt-2 text-sm md:text-base text-slate-600">
             Manage tenants, branding, integrations, and subscriptions for{" "}
             <span className="font-semibold">@aifreedomduane</span>.
           </p>
         </header>
 
         {/* Summary section */}
-        <section className="rounded-2xl border border-slate-800 bg-slate-950/70 shadow-2xl p-6 md:p-8 text-white">
+        <section className="rounded-2xl border border-slate-600/10 bg-white/20 shadow-2xl p-6 md:p-8 ">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
             <div>
-              <h3 className="text-lg md:text-xl font-semibold">
+              <h3 className="text-lg md:text-xl font-semibold text-black">
                 Summary Snapshot
               </h3>
-              <p className="text-sm text-slate-400">
+              <p className="text-sm text-slate-600">
                 High-level metrics across the platform.
               </p>
             </div>
-            <span className="inline-flex px-3 py-1 rounded-full text-xs font-semibold bg-slate-900/80 text-slate-200 border border-slate-700">
+            <span className="inline-flex px-3 py-1 rounded-full text-xs font-semibold bg-white/60 text-slate-600 border border-slate-600/10">
               Super Admin View
             </span>
           </div>
 
           {!summary ? (
-            <div className="text-center text-slate-500 py-8 text-sm">
+            <div className="text-center text-slate-600 py-8 text-sm">
               Loading summary…
             </div>
           ) : (
             <>
               {/* Raw JSON (debug) */}
               <details className="mb-6">
-                <summary className="cursor-pointer text-xs text-slate-400 hover:text-slate-200">
+                <summary className="cursor-pointer text-xs text-slate-600 hover:text-slate-400">
                   Raw summary JSON (debug)
                 </summary>
-                <pre className="mt-2 bg-black/60 text-slate-100 text-[11px] md:text-xs p-3 rounded-lg overflow-x-auto border border-slate-800">
+                <pre className="mt-2 bg-white/60 text-slate-600 text-[11px] md:text-xs p-3 rounded-lg overflow-x-auto border border-slate-800">
                   {JSON.stringify(summary, null, 2)}
                 </pre>
               </details>
@@ -188,13 +188,13 @@ export default function AdminHomePage() {
         </section>
 
         {/* Package management */}
-        <section className="rounded-2xl border border-slate-800 bg-slate-950/70 shadow-2xl p-6 md:p-8 text-white">
+        <section className="rounded-2xl border border-slate-600/10 bg-white/20 shadow-2xl p-6 md:p-8 ">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
             <div>
-              <h3 className="text-lg md:text-xl font-semibold">
+              <h3 className="text-lg md:text-xl font-semibold text-black">
                 Packages &amp; Plans
               </h3>
-              <p className="text-sm text-slate-400">
+              <p className="text-sm text-slate-600">
                 Configure subscription packages, limits, and feature tiers.
               </p>
             </div>
@@ -216,17 +216,17 @@ function SummaryCard({
   accent: string;
 }) {
   return (
-    <div className="rounded-xl bg-slate-900/70 border border-slate-800 shadow-lg p-4 flex flex-col items-center justify-center">
+    <div className="rounded-xl bg-white/40 border border-slate-600/10 shadow-lg p-4 flex flex-col items-center justify-center">
       <div
         className={`
           mb-2 inline-flex items-center justify-center rounded-full px-2.5 py-1
           text-[11px] font-semibold tracking-wide uppercase
-          bg-gradient-to-r ${accent} text-slate-950
+          bg-gradient-to-r ${accent} text-white
         `}
       >
         {label}
       </div>
-      <div className="text-2xl font-bold text-white">{value}</div>
+      <div className="text-2xl font-bold text-black">{value}</div>
     </div>
   );
 }

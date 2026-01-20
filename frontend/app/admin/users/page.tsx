@@ -62,19 +62,19 @@ export default function AdminUsersPage() {
       <div className="max-w-6xl mx-auto space-y-6">
         {/* Header */}
         <header className="flex flex-col gap-1">
-          <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-slate-50">
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-600">
             User Management
           </h1>
-          <p className="text-sm md:text-[15px] text-slate-400">
+          <p className="text-sm md:text-[15px] text-slate-500">
             View all users across tenants and manage their roles and permissions.
           </p>
         </header>
 
         {/* Table card */}
-        <section className="rounded-2xl border border-slate-800 bg-slate-900/80 shadow-[0_18px_45px_rgba(15,23,42,0.35)]">
+        <section className="rounded-2xl border border-slate-600/10 bg-white/20 shadow-[0_18px_45px_rgba(15,23,42,0.35)]">
           <div className="px-4 pt-4 md:px-6 md:pt-6 flex items-center justify-between">
             <div>
-              <h2 className="text-sm font-semibold text-slate-100">
+              <h2 className="text-sm font-semibold text-slate-600">
                 Users ({users.length})
               </h2>
               <p className="text-xs text-slate-500">
@@ -87,14 +87,14 @@ export default function AdminUsersPage() {
           <div className="mt-4 overflow-x-auto">
             <table className="min-w-full text-sm border-collapse">
               <thead>
-                <tr className="bg-slate-950/60 border-b border-slate-800">
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
+                <tr className="bg-white/60 border-b border-slate-600/10">
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
                     Email
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
                     Roles
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
                     Actions
                   </th>
                 </tr>
@@ -105,11 +105,11 @@ export default function AdminUsersPage() {
                     key={user._id}
                     className={
                       idx % 2 === 0
-                        ? "border-t border-slate-800/80 bg-slate-900/60"
-                        : "border-t border-slate-800/80 bg-slate-900/40"
+                        ? "border-t border-slate-600/10 bg-white/60"
+                        : "border-t border-slate-600/10 bg-white/40"
                     }
                   >
-                    <td className="px-4 py-3 align-top text-slate-100 text-xs md:text-sm break-all">
+                    <td className="px-4 py-3 align-top text-slate-600 text-xs md:text-sm break-all">
                       {user.email}
                     </td>
                     <td className="px-4 py-3 align-top">
@@ -162,15 +162,15 @@ function RoleEditor({
               inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium
               ${
                 isChecked
-                  ? "border-[#f97316]/80 bg-[#f97316]/10 text-[#fed7aa]"
-                  : "border-slate-700 bg-slate-950/40 text-slate-300"
+                  ? "border-[#f97316]/80 bg-[#f97316]/10 text-[#ffc684]"
+                  : "border-slate-600/10 bg-white/40 text-slate-500"
               }
               cursor-pointer transition
             `}
           >
             <input
               type="checkbox"
-              className="h-3.5 w-3.5 rounded border-slate-600 bg-slate-900 text-[#f97316] focus:ring-0"
+              className="h-3.5 w-3.5 rounded border-slate-600/10 bg-white-20 text-[#f97316] focus:ring-0"
               checked={isChecked}
               onChange={(e) => {
                 const updated = e.target.checked

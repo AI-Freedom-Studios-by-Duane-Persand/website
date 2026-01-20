@@ -93,10 +93,10 @@ export default function AdminBrandingPage() {
     <main>
       {/* PAGE HEADER */}
       <header className="text-center mb-10 mt-20">
-        <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight">
+        <h1 className="text-3xl md:text-4xl font-bold tracking-tight">
           Branding Settings
         </h1>
-        <p className="text-slate-400 mt-2">
+        <p className="text-slate-600 mt-2">
           Upload and customize your platform’s logo & favicon
         </p>
       </header>
@@ -115,15 +115,15 @@ export default function AdminBrandingPage() {
         )}
 
         {/* CURRENT BRANDING */}
-        <section className="rounded-2xl border border-slate-800 bg-slate-900/50 shadow-xl p-6 md:p-8">
-          <h2 className="text-xl font-semibold text-white mb-4">
+        <section className="rounded-2xl border border-slate-600/10 bg-white/20 shadow-xl p-6 md:p-8">
+          <h2 className="text-xl font-semibold text-slate-600 mb-4">
             Current Branding
           </h2>
 
           <div className="space-y-6">
             {/* Logo */}
             <div>
-              <div className="text-slate-300 mb-2 font-medium">Logo</div>
+              <div className="text-slate-600 mb-2 font-medium">Logo</div>
               {branding.logoUrl ? (
                 <img
                   src={branding.logoUrl}
@@ -131,13 +131,13 @@ export default function AdminBrandingPage() {
                   className="max-h-16 rounded-lg bg-slate-800 p-2 shadow"
                 />
               ) : (
-                <div className="text-slate-500 text-sm">No logo uploaded</div>
+                <div className="text-slate-300 text-sm">No logo uploaded</div>
               )}
             </div>
 
             {/* Favicon */}
             <div>
-              <div className="text-slate-300 mb-2 font-medium">Favicon</div>
+              <div className="text-slate-600 mb-2 font-medium">Favicon</div>
               {branding.faviconUrl ? (
                 <img
                   src={branding.faviconUrl}
@@ -154,11 +154,11 @@ export default function AdminBrandingPage() {
         {/* UPLOAD FORM */}
         <form
           onSubmit={handleUpload}
-          className="rounded-2xl border border-slate-800 bg-slate-900/50 shadow-xl p-6 md:p-8 space-y-8"
+          className="rounded-2xl border border-slate-600/10 bg-white/20 shadow-xl p-6 md:p-8 space-y-8"
         >
           {/* Logo Upload */}
           <div>
-            <label className="block text-sm font-semibold text-slate-200 mb-2">
+            <label className="block text-sm font-semibold text-slate-600 mb-2">
               Upload Logo (SVG/PNG)
             </label>
             <input
@@ -167,7 +167,7 @@ export default function AdminBrandingPage() {
               accept="image/svg+xml,image/png"
               onChange={handleLogoChange}
               className="
-                w-full text-sm text-slate-300
+                w-full text-sm text-slate-400
                 file:mr-4 file:py-2 file:px-4
                 file:rounded-full file:border-0
                 file:text-sm file:font-semibold
@@ -186,7 +186,7 @@ export default function AdminBrandingPage() {
 
           {/* Favicon Upload */}
           <div>
-            <label className="block text-sm font-semibold text-slate-200 mb-2">
+            <label className="block text-sm font-semibold text-slate-600 mb-2">
               Upload Favicon (32x32 PNG/SVG/ICO)
             </label>
             <input
@@ -195,7 +195,7 @@ export default function AdminBrandingPage() {
               accept="image/png,image/x-icon,image/svg+xml"
               onChange={handleFaviconChange}
               className="
-                w-full text-sm text-slate-300
+                w-full text-sm text-slate-400
                 file:mr-4 file:py-2 file:px-4
                 file:rounded-full file:border-0
                 file:text-sm file:font-semibold

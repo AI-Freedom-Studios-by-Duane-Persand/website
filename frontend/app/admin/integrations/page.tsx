@@ -133,7 +133,7 @@ export default function AdminIntegrationsPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-[#0f172a] via-[#020617] to-[#020617] text-white px-4 py-10">
+    <main className="min-h-screen bg-white/20 text-white px-4 py-10">
       <Toaster position="top-right" />
 
       {/* PAGE HEADER */}
@@ -141,18 +141,18 @@ export default function AdminIntegrationsPage() {
         <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-[#ef4444] via-[#f97316] to-[#2563eb] shadow-lg mb-3">
           <span className="text-xl font-extrabold">I</span>
         </div>
-        <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight">
+        <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-black">
           Integrations
         </h1>
-        <p className="text-slate-400 mt-2">
+        <p className="text-slate-600 mt-2">
           Manage API service connections, scopes, and encrypted configs.
         </p>
       </header>
 
       <div className="max-w-4xl mx-auto space-y-10">
         {/* R2 CONFIG SECTION */}
-        <section className="rounded-2xl border border-slate-800 bg-slate-900/60 shadow-xl p-6 md:p-8 space-y-6">
-          <h2 className="text-xl font-semibold text-white">Cloudflare R2 Storage Config</h2>
+        <section className="rounded-2xl border border-slate-600/10 bg-white/20 shadow-xl p-6 md:p-8 space-y-6">
+          <h2 className="text-xl font-semibold text-slate-600">Cloudflare R2 Storage Config</h2>
           {r2Loading ? (
             <p className="text-slate-400 text-sm mt-2">Loading R2 config…</p>
           ) : (
@@ -161,7 +161,7 @@ export default function AdminIntegrationsPage() {
                 value={r2Edit}
                 onChange={(e) => setR2Edit(e.target.value)}
                 rows={8}
-                className="w-full rounded-lg bg-slate-900 border border-slate-700 text-sm px-3 py-2 text-slate-200 placeholder:text-slate-500 focus:ring-[#f97316] focus:border-transparent font-mono"
+                className="w-full rounded-lg bg-white/40 border border-slate-600/10 text-sm px-3 py-2 text-slate-200 placeholder:text-slate-500 focus:ring-[#f97316] focus:border-transparent font-mono"
                 placeholder="R2 config as JSON"
                 required
               />
@@ -176,7 +176,7 @@ export default function AdminIntegrationsPage() {
                 <button
                   type="button"
                   onClick={() => setR2Edit(r2Config)}
-                  className="px-4 py-2 rounded-lg text-sm font-semibold text-white bg-slate-700 hover:bg-slate-800 shadow"
+                  className="px-4 py-2 rounded-lg text-sm font-semibold text-slate-600 border-slate-600/10 bg-white/40 hover:bg-white/60 shadow"
                   disabled={r2Saving}
                 >
                   Reset
@@ -195,9 +195,9 @@ export default function AdminIntegrationsPage() {
         {/* CREATE NEW INTEGRATION */}
         <form
           onSubmit={handleCreateIntegration}
-          className="rounded-2xl border border-slate-800 bg-slate-900/60 shadow-xl p-6 md:p-8 space-y-6"
+          className="rounded-2xl border border-slate-600/10 bg-white/20 shadow-xl p-6 md:p-8 space-y-6"
         >
-          <h2 className="text-xl font-semibold text-white">Add New Integration</h2>
+          <h2 className="text-xl font-semibold text-slate-600">Add New Integration</h2>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <input
@@ -206,7 +206,7 @@ export default function AdminIntegrationsPage() {
               value={newService}
               onChange={(e) => setNewService(e.target.value)}
               required
-              className="rounded-lg bg-slate-900 border border-slate-700 text-sm px-3 py-2 text-slate-200 placeholder:text-slate-500 focus:ring-[#f97316] focus:border-transparent"
+              className="rounded-lg bg-white/40 border border-slate-600/10 text-sm px-3 py-2 text-slate-600 placeholder:text-slate-400 focus:ring-[#f97316] focus:border-transparent"
             />
             <input
               type="text"
@@ -214,7 +214,7 @@ export default function AdminIntegrationsPage() {
               value={newScope}
               onChange={(e) => setNewScope(e.target.value)}
               required
-              className="rounded-lg bg-slate-900 border border-slate-700 text-sm px-3 py-2 text-slate-200 placeholder:text-slate-500 focus:ring-[#f97316] focus:border-transparent"
+              className="rounded-lg bg-white/40 border border-slate-600/10 text-sm px-3 py-2 text-slate-600 placeholder:text-slate-400 focus:ring-[#f97316] focus:border-transparent"
             />
             <input
               type="text"
@@ -222,7 +222,7 @@ export default function AdminIntegrationsPage() {
               value={newConfig}
               onChange={(e) => setNewConfig(e.target.value)}
               required
-              className="rounded-lg bg-slate-900 border border-slate-700 text-sm px-3 py-2 text-slate-200 placeholder:text-slate-500 focus:ring-[#f97316] focus:border-transparent"
+              className="rounded-lg bg-white/40 border border-slate-600/10 text-sm px-3 py-2 text-slate-600 placeholder:text-slate-400 focus:ring-[#f97316] focus:border-transparent"
             />
           </div>
 
@@ -247,11 +247,11 @@ export default function AdminIntegrationsPage() {
             integrations.map((i) => (
               <div
                 key={i._id}
-                className="rounded-2xl border border-slate-800 bg-slate-900/70 shadow-xl p-6 md:p-8 flex flex-col md:flex-row justify-between gap-6"
+                className="rounded-2xl border border-slate-600/10 bg-white/20 shadow-xl p-6 md:p-8 flex flex-col md:flex-row justify-between gap-6"
               >
                 {/* LEFT */}
                 <div className="space-y-1">
-                  <h3 className="text-lg font-bold text-white">{i.service}</h3>
+                  <h3 className="text-lg font-bold text-slate-600">{i.service}</h3>
                   <p className="text-sm text-slate-400">
                     Scope: <span className="font-medium">{i.scope}</span>
                   </p>
@@ -272,7 +272,7 @@ export default function AdminIntegrationsPage() {
                     onChange={(e) =>
                       setEditConfig((c) => ({ ...c, [i._id]: e.target.value }))
                     }
-                    className="rounded-lg bg-slate-900 border border-slate-700 text-sm px-3 py-2 text-slate-200 placeholder:text-slate-500 focus:ring-[#2563eb] focus:border-transparent w-60"
+                    className="rounded-lg bg-white/40 border border-slate-600/10 text-sm px-3 py-2 text-slate-600 placeholder:text-slate-400 focus:ring-[#2563eb] focus:border-transparent w-60"
                   />
 
                   <button

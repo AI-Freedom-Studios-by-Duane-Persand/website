@@ -117,14 +117,14 @@ export default function AdminTenantsPage() {
 
       <div className="mt-20 max-w-7xl mx-auto px-4">
         {user && (user.role === "admin" || user.role === "superadmin") ? (
-          <div className="rounded-2xl bg-slate-900/80 backdrop-blur border border-slate-800 shadow-xl p-6">
+          <div className="rounded-2xl bg-white/20 backdrop-blur border border-slate-600/10 shadow-xl p-6">
 
             {/* Header */}
             <div className="mb-6">
-              <h1 className="text-2xl font-semibold text-slate-100">
+              <h1 className="text-2xl font-semibold text-slate-600">
                 Tenants
               </h1>
-              <p className="text-sm text-slate-400">
+              <p className="text-sm text-slate-500">
                 Manage tenants, subscriptions, and access
               </p>
             </div>
@@ -151,17 +151,17 @@ export default function AdminTenantsPage() {
               className="
                 w-full mb-6 px-4 py-2
                 rounded-lg
-                bg-slate-800/80
-                text-slate-200
-                placeholder:text-slate-500
-                border border-slate-700
+                bg-white/60
+                text-slate-500
+                placeholder:text-slate-400
+                border border-slate-600/10
                 focus:outline-none focus:ring-2 focus:ring-blue-500
               "
             />
 
             {/* Content */}
             {loading ? (
-             <Loader/>
+             <p className=""></p>
             ) : (
               <div className="space-y-4">
                 {tenants
@@ -174,16 +174,16 @@ export default function AdminTenantsPage() {
                       key={t._id}
                       className="
                         rounded-xl
-                        bg-slate-800/60
-                        border border-slate-700
+                        bg-white/40
+                        border border-slate-600/10
                         p-5
                         flex items-center justify-between
-                        hover:bg-slate-800/80 transition
+                        hover:bg-white/60 transition
                       "
                     >
                       {/* Left */}
                       <div className="space-y-1">
-                        <div className="text-lg font-semibold text-slate-100">
+                        <div className="text-lg font-semibold text-slate-600">
                           {t.name}
                         </div>
                         {/* This data is not available currently. */}
@@ -193,10 +193,10 @@ export default function AdminTenantsPage() {
                         <div className="text-sm text-slate-400">
                           Plan: <b>{t.planId}</b>
                         </div> */}
-                        <div className="text-sm text-slate-400">
+                        <div className="text-sm text-slate-500">
                           Owner: <b>{t.ownerEmail}</b>
                         </div>
-                         <div className="text-sm text-slate-400">
+                         <div className="text-sm text-slate-500">
                           Status: <b><span
                           className={`inline-block mt-2 px-3 py-1 rounded-full text-xs font-medium
                             ${t.subscriptionStatus === "active"
@@ -238,8 +238,8 @@ export default function AdminTenantsPage() {
                             }
                             className="
                               w-28 px-3 py-1.5 rounded-md
-                              bg-slate-700 text-slate-200
-                              border border-slate-600
+                              bg-white/40 text-slate-600
+                              border border-slate-600/10
                               focus:outline-none focus:ring-1 focus:ring-blue-500
                             "
                           />
@@ -254,7 +254,7 @@ export default function AdminTenantsPage() {
                             }
                             className="
                               px-3 py-1.5 rounded-md
-                              bg-slate-700 text-slate-200
+                              bg-white/40 text-slate-600
                               border border-slate-600
                               focus:outline-none focus:ring-1 focus:ring-blue-500
                             "

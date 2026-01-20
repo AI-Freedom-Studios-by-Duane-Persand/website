@@ -99,7 +99,7 @@ export default function AdminSubscriptionsPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-[#0f172a] via-[#020617] to-black text-white px-6 py-12">
+    <main className="min-h-screen bg-white/20 text-white px-6 py-12">
       <Toaster />
 
       {/* Header */}
@@ -107,7 +107,7 @@ export default function AdminSubscriptionsPage() {
         <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-[#2563eb] via-[#f97316] to-[#ef4444] shadow-xl mb-3">
           <span className="font-extrabold text-xl">S</span>
         </div>
-        <h1 className="text-3xl md:text-4xl font-extrabold">Subscriptions</h1>
+        <h1 className="text-3xl md:text-4xl font-bold text-slate-600">Subscriptions</h1>
         <p className="text-slate-400 mt-2">Manage customer plans and billing history</p>
       </header>
 
@@ -123,10 +123,10 @@ export default function AdminSubscriptionsPage() {
         {loading ? (
           <p className="text-slate-400 text-center">Loading subscriptions…</p>
         ) : (
-          <div className="overflow-x-auto rounded-2xl border border-slate-800 bg-slate-900/40 shadow-xl">
+          <div className="overflow-x-auto rounded-2xl border border-slate-600/10 bg-white/40 shadow-xl">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-slate-800/50 text-slate-300 text-left">
+                <tr className="bg-white/50 text-slate-600 text-left ">
                   <th className="p-3">Tenant</th>
                   <th className="p-3">Plan</th>
                   <th className="p-3">Status</th>
@@ -141,7 +141,7 @@ export default function AdminSubscriptionsPage() {
                 {subscriptions.map((sub) => (
                   <tr
                     key={sub._id}
-                    className="border-t border-slate-800 hover:bg-slate-800/30 transition"
+                    className="border-t border-slate-600/10 hover:bg-white/60 transition"
                   >
                     <td className="p-3">{sub.tenantId}</td>
                     <td className="p-3">{sub.planId}</td>
@@ -189,7 +189,7 @@ export default function AdminSubscriptionsPage() {
 
         {/* Edit Panel */}
         {editId && (
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/60 shadow-xl p-6">
+          <div className="rounded-2xl border border-slate-600/10 bg-white/20 shadow-xl p-6">
             <h2 className="text-xl font-semibold mb-4">Edit Subscription</h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -258,8 +258,8 @@ export default function AdminSubscriptionsPage() {
         )}
 
         {/* Create Panel */}
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/60 shadow-xl p-6">
-          <h2 className="text-xl font-semibold mb-4">Create Subscription</h2>
+        <div className="rounded-2xl border border-slate-600/10 bg-white/20 shadow-xl p-6">
+          <h2 className="text-xl font-semibold mb-4 text-slate-600">Create Subscription</h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
@@ -337,13 +337,13 @@ function InputField({
   options?: { label: string; value: string }[];
 }) {
   return (
-    <label className="block text-sm font-medium text-slate-300">
+    <label className="block text-sm font-medium text-slate-600">
       {label}
       {options ? (
         <select
           value={value}
           onChange={e => onChange(e.target.value)}
-          className="mt-1 w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-slate-200 focus:ring-[#f97316] focus:border-transparent"
+          className="mt-1 w-full rounded-lg bg-white/40 border border-slate-600/10 px-3 py-2 text-sm text-slate-600 focus:ring-[#f97316] focus:border-transparent"
         >
           <option value="">Select {label}</option>
           {options.map(opt => (
@@ -355,7 +355,7 @@ function InputField({
           type={type}
           value={value}
           onChange={e => onChange(e.target.value)}
-          className="mt-1 w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-slate-200 focus:ring-[#f97316] focus:border-transparent"
+          className="mt-1 w-full rounded-lg bg-white/40 border border-slate-600/10 px-3 py-2 text-sm text-slate-600 focus:ring-[#f97316] focus:border-transparent"
         />
       )}
     </label>
