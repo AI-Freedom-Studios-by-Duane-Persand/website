@@ -73,14 +73,14 @@ const subLabel = useMemo(() => {
   return (
     <EarlyAccessGate hasAccess={hasEarlyAccess}>
       <SubscriptionGate>
-      <main className="min-h-screen bg-gradient-to-br from-[#0c1f24] via-[#0a262b] to-[#0f2e35] pt-24 pb-16 px-4">
+      <main className="min-h-screen bg-gradient-to-r from-[#ef4444]/15 via-[#f97316]/12 to-[#2563eb]/15  pt-24 pb-16 px-4">
         <div className="max-w-6xl mx-auto space-y-8">
           {/* Page header */}
         <header className="text-white">
-          <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">
+          <h1 className="text-2xl md:text-3xl font-bold text-black tracking-tight">
             Welcome to your studio
           </h1>
-          <p className="mt-1 text-sm text-slate-300">
+          <p className="mt-1 text-sm text-slate-600">
             Manage campaigns, creatives, and billing from one place.
           </p>
         </header>
@@ -96,7 +96,7 @@ const subLabel = useMemo(() => {
         )}
 
         {/* User row (single-line / compact) */}
-        <section className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur shadow-xl overflow-hidden">
+        <section className="rounded-2xl border border-slate-600/10 bg-white/20 backdrop-blur shadow-xl overflow-hidden">
           <div className="px-5 py-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
               <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-[#ef4444] via-[#f97316] to-[#2563eb] flex items-center justify-center text-white font-extrabold shadow-sm">
@@ -104,16 +104,16 @@ const subLabel = useMemo(() => {
               </div>
 
               <div className="min-w-0">
-                <div className="text-xs text-slate-300">Signed in as</div>
-                <div className="text-sm md:text-base font-semibold text-white truncate">
+                <div className="text-xs text-slate-600">Signed in as</div>
+                <div className="text-sm md:text-base font-semibold text-black truncate">
                   {loading ? "Loading…" : emailLabel}
                 </div>
               </div>
             </div>
 
             <div className="flex flex-wrap items-center gap-2 md:justify-end">
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border border-white/10 bg-white/5 text-slate-200">
-                Role: <span className="ml-1 text-white">{loading ? "…" : roleLabel}</span>
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border border-white/10 bg-white/60 text-slate-600">
+                Role: <span className="ml-1 text-black">{loading ? "…" : roleLabel}</span>
               </span>
 
               <span
@@ -126,7 +126,7 @@ const subLabel = useMemo(() => {
                 <span className="ml-1 font-extrabold">{loading ? "…" : subLabel}</span>
               </span>
 
-              <span className="hidden sm:inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border border-white/10 bg-white/5 text-slate-200">
+              <span className="hidden sm:inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border border-white/10 bg-white/60 text-slate-600">
                 Studio
               </span>
             </div>

@@ -100,7 +100,7 @@ export default function SocialConnectionsCard({
 
   return (
     <div
-      className={`relative overflow-hidden rounded-3xl border border-white/10 bg-white/5 backdrop-blur shadow-2xl ${
+      className={`relative overflow-hidden rounded-3xl border border-slate-600/10 bg-white/20 backdrop-blur shadow-2xl ${
         compact ? "p-4" : "p-6 md:p-8"
       }`}
     >
@@ -108,12 +108,12 @@ export default function SocialConnectionsCard({
       <div className="relative space-y-4">
         <div className="flex items-start justify-between gap-3 flex-col sm:flex-row">
           <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-semibold text-slate-200">
+            <div className="inline-flex items-center gap-2 rounded-full border border-slate-600/10 bg-white/20 px-3 py-1 text-[11px] font-semibold text-slate-600">
               <span className="h-2 w-2 rounded-full bg-gradient-to-r from-[#ef4444] via-[#f97316] to-[#2563eb]" />
               Social Connections
             </div>
-            <h3 className="mt-2 text-lg md:text-xl font-extrabold text-white tracking-tight">{title}</h3>
-            <p className="text-sm text-slate-300 max-w-2xl">{subtitle}</p>
+            <h3 className="mt-2 text-lg md:text-xl font-bold text-black tracking-tight">{title}</h3>
+            <p className="text-sm text-slate-600 max-w-2xl">{subtitle}</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <button
@@ -127,7 +127,7 @@ export default function SocialConnectionsCard({
             <button
               type="button"
               onClick={fetchProfiles}
-              className="inline-flex items-center justify-center px-3 py-2 rounded-2xl text-xs font-semibold border border-white/10 bg-white/5 text-slate-200 hover:border-white/20 transition"
+              className="inline-flex items-center justify-center px-3 py-2 rounded-2xl text-xs font-semibold border border-slate-600/10 bg-white/20 text-slate-600 hover:border-white/20 transition"
             >
               Refresh
             </button>
@@ -135,7 +135,7 @@ export default function SocialConnectionsCard({
         </div>
 
         {error && (
-          <div className="rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-100">
+          <div className="rounded-2xl border border-red-500/50 bg-red-500/10 px-4 py-3 text-sm text-red-400">
             {error}
           </div>
         )}
@@ -149,7 +149,7 @@ export default function SocialConnectionsCard({
                 className={`rounded-2xl border px-3 py-3 text-center shadow-lg backdrop-blur transition ${
                   connected
                     ? "border-emerald-400/30 bg-emerald-400/10"
-                    : "border-white/10 bg-white/5"
+                    : "border-slate-600/10 bg-white/40"
                 }`}
               >
                 <div
@@ -157,7 +157,7 @@ export default function SocialConnectionsCard({
                 >
                   {platform.label.substring(0, 2)}
                 </div>
-                <div className="mt-2 text-sm font-semibold text-white">{platform.label}</div>
+                <div className="mt-2 text-sm font-semibold text-black/80">{platform.label}</div>
                 <div className={`text-xs ${connected ? "text-emerald-200" : "text-slate-400"}`}>
                   {connected ? "Connected" : "Not connected"}
                 </div>
@@ -166,9 +166,9 @@ export default function SocialConnectionsCard({
           })}
         </div>
 
-        <div className="rounded-2xl border border-white/10 bg-slate-950/40 p-4 space-y-2 text-sm text-slate-200">
-          <div className="font-semibold text-white">How it works</div>
-          <ol className="list-decimal list-inside space-y-1 text-xs text-slate-300">
+        <div className="rounded-2xl border border-slate-600/10 bg-white/40 p-4 space-y-2 text-sm text-slate-600">
+          <div className="font-semibold text-black">How it works</div>
+          <ol className="list-decimal list-inside space-y-1 text-xs text-slate-600">
             <li>Click "Connect accounts" to launch the secure Ayrshare connection flow.</li>
             <li>Sign in to your social platforms and approve access.</li>
             <li>Return here and hit Refresh to see your connected status.</li>

@@ -47,7 +47,7 @@ export default function LoginPage() {
     document.cookie = `auth_token=${token}; path=/; SameSite=Lax;`;
 
     const payload = apiClient.parseToken();
-     console.log(payload)
+
     const role = payload?.role;
     const roles = Array.isArray(payload?.roles)
       ? payload?.roles
