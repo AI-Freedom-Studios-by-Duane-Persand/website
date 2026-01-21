@@ -1,5 +1,5 @@
 "use client";
-import './Loader.css';
+import './loader.css';
 export default (()=>{
     return (<>
    <div className="flex min-h-screen  items-center justify-center">
