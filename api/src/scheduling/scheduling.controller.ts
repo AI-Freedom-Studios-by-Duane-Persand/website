@@ -30,6 +30,7 @@ export class SchedulingController {
   async scheduleCreative(@Body() body: { creativeId: string; platforms: string[]; scheduledAt: string; publisher: string }, @Req() req: import('express').Request) {
     return this.schedulingService.scheduleCreative({
       tenantId: (req.user && 'tenantId' in req.user) ? (req.user as UserJwt).tenantId : undefined,
+      userId: (req.user && 'userId' in req.user) ? (req.user as UserJwt).userId : undefined,
       creativeId: body.creativeId,
       platforms: body.platforms,
       scheduledAt: new Date(body.scheduledAt),

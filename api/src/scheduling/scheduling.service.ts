@@ -45,9 +45,10 @@ export class SchedulingService {
       .lean();
   }
 
-  async scheduleCreative({ tenantId, creativeId, platforms, scheduledAt, publisher }: any) {
+  async scheduleCreative({ tenantId, userId, creativeId, platforms, scheduledAt, publisher }: any) {
     return this.scheduledItemModel.create({
       tenantId,
+      userId,
       creativeId,
       platform: platforms[0], // for simplicity, one per item
       channelType: 'organic',
@@ -76,6 +77,7 @@ export class SchedulingService {
         
         const result = await publisher.publishOrganicPost({
           tenantId: item.tenantId,
+          userId: item.userId,
           creative: creative as any,
           platforms: [item.platform],
         });

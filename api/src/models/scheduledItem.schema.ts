@@ -3,6 +3,7 @@ import { Schema, Document, model, Types } from 'mongoose';
 
 export interface ScheduledItemDocument extends Document {
   tenantId: Types.ObjectId;
+  userId: Types.ObjectId;
   creativeId: Types.ObjectId;
   platform: string;
   channelType: 'organic' | 'ad';
@@ -17,6 +18,7 @@ export interface ScheduledItemDocument extends Document {
 
 export const ScheduledItemSchema = new Schema<ScheduledItemDocument>({
   tenantId: { type: Schema.Types.ObjectId, ref: 'Tenant', required: true },
+  userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
   creativeId: { type: Schema.Types.ObjectId, ref: 'Creative', required: true },
   platform: { type: String, required: true },
   channelType: { type: String, enum: ['organic', 'ad'], required: true },

@@ -21,19 +21,16 @@ export class MetaDirectPublisher implements SocialPublisher {
 
   async publishOrganicPost(args: {
     tenantId: ObjectId;
+    userId: ObjectId;
     creative: CreativeDocument;
     platforms: string[];
   }): Promise<{ platformIds: Record<string, string> }> {
     const { creative, platforms } = args;
     const platformIds: Record<string, string> = {};
 
-    // Get user's connected accounts (assuming userId from creative or tenantId)
-    const userId = creative.userId?.toString();
+    // Get user's connected accounts from the passed userId
+    const userId = args.userId.toString();
     const tenantId = args.tenantId.toString();
-
-    if (!userId) {
-      throw new Error('User ID not found on creative');
-    }
 
     const accounts = await this.accountsManager.getUserAccounts(userId, tenantId);
 

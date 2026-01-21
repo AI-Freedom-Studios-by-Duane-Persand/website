@@ -11,6 +11,7 @@ export class AyrsharePublisher implements SocialPublisher {
 
   async publishOrganicPost(args: {
     tenantId: any;
+    userId?: any;
     creative: CreativeDocument;
     platforms: string[];
   }): Promise<{ platformIds: Record<string, string> }> {
