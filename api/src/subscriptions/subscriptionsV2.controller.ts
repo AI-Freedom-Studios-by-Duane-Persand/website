@@ -44,6 +44,11 @@ export class SubscriptionsController {
     return userId;
   }
 
+  @Get('packages')
+  async listPackages() {
+    return this.packageModel.find({ active: true }).lean();
+  }
+
   @UseGuards(JwtAuthGuard)
   @Get('subscription-status')
   async getSubscriptionStatus(@Req() req: { user: UserJwt }) {
