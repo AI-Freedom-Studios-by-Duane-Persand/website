@@ -47,12 +47,31 @@ export default function SocialConnectionsCard({
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/social-accounts/profiles`, {
+      const res = await fetch(`${API_BASE_URL}/api/social-accounts-manager/accounts`, {
         headers: { ...getAuthHeaders() },
       });
-      if (!res.ok) throw new Error(`Failed to fetch profiles (${res.status})`);
-      const data = await res.json();
-      setProfiles(Array.isArray(data) ? data : data?.profiles || []);
+      if (!res.ok) throw new Error(`Failed to fetch accounts (${res.status})`);
+      const accounts = await res.json();
+      
+      // Transform to Ayrshare-like profile format for compatibility
+      const profileMap = new Map<string, Set<string>>();
+      
+      accounts.forEach((acc: any) => {
+        const key = acc.pageId || acc.instagramAccountId || 'default';
+        if (!profileMap.has(key)) {
+          profileMap.set(key, new Set());
+        }
+        profileMap.get(key)!.add(acc.platform);
+      });
+      
+      const transformed = Array.from(profileMap.entries()).map(([key, platforms]) => ({
+        profileKey: key,
+        platforms: Array.from(platforms),
+        activePlatforms: Array.from(platforms),
+        title: accounts.find((a: any) => (a.pageId || a.instagramAccountId) === key)?.pageName || key,
+      }));
+      
+      setProfiles(transformed);
     } catch (err: any) {
       setError(err?.message || "Unable to load connected accounts");
     } finally {

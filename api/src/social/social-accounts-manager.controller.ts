@@ -35,6 +35,35 @@ export class SocialAccountsManagerController {
   ) {}
 
   /**
+   * Get user's connected social accounts
+   */
+  @Get('accounts')
+  @UseGuards(AuthGuard('jwt'))
+  async getUserAccounts(@Req() req: any) {
+    const userId = req?.user?.userId ?? req?.user?.id;
+    const tenantId = req?.user?.tenantId;
+
+    if (!userId || !tenantId) {
+      throw new UnauthorizedException('User not authenticated');
+    }
+
+    const accounts = await this.accountsManager.getUserAccounts(userId, tenantId);
+    
+    // Map to frontend-friendly format
+    return accounts.map(acc => ({
+      _id: acc._id,
+      platform: acc.platform,
+      pageId: acc.pageId,
+      pageName: acc.pageName,
+      instagramAccountId: acc.instagramAccountId,
+      instagramUsername: acc.instagramUsername,
+      isActive: acc.isActive,
+      lastSyncedAt: acc.lastSyncedAt,
+      errorCount: acc.errorCount,
+    }));
+  }
+
+  /**
    * Save connected accounts after OAuth flow
    */
   @Post('connect')

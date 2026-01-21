@@ -46,7 +46,7 @@ function MetaOAuthCallbackContent() {
           throw new Error("Meta App credentials not configured");
         }
 
-        const tokenRes = await fetch(`${API_BASE_URL}/meta/auth/token`, {
+        const tokenRes = await fetch(`${API_BASE_URL}/api/meta/auth/token`, {
           method: "POST",
           headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
           body: JSON.stringify({ appId, appSecret, redirectUri, code }),

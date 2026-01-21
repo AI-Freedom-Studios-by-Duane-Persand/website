@@ -3,6 +3,7 @@ import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { AyrsharePublisher } from './social-publisher/ayrshare.publisher';
+import { MetaDirectPublisher } from './social-publisher/meta-direct.publisher';
 import { CreativeDocument } from '../creatives/schemas/creative.schema';
 import { ScheduledItemDocument } from '../models/scheduledItem.schema';
 
@@ -10,6 +11,7 @@ import { ScheduledItemDocument } from '../models/scheduledItem.schema';
 export class SchedulingService {
   constructor(
     private readonly ayrsharePublisher: AyrsharePublisher,
+    private readonly metaDirectPublisher: MetaDirectPublisher,
     @InjectModel('Creative') private readonly creativeModel: Model<CreativeDocument>,
     @InjectModel('ScheduledItem') private readonly scheduledItemModel: Model<ScheduledItemDocument>,
   ) {}
@@ -67,7 +69,12 @@ export class SchedulingService {
       const creative = await this.creativeModel.findById(item.creativeId);
       if (!creative) continue;
       try {
-        const result = await this.ayrsharePublisher.publishOrganicPost({
+        // Use MetaDirectPublisher for Facebook/Instagram, Ayrshare for others
+        const publisher = (item.platform === 'facebook' || item.platform === 'instagram')
+          ? this.metaDirectPublisher
+          : this.ayrsharePublisher;
+        
+        const result = await publisher.publishOrganicPost({
           tenantId: item.tenantId,
           creative: creative as any,
           platforms: [item.platform],
