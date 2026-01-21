@@ -17,7 +17,7 @@ export default function SocialAccounts() {
           <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Settings</p>
           <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">Social accounts</h1>
           <p className="text-sm text-slate-300">
-            Connect once and reuse across campaigns, publishing, and scheduling. Powered by Ayrshare.
+            Connect once and reuse across campaigns, publishing, and scheduling. Powered by Meta.
           </p>
         </header>
 

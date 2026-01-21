@@ -40,7 +40,8 @@ export class SocialAccountsManagerController {
   @Get('accounts')
   @UseGuards(AuthGuard('jwt'))
   async getUserAccounts(@Req() req: any) {
-    const userId = req?.user?.userId ?? req?.user?.id;
+    // JWT uses 'sub' for user ID (standard JWT claim)
+    const userId = req?.user?.sub ?? req?.user?.userId ?? req?.user?.id;
     const tenantId = req?.user?.tenantId;
 
     if (!userId || !tenantId) {

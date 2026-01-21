@@ -11,11 +11,18 @@ export type SocialConnectionsCardProps = {
   compact?: boolean;
 };
 
-type AyrshareProfile = {
-  profileKey: string;
-  platforms: string[];
-  activePlatforms?: string[];
-  title?: string;
+type SocialAccount = {
+  _id: string;
+  platform: string;
+  pageId?: string;
+  pageName?: string;
+  instagramAccountId?: string;
+  instagramUsername?: string;
+  isActive: boolean;
+};
+
+type ConnectedPlatforms = {
+  [platform: string]: SocialAccount[];
 };
 
 const platformConfig: { id: string; label: string; color: string }[] = [
@@ -29,49 +36,34 @@ const platformConfig: { id: string; label: string; color: string }[] = [
 
 export default function SocialConnectionsCard({
   title = "Connect your social accounts",
-  subtitle = "Publish faster by connecting once. We’ll reuse the connection across campaigns and scheduling.",
+  subtitle = "Publish faster by connecting once. We'll reuse the connection across campaigns and scheduling.",
   compact = false,
 }: SocialConnectionsCardProps) {
-  const [profiles, setProfiles] = useState<AyrshareProfile[]>([]);
+  const [accounts, setAccounts] = useState<SocialAccount[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(false);
 
   const activePlatforms = useMemo(() => {
     const platforms = new Set<string>();
-    profiles.forEach((p) => (p.activePlatforms || p.platforms || []).forEach((pl) => platforms.add(pl)));
+    accounts.forEach((acc) => {
+      if (acc.isActive) {
+        platforms.add(acc.platform);
+      }
+    });
     return platforms;
-  }, [profiles]);
+  }, [accounts]);
 
   const fetchProfiles = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/social-accounts-manager/accounts`, {
+      const res = await fetch(`${API_BASE_URL}/social-accounts-manager/accounts`, {
         headers: { ...getAuthHeaders() },
       });
       if (!res.ok) throw new Error(`Failed to fetch accounts (${res.status})`);
-      const accounts = await res.json();
-      
-      // Transform to Ayrshare-like profile format for compatibility
-      const profileMap = new Map<string, Set<string>>();
-      
-      accounts.forEach((acc: any) => {
-        const key = acc.pageId || acc.instagramAccountId || 'default';
-        if (!profileMap.has(key)) {
-          profileMap.set(key, new Set());
-        }
-        profileMap.get(key)!.add(acc.platform);
-      });
-      
-      const transformed = Array.from(profileMap.entries()).map(([key, platforms]) => ({
-        profileKey: key,
-        platforms: Array.from(platforms),
-        activePlatforms: Array.from(platforms),
-        title: accounts.find((a: any) => (a.pageId || a.instagramAccountId) === key)?.pageName || key,
-      }));
-      
-      setProfiles(transformed);
+      const data = await res.json();
+      setAccounts(Array.isArray(data) ? data : []);
     } catch (err: any) {
       setError(err?.message || "Unable to load connected accounts");
     } finally {
@@ -111,7 +103,6 @@ export default function SocialConnectionsCard({
       setConnecting(false);
     }
   }, []);
-
 
   useEffect(() => {
     fetchProfiles();
@@ -188,13 +179,13 @@ export default function SocialConnectionsCard({
         <div className="rounded-2xl border border-slate-600/10 bg-white/40 p-4 space-y-2 text-sm text-slate-600">
           <div className="font-semibold text-black">How it works</div>
           <ol className="list-decimal list-inside space-y-1 text-xs text-slate-600">
-            <li>Click "Connect accounts" to launch the secure Ayrshare connection flow.</li>
-            <li>Sign in to your social platforms and approve access.</li>
+            <li>Click "Connect accounts" to authenticate with Meta (Facebook/Instagram).</li>
+            <li>Sign in to your Meta account and approve access to your Pages and Instagram accounts.</li>
             <li>Return here and hit Refresh to see your connected status.</li>
           </ol>
           {loading && <div className="text-xs text-slate-400">Loading connections…</div>}
-          {!loading && profiles.length > 0 && (
-            <div className="text-xs text-emerald-200">{profiles.length} profile(s) detected.</div>
+          {!loading && accounts.length > 0 && (
+            <div className="text-xs text-emerald-200">{accounts.length} account(s) connected.</div>
           )}
         </div>
       </div>
