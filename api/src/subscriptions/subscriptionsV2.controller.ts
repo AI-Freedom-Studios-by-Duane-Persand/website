@@ -75,6 +75,15 @@ export class SubscriptionsController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Post()
+  async createSubscriptionDirect(
+    @Req() req: { user: UserJwt },
+    @Body() body: { packageId: string },
+  ) {
+    return this.createSubscription(req, body);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Post('create')
   async createSubscription(
     @Req() req: { user: UserJwt },
