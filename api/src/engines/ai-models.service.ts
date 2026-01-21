@@ -53,7 +53,7 @@ export class AIModelsService {
 
       // Route to appropriate provider based on env config
       const imageProvider = process.env.IMAGE_PROVIDER || 'replicate';
-      const videoProvider = process.env.VIDEO_PROVIDER || 'replicate';
+      const videoProvider = process.env.VIDEO_PROVIDER || 'poe';
 
       // Image generation - try Replicate first, fallback to Poe on rate limit
       if (engineType === 'image-generation' || engineType === 'creative-image') {
@@ -335,7 +335,7 @@ export class AIModelsService {
 
       if (contentType === 'image-generation' || contentType === 'creative-image') {
         // If IMAGE_PROVIDER is poe, use Poe; otherwise use Replicate
-        const imageProvider = process.env.IMAGE_PROVIDER || 'replicate';
+        const imageProvider = process.env.IMAGE_PROVIDER || 'poe';
         if (imageProvider === 'poe') {
           return await this.poeClient.generateContent('image-generation', input);
         } else {
@@ -364,7 +364,7 @@ export class AIModelsService {
       }
 
       if (contentType === 'video-generation' || contentType === 'creative-video') {
-        const videoProvider = process.env.VIDEO_PROVIDER || 'replicate';
+        const videoProvider = process.env.VIDEO_PROVIDER || 'poe';
         if (videoProvider === 'poe') {
           return await this.poeClient.generateContent('video-generation', input);
         } else {

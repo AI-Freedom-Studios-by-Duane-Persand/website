@@ -857,7 +857,7 @@ export class CreativesService {
       this.logger.log(`[generateActualVideo] Starting video generation for creative ${creativeId}`);
       
       // Determine video generation provider from env
-      const videoProvider = process.env.VIDEO_PROVIDER || 'replicate';
+      const videoProvider = process.env.VIDEO_PROVIDER || 'poe';
       this.logger.log(`[generateActualVideo] Using ${videoProvider} for video generation`);
       
       const duration = quality?.durationSeconds ?? 12;

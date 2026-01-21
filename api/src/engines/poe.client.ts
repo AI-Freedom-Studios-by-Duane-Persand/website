@@ -464,8 +464,8 @@ export class PoeClient {
       }
     }
 
-    // Use Video-Generator-PRO model for video generation
-    const videoModel = 'Video-Generator-PRO';
+    // Use configured Poe video model (default sora-2)
+    const videoModel = process.env.POE_VIDEO_MODEL || 'sora-2';
     
     this.logger.info(`[generateVideo] Using model: ${videoModel}`, {
       promptLength: videoPrompt.length,
