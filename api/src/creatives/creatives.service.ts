@@ -915,7 +915,13 @@ export class CreativesService {
         
         for (let attempt = 0; attempt < maxRetries; attempt++) {
           try {
-            response = await fetch(videoUrl, { signal: AbortSignal.timeout(30000) });
+            response = await fetch(videoUrl, {
+              signal: AbortSignal.timeout(30000),
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'Accept': '*/*',
+              },
+            });
             if (!response.ok) {
               throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
@@ -924,6 +930,7 @@ export class CreativesService {
             lastError = err;
             this.logger.warn(`[generateActualVideo] Fetch attempt ${attempt + 1}/${maxRetries} failed`, {
               error: err.message,
+              url: videoUrl.substring(0, 80),
             });
             if (attempt < maxRetries - 1) {
               const delay = Math.pow(2, attempt) * 1000; // 1s, 2s, 4s
@@ -933,6 +940,10 @@ export class CreativesService {
         }
 
         if (!response) {
+          this.logger.error(`[generateActualVideo] Failed to download video after ${maxRetries} attempts`, {
+            url: videoUrl.substring(0, 80),
+            error: lastError?.message,
+          });
           throw new Error(`Failed to download video after ${maxRetries} attempts: ${lastError?.message}`);
         }
 
