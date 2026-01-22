@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsArray, IsNumber, Min, Max } from 'class-validator';
+import { IsString, IsOptional, IsArray, IsNumber, IsIn } from 'class-validator';
 
 export class GenerateVideoWithReferenceDto {
   @IsString()
@@ -6,9 +6,8 @@ export class GenerateVideoWithReferenceDto {
 
   @IsOptional()
   @IsNumber()
-  @Min(5)
-  @Max(60)
-  duration?: number; // 5-60 seconds (Sora 2), auto-adjusted per model
+  @IsIn([4, 8, 12])
+  duration?: number; // Allowed: 4, 8, 12 seconds (Sora 2 API defaults to 4s)
 
   @IsOptional()
   @IsString()

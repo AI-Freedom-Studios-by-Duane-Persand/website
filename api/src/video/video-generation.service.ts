@@ -5,7 +5,7 @@ import { PoeClient } from '../engines/poe.client';
 
 export interface GenerateVideoWithReferenceDto {
   prompt: string;
-  duration?: number; // 5-60 seconds (Sora 2), auto-adjusted per model
+  duration?: number; // Allowed: 4, 8, 12 seconds (Sora 2), default 4
   model?: 'sora-2' | 'veo-3.1' | 'runway-gen3' | 'runway-gen2'; // Defaults to sora-2
   referenceImageUrls?: string[]; // Brand logo or reference images for style consistency
   referenceImageFiles?: Buffer[]; // Raw image buffers to upload first
@@ -51,10 +51,11 @@ export class VideoGenerationService {
       prompt: dto.prompt.substring(0, 100),
       model: dto.model || 'sora-2',
       referenceImageCount: (dto.referenceImageUrls?.length || 0) + (dto.referenceImageFiles?.length || 0),
-      duration: dto.duration,
+      duration: dto.duration ?? 4,
     });
 
     const model = dto.model || 'sora-2';
+    const duration = dto.duration ?? 4;
     let refinedPrompt = dto.prompt;
 
     // Step 1: Refine prompt with AI if requested
@@ -80,7 +81,7 @@ export class VideoGenerationService {
     let videoJson: string;
     try {
       videoJson = await this.replicateClient.generateVideoWithModel(model, refinedPrompt, {
-        durationSeconds: dto.duration || 5,
+        durationSeconds: duration,
         referenceImages: referenceUrls.length > 0 ? referenceUrls : undefined,
         aspectRatio: dto.aspectRatio,
       });
@@ -133,7 +134,7 @@ export class VideoGenerationService {
       prompt: dto.prompt,
       refinedPrompt: dto.refinementPrompt ? refinedPrompt : undefined,
       model,
-      duration: dto.duration || 6,
+      duration,
       referenceImages: referenceUrls.map(url => ({
         url,
         uploadedAt: new Date(),
@@ -226,7 +227,7 @@ Return ONLY the refined prompt text, no additional commentary.
         key: 'sora-2' as const,
         name: 'OpenAI Sora 2 Pro',
         description: 'Advanced video generation with style reference support',
-        durationRange: { min: 5, max: 60 },
+        durationRange: { min: 4, max: 12 },
         supportsReferenceImages: true,
         quality: 'highest' as const,
       },

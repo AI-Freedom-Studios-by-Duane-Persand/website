@@ -437,7 +437,8 @@ export class PoeClient {
   private async generateVideo(model: string, input: any): Promise<string> {
     const prompt = input.prompt || '';
     const script = input.script || {};
-    const duration = input.duration || 15;
+    const requestedDuration = Number(input.duration) || 4;
+    const duration = [4, 8, 12].includes(requestedDuration) ? requestedDuration : 4;
     const resolution = input.resolution || '1080p';
 
     const start = Date.now();
@@ -476,10 +477,16 @@ export class PoeClient {
         model: videoModel,
         messages: [
           {
+            role: 'system',
+            content: `You are a video generator. Always produce a ${duration}-second video at ${resolution} resolution.`,
+          },
+          {
             role: 'user',
             content: videoPrompt,
           },
         ],
+        // Include duration hint in payload for observability (provider may ignore but we log it)
+        metadata: { durationSeconds: duration, resolution },
       });
 
       const durationMs = Date.now() - start;

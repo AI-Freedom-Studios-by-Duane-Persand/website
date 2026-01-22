@@ -65,9 +65,12 @@ export class VideoGenerationController {
       throw new BadRequestException('Prompt is required');
     }
 
-    if (dto.duration && (dto.duration < 5 || dto.duration > 60)) {
-      throw new BadRequestException('Duration must be between 5 and 60 seconds (will be auto-adjusted per model)');
+    const requestedDuration = dto.duration ?? 4;
+    if (![4, 8, 12].includes(requestedDuration)) {
+      throw new BadRequestException('Duration must be one of 4, 8, or 12 seconds (Sora 2 API defaults to 4s).');
     }
+
+    dto.duration = requestedDuration;
 
     const result = await this.videoGenerationService.generateVideoWithReferences(dto);
 
