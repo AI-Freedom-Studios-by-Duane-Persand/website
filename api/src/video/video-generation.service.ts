@@ -5,7 +5,7 @@ import { PoeClient } from '../engines/poe.client';
 
 export interface GenerateVideoWithReferenceDto {
   prompt: string;
-  duration?: number; // Allowed: 4, 8, 12 seconds (Sora 2), default 4
+  duration?: number; // Allowed: Sora 2 = 4/8/12 (default 4); Kling = 5/10 (default 5)
   model?: 'sora-2' | 'veo-3.1' | 'runway-gen3' | 'runway-gen2'; // Defaults to sora-2
   referenceImageUrls?: string[]; // Brand logo or reference images for style consistency
   referenceImageFiles?: Buffer[]; // Raw image buffers to upload first
@@ -55,7 +55,7 @@ export class VideoGenerationService {
     });
 
     const model = dto.model || 'sora-2';
-    const duration = dto.duration ?? 4;
+    const duration = dto.duration ?? (model.includes('kling') ? 5 : 4);
     let refinedPrompt = dto.prompt;
 
     // Step 1: Refine prompt with AI if requested

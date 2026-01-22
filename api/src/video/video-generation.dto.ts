@@ -6,8 +6,8 @@ export class GenerateVideoWithReferenceDto {
 
   @IsOptional()
   @IsNumber()
-  @IsIn([4, 8, 12])
-  duration?: number; // Allowed: 4, 8, 12 seconds (Sora 2 API defaults to 4s)
+  @IsIn([4, 5, 8, 10, 12])
+  duration?: number; // Allowed: Sora 2 = 4/8/12 (default 4); Kling = 5/10 (default 5)
 
   @IsOptional()
   @IsString()

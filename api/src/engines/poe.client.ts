@@ -437,8 +437,11 @@ export class PoeClient {
   private async generateVideo(model: string, input: any): Promise<string> {
     const prompt = input.prompt || '';
     const script = input.script || {};
-    const requestedDuration = Number(input.duration) || 4;
-    const duration = [4, 8, 12].includes(requestedDuration) ? requestedDuration : 4;
+    const videoModel = process.env.POE_VIDEO_MODEL || 'sora-2';
+
+    const requestedDuration = Number(input.duration) || (videoModel.includes('kling') ? 5 : 4);
+    const allowedDurations = videoModel.includes('kling') ? [5, 10] : [4, 8, 12];
+    const duration = allowedDurations.includes(requestedDuration) ? requestedDuration : allowedDurations[0];
     const resolution = input.resolution || '1080p';
 
     const start = Date.now();
@@ -465,11 +468,9 @@ export class PoeClient {
       }
     }
 
-    // Use configured Poe video model (default sora-2)
-    const videoModel = process.env.POE_VIDEO_MODEL || 'sora-2';
-    
     this.logger.info(`[generateVideo] Using model: ${videoModel}`, {
       promptLength: videoPrompt.length,
+      duration,
     });
 
     try {
@@ -486,7 +487,7 @@ export class PoeClient {
           },
         ],
         // Include duration hint in payload for observability (provider may ignore but we log it)
-        metadata: { durationSeconds: duration, resolution },
+        metadata: { durationSeconds: duration, resolution, model: videoModel },
       });
 
       const durationMs = Date.now() - start;

@@ -65,9 +65,16 @@ export class VideoGenerationController {
       throw new BadRequestException('Prompt is required');
     }
 
-    const requestedDuration = dto.duration ?? 4;
-    if (![4, 8, 12].includes(requestedDuration)) {
-      throw new BadRequestException('Duration must be one of 4, 8, or 12 seconds (Sora 2 API defaults to 4s).');
+    const model = dto.model || 'sora-2';
+    const requestedDuration = dto.duration ?? (model.includes('kling') ? 5 : 4);
+    const allowedDurations = model.includes('kling') ? [5, 10] : [4, 8, 12];
+
+    if (!allowedDurations.includes(requestedDuration)) {
+      throw new BadRequestException(
+        model.includes('kling')
+          ? 'Duration must be 5 or 10 seconds for Kling (defaults to 5s).'
+          : 'Duration must be 4, 8, or 12 seconds for Sora (defaults to 4s).',
+      );
     }
 
     dto.duration = requestedDuration;
