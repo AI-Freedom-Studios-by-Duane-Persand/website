@@ -93,7 +93,15 @@ export default function SocialConnectionsCard({
       sessionStorage.setItem('meta_oauth_state', state);
       
       // Generate OAuth URL
-      const scope = 'pages_manage_posts,pages_manage_engagement,pages_read_engagement,instagram_basic,instagram_content_publish';
+     const scope = [
+  'pages_show_list',
+  'pages_read_engagement',
+  'pages_manage_posts',
+  'instagram_basic',
+  'instagram_content_publish',
+  'business_management',
+].join(',');
+
       const authUrl = `https://www.facebook.com/v24.0/dialog/oauth?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}&scope=${scope}&response_type=code`;
       
       // Redirect to Meta OAuth
