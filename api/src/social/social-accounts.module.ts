@@ -1,8 +1,5 @@
 ﻿import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { AyrshareService } from './ayrshare.service';
-import { SocialAccountsController } from './social-accounts.controller';
-import { SocialPublisher } from './social.publisher';
 import { MetaService } from './meta.service';
 import { MetaController } from './meta.controller';
 import { SocialAccountSchema } from '../models/social-account.schema';
@@ -17,20 +14,15 @@ import { EncryptionService } from '../common/encryption.service';
     ]),
   ],
   controllers: [
-    SocialAccountsController,
     MetaController,
     SocialAccountsManagerController,
   ],
   providers: [
-    AyrshareService,
-    SocialPublisher,
     MetaService,
     SocialAccountsManagerService,
     EncryptionService,
   ],
   exports: [
-    SocialPublisher,
-    AyrshareService,
     MetaService,
     SocialAccountsManagerService,
     EncryptionService,

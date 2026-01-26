@@ -5,7 +5,7 @@ import EarlyAccessGate from "../../components/EarlyAccessGate";
 import SubscriptionGate from "../../components/SubscriptionGate";
 import { useAuth } from "../../hooks/useAuth";
 import { parseJwt } from "../../../lib/parseJwt";
-import { VideoCreationWizard } from "../components/VideoCreationWizard";
+// import { VideoCreationWizard } from "../components/VideoCreationWizard";
 import { ModelPickerModal } from "../../components/ModelPickerModal";
 import { creativesApi } from "@/lib/api/creatives.api";
 import { storageApi } from "@/lib/api/storage.api";
@@ -281,27 +281,81 @@ export default function CreativesPage() {
           : 'Generating video… this may take up to a minute.'
       );
 
-      // Provide higher-quality defaults per media type
-      const qualityPayload = type === 'image'
-        ? {
-            model: 'nano-banana',
-              width: 1280,
-              height: 720,
-            negativePrompt: 'low quality, blurry, artifacts, watermark, distorted anatomy',
-            numInferenceSteps: 32,
-            guidanceScale: 8,
-            scheduler: 'DPM++ 2M',
-          }
-        : {
-            model: 'zeroscope',
-            durationSeconds: 12,
-            fps: 24,
-            negativePrompt: 'blurry, artifacts, watermark, choppy motion, distorted faces',
-            numInferenceSteps: 28,
-            guidanceScale: 7,
-          };
+      // Use V1 endpoints
+      const creative = creatives.find(c => c._id === creativeId);
+      if (!creative) {
+        throw new Error('Creative not found');
+      }
 
-      const res = await creativesApi.render(creativeId, qualityPayload);
+      const token = typeof window !== 'undefined' 
+        ? (localStorage.getItem('token') || localStorage.getItem('authToken') || localStorage.getItem('auth_token'))
+        : null;
+      
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+
+      const base64Url = token.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = decodeURIComponent(
+        atob(base64)
+          .split('')
+          .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+          .join('')
+      );
+      const parsed = JSON.parse(jsonPayload);
+      const tenantId = parsed.tenantId || parsed.tenant_id;
+
+      if (!tenantId) {
+        throw new Error('No tenantId found in token');
+      }
+
+      let prompt = '';
+      if (type === 'image' && creative.visual?.prompt) {
+        prompt = creative.visual.prompt;
+      } else if (type === 'video' && creative.metadata?.prompt) {
+        prompt = creative.metadata.prompt;
+      }
+
+      if (!prompt) {
+        throw new Error(`No prompt found for ${type} generation`);
+      }
+
+      if (type === 'image') {
+        await creativesApi.generateImage({
+          prompt,
+          model: 'nano-banana',
+          tenant_id: tenantId,
+          resolution: '1024x1024',
+          style: 'vivid',
+        });
+      } else if (type === 'video') {
+        const videoRes = await creativesApi.generateVideo({
+          prompt,
+          model: 'sora-2',
+          tenant_id: tenantId,
+          duration_seconds: 12,
+        }) as { job_id?: string; status?: string };
+
+        if (videoRes?.job_id) {
+          let isComplete = false;
+          let attempts = 0;
+          while (!isComplete && attempts < 120) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            attempts++;
+            try {
+              const jobStatus = await creativesApi.getJobStatus(videoRes.job_id) as { status?: string };
+              if (jobStatus?.status === 'completed') {
+                isComplete = true;
+              } else if (jobStatus?.status === 'failed') {
+                throw new Error('Video generation failed');
+              }
+            } catch (e) {
+              if (attempts >= 120) throw e;
+            }
+          }
+        }
+      }
       
       if (loadingToastId) {
         toast.dismiss(loadingToastId);
@@ -320,7 +374,7 @@ export default function CreativesPage() {
           next.delete(creativeId);
           return next;
         });
-      }, type === 'image' ? 15000 : 60000); // 15s for images, 60s for videos
+      }, 2000);
       
     } catch (err: any) {
       if (loadingToastId) {
@@ -348,11 +402,14 @@ export default function CreativesPage() {
     setImprovingPrompt(true);
     
     try {
-      const data = await creativesApi.improvePrompt({
+      const response = await creativesApi.improvePrompt({
         prompt: improvePromptText,
         context: 'professional creative asset generation for social media and marketing campaigns',
       });
-      setImprovedPrompt(data.improved_prompt ?? data.improvedPrompt ?? "");
+      
+      // V1 API returns { success: true, data: { content: "...", model: "...", ... } }
+      const improvedText = response?.data?.content || response?.content || response?.improved_prompt || response?.improvedPrompt || "";
+      setImprovedPrompt(improvedText);
     } catch (err: any) {
       const parsed = parseApiError(err);
       toast.error(getUserMessage(parsed));
@@ -1300,14 +1357,14 @@ export default function CreativesPage() {
         )}
 
         {/* Video Creation Wizard */}
-        <VideoCreationWizard
+        {/* <VideoCreationWizard
           open={showVideoWizard}
           onClose={() => {
             setShowVideoWizard(false);
             fetchCreatives(); // Refresh creatives list
           }}
           campaignId={attachToCampaign ? selectedCampaignId : undefined}
-        />
+        /> */}
 
         {/* Improve Prompt Modal */}
         {showImprovePromptModal && (

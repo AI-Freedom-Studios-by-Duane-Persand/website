@@ -37,6 +37,10 @@ export interface CreativeDocument extends Document {
     tags?: string[];
     derivedFrom?: string;
     funnelStage?: 'TOFU' | 'MOFU' | 'BOFU';
+    jobId?: string;  // For async operations (e.g., video generation)
+    completedAt?: Date;  // When async job completed
+    failedAt?: Date;  // When async job failed
+    error?: string;  // Error message if failed
   };
   createdAt: Date;
   updatedAt: Date;
@@ -78,6 +82,10 @@ export const CreativeSchema = new Schema<CreativeDocument>({
     tags: [{ type: String }],
     derivedFrom: { type: String },
     funnelStage: { type: String, enum: ['TOFU', 'MOFU', 'BOFU'] },
+    jobId: { type: String },  // For async operations (e.g., video generation)
+    completedAt: { type: Date },  // When async job completed
+    failedAt: { type: Date },  // When async job failed
+    error: { type: String },  // Error message if failed
   },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },

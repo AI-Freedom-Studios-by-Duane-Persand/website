@@ -1,10 +1,8 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import axios from "axios";
 import { Modal } from "./Modal";
 import { Button } from "./Button";
-import { getAuthHeaders } from "../../../lib/utils/auth-headers";
 
 export interface Model {
   model: string;
@@ -29,18 +27,32 @@ export interface ModelPickerModalProps {
   apiUrl?: string;
 }
 
+const AVAILABLE_MODELS: Record<string, Model[]> = {
+  "caption-generation": [
+    { model: "gpt-4o", displayName: "GPT-4o", provider: "OpenAI", recommended: true, description: "Advanced text generation" },
+    { model: "claude-3.5-sonnet", displayName: "Claude 3.5 Sonnet", provider: "Anthropic", description: "Fast and intelligent" },
+    { model: "claude-3-opus", displayName: "Claude 3 Opus", provider: "Anthropic", description: "Most capable Claude model" },
+  ],
+  "image-generation": [
+    { model: "dall-e-3", displayName: "DALL-E 3", provider: "OpenAI", recommended: true, description: "Photorealistic images" },
+    { model: "stable-diffusion-xl", displayName: "Stable Diffusion XL", provider: "Stability AI", description: "Fast image generation" },
+  ],
+  "video-generation": [
+    { model: "sora-2", displayName: "Sora 2", provider: "OpenAI", recommended: true, description: "High-quality video generation" },
+    { model: "veo-3.1", displayName: "Veo 3.1", provider: "Google", description: "Natural video motion" },
+    { model: "runway-gen3", displayName: "Runway Gen-3", provider: "Runway", description: "Creative video effects" },
+  ],
+};
+
 export function ModelPickerModal({
   isOpen,
   contentType,
   onSelect,
   onClose,
-  apiUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "",
 }: ModelPickerModalProps) {
   const [models, setModels] = useState<Model[]>([]);
   const [recommendedModel, setRecommendedModel] = useState<string>("");
   const [selectedModel, setSelectedModel] = useState<string>("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
 
   useEffect(() => {
     if (isOpen) {
@@ -48,25 +60,24 @@ export function ModelPickerModal({
     }
   }, [isOpen, contentType]);
 
-  async function fetchModels() {
-    try {
-      setLoading(true);
-      setError("");
-      const res = await axios.get(`${apiUrl}/api/ai-models/available`, {
-        params: { contentType },
-        headers: getAuthHeaders(),
-      });
-      const available = res.data?.availableModels || res.data?.models || [];
-      const rec = res.data?.recommendedModel || available[0]?.model || "";
-      setModels(available);
-      setRecommendedModel(rec);
-      setSelectedModel(rec);
-    } catch (err: any) {
-      setError(`Failed to fetch models: ${err.message}`);
-      setModels([]);
-    } finally {
-      setLoading(false);
-    }
+  function fetchModels() {
+    const available = AVAILABLE_MODELS[contentType] || [];
+    const rec = available.find(m => m.recommended)?.model || available[0]?.model || "";
+    setModels(available);
+    setRecommendedModel(rec);
+    setSelectedModel(rec);
+  }
+
+  function handleSelect() {
+    if (selectedModel) {
+      onSelect(selectedModel);
+      onClose();
+  function fetchModels() {
+    const available = AVAILABLE_MODELS[contentType] || [];
+    const rec = available.find(m => m.recommended)?.model || available[0]?.model || "";
+    setModels(available);
+    setRecommendedModel(rec);
+    setSelectedModel(rec);
   }
 
   function handleSelect() {
@@ -81,17 +92,7 @@ export function ModelPickerModal({
       <div className="min-h-[300px]">
         <p className="text-sm text-slate-400 mb-4">{contentType}</p>
 
-        {loading && (
-          <div className="text-center py-8 text-slate-400">Loading models...</div>
-        )}
-
-        {error && (
-          <div className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2 mb-4">
-            {error}
-          </div>
-        )}
-
-        {!loading && models.length > 0 && (
+        {models.length > 0 && (
           <div className="space-y-2 mb-4">
             {models.map((m) => (
               <label
@@ -129,7 +130,7 @@ export function ModelPickerModal({
           </div>
         )}
 
-        {!loading && models.length === 0 && !error && (
+        {models.length === 0 && (
           <div className="text-center py-8 text-slate-400">No models available</div>
         )}
 

@@ -211,4 +211,29 @@ export class CreativesController {
       throw err;
     }
   }
+
+  /**
+   * Webhook endpoint for V1 AI Content Service video generation completion callback
+   * Called by FastAPI service when async video generation completes
+   * NEWLY ADDED FOR V1 INTEGRATION
+   */
+  @Post('v1/video-complete')
+  async handleVideoGenerationWebhook(@Body() body: {
+    jobId: string;
+    status: 'success' | 'failure';
+    result?: { url?: string; storage_path?: string };
+    error?: string;
+  }) {
+    try {
+      await this.creativesService.handleVideoGenerationCallback(
+        body.jobId,
+        body.status,
+        body.result,
+        body.error,
+      );
+      return { success: true, message: 'Webhook processed' };
+    } catch (err: any) {
+      return { success: false, message: err.message };
+    }
+  }
 }

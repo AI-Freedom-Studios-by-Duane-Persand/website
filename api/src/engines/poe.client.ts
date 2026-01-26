@@ -439,7 +439,7 @@ export class PoeClient {
     const script = input.script || {};
     const videoModel = process.env.POE_VIDEO_MODEL || 'sora-2';
 
-    const requestedDuration = Number(input.duration || input.durationSeconds) || (videoModel.includes('kling') ? 5 : 4);
+    const requestedDuration = Number(input.durationSeconds || input.duration) || (videoModel.includes('kling') ? 5 : 4);
     const allowedDurations = videoModel.includes('kling') ? [5, 10] : [4, 8, 12];
     const duration = allowedDurations.includes(requestedDuration) ? requestedDuration : allowedDurations[0];
     const resolution = input.resolution || '1080p';

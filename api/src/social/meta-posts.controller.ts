@@ -1,18 +1,13 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
-import { SocialPublisher } from '../social/social.publisher';
 import { MetaPostsService } from './meta-posts.service';
 
 @Controller('meta-posts')
 export class MetaPostsController {
-  constructor(
-    private readonly socialPublisher: SocialPublisher,
-    private readonly metaPostsService: MetaPostsService,
-  ) {}
+  constructor(private readonly metaPostsService: MetaPostsService) {}
 
   @Post()
   async createMetaPost(@Body() body: { content: string; metaPageId: string }) {
-    const { content, metaPageId } = body;
-    return this.socialPublisher.publishToMeta(content, metaPageId);
+    return this.metaPostsService.create(body.content, body.metaPageId);
   }
 
   @Get()

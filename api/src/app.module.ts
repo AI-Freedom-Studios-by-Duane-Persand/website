@@ -30,9 +30,8 @@ import { CampaignChatModule } from './campaignChat.module';
 import { ApprovalsModule } from './approvals/approvals.module';
 import { StrategiesModule } from './strategies/strategies.module';
 import { PromptingModule } from './prompting/prompting.module';
-import { VideoWorkflowModule } from './video-workflow/video-workflow.module';
 import { DataDeletionModule } from './data-deletion/data-deletion.module';
-import { VideoGenerationModule } from './video/video-generation.module';
+import { V1AppModule } from './v1/v1-app.module';
 
 const logger = new Logger('AppModule');
 
@@ -110,9 +109,9 @@ export class AppModuleLogger {
     ApprovalsModule,
     StrategiesModule,
     PromptingModule,
-    VideoWorkflowModule,
-    VideoGenerationModule,
     DataDeletionModule,
+    // V1 Architecture - New modular structure with versioned API endpoints
+    V1AppModule,
   ],
   controllers: [PlatformsController],
   providers: [AppModuleLogger],

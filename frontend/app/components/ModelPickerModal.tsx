@@ -1,6 +1,5 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import axios from "axios";
 
 export interface Model {
   model: string;
@@ -22,23 +21,36 @@ export interface ModelPickerModalProps {
   contentType: "caption-generation" | "image-generation" | "video-generation";
   onSelect: (model: string) => void;
   onClose: () => void;
-  getAuthHeaders: () => Record<string, string>;
-  apiUrl: string;
+  getAuthHeaders?: () => Record<string, string>;
+  apiUrl?: string;
 }
+
+const AVAILABLE_MODELS: Record<string, Model[]> = {
+  "caption-generation": [
+    { model: "gpt-4o", displayName: "GPT-4o", provider: "OpenAI", recommended: true, description: "Advanced text generation" },
+    { model: "claude-3.5-sonnet", displayName: "Claude 3.5 Sonnet", provider: "Anthropic", description: "Fast and intelligent" },
+    { model: "claude-3-opus", displayName: "Claude 3 Opus", provider: "Anthropic", description: "Most capable Claude model" },
+  ],
+  "image-generation": [
+    { model: "dall-e-3", displayName: "DALL-E 3", provider: "OpenAI", recommended: true, description: "Photorealistic images" },
+    { model: "stable-diffusion-xl", displayName: "Stable Diffusion XL", provider: "Stability AI", description: "Fast image generation" },
+  ],
+  "video-generation": [
+    { model: "sora-2", displayName: "Sora 2", provider: "OpenAI", recommended: true, description: "High-quality video generation" },
+    { model: "veo-3.1", displayName: "Veo 3.1", provider: "Google", description: "Natural video motion" },
+    { model: "runway-gen3", displayName: "Runway Gen-3", provider: "Runway", description: "Creative video effects" },
+  ],
+};
 
 export function ModelPickerModal({
   isOpen,
   contentType,
   onSelect,
   onClose,
-  getAuthHeaders,
-  apiUrl,
 }: ModelPickerModalProps) {
   const [models, setModels] = useState<Model[]>([]);
   const [recommendedModel, setRecommendedModel] = useState<string>("");
   const [selectedModel, setSelectedModel] = useState<string>("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
 
   useEffect(() => {
     if (isOpen) {
@@ -46,25 +58,12 @@ export function ModelPickerModal({
     }
   }, [isOpen, contentType]);
 
-  async function fetchModels() {
-    try {
-      setLoading(true);
-      setError("");
-      const res = await axios.get(`${apiUrl}/api/ai-models/available`, {
-        params: { contentType },
-        headers: getAuthHeaders(),
-      });
-      const available = res.data?.availableModels || res.data?.models || [];
-      const rec = res.data?.recommendedModel || available[0]?.model || "";
-      setModels(available);
-      setRecommendedModel(rec);
-      setSelectedModel(rec);
-    } catch (err: any) {
-      setError(`Failed to fetch models: ${err.message}`);
-      setModels([]);
-    } finally {
-      setLoading(false);
-    }
+  function fetchModels() {
+    const available = AVAILABLE_MODELS[contentType] || [];
+    const rec = available.find(m => m.recommended)?.model || available[0]?.model || "";
+    setModels(available);
+    setRecommendedModel(rec);
+    setSelectedModel(rec);
   }
 
   function handleSelect() {
@@ -87,17 +86,7 @@ export function ModelPickerModal({
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto px-6 py-4">
-          {loading && (
-            <div className="text-center py-8 text-gray-500">Loading models...</div>
-          )}
-
-          {error && (
-            <div className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded mb-4">
-              {error}
-            </div>
-          )}
-
-          {!loading && models.length > 0 && (
+          {models.length > 0 && (
             <div className="space-y-2">
               {models.map((m) => (
                 <label
@@ -131,7 +120,7 @@ export function ModelPickerModal({
             </div>
           )}
 
-          {!loading && models.length === 0 && !error && (
+          {models.length === 0 && (
             <div className="text-center py-8 text-gray-500">No models available</div>
           )}
         </div>

@@ -2,7 +2,6 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { AyrsharePublisher } from './social-publisher/ayrshare.publisher';
 import { MetaDirectPublisher } from './social-publisher/meta-direct.publisher';
 import { CreativeDocument } from '../creatives/schemas/creative.schema';
 import { ScheduledItemDocument } from '../models/scheduledItem.schema';
@@ -10,7 +9,6 @@ import { ScheduledItemDocument } from '../models/scheduledItem.schema';
 @Injectable()
 export class SchedulingService {
   constructor(
-    private readonly ayrsharePublisher: AyrsharePublisher,
     private readonly metaDirectPublisher: MetaDirectPublisher,
     @InjectModel('Creative') private readonly creativeModel: Model<CreativeDocument>,
     @InjectModel('ScheduledItem') private readonly scheduledItemModel: Model<ScheduledItemDocument>,
@@ -70,12 +68,16 @@ export class SchedulingService {
       const creative = await this.creativeModel.findById(item.creativeId);
       if (!creative) continue;
       try {
-        // Use MetaDirectPublisher for Facebook/Instagram, Ayrshare for others
-        const publisher = (item.platform === 'facebook' || item.platform === 'instagram')
-          ? this.metaDirectPublisher
-          : this.ayrsharePublisher;
-        
-        const result = await publisher.publishOrganicPost({
+        // Use MetaDirectPublisher for supported platforms; mark others as failed
+        if (item.platform !== 'facebook' && item.platform !== 'instagram') {
+          item.status = 'failed';
+          item.error = `Unsupported platform: ${item.platform}`;
+          item.updatedAt = new Date();
+          await item.save();
+          continue;
+        }
+
+        const result = await this.metaDirectPublisher.publishOrganicPost({
           tenantId: item.tenantId,
           userId: item.userId,
           creative: creative as any,

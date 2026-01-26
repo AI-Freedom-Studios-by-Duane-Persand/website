@@ -10,41 +10,95 @@ type ContentType =
   | "script-generation"
   | "hashtag-generation";
 
+const CONTENT_TYPE_TO_SYSTEM_PROMPT: Record<ContentType, string> = {
+  "prompt-improvement": "prompt-improver",
+  "caption-generation": "social-post",
+  "script-generation": "ad-script",
+  "hashtag-generation": "social-post",
+  "image-generation": "creative-image",
+  "video-generation": "creative-video",
+};
+
+const AVAILABLE_MODELS = {
+  text: ["gpt-4o", "claude-3.5-sonnet", "claude-3-opus"],
+  image: ["dall-e-3", "stable-diffusion-xl"],
+  video: ["sora-2", "veo-3.1", "runway-gen3"],
+};
+
 export default function ModelsPage() {
   const [contentType, setContentType] = useState<ContentType>("image-generation");
-  const [models, setModels] = useState<any[]>([]);
-  const [recommendedModel, setRecommendedModel] = useState<string>("");
+  const [models, setModels] = useState<string[]>([]);
   const [selectedModel, setSelectedModel] = useState<string>("");
   const [prompt, setPrompt] = useState<string>("Futuristic cityscape, cyberpunk aesthetic, neon, Blade Runner");
   const [loading, setLoading] = useState<boolean>(false);
   const [result, setResult] = useState<string>("");
 
-  async function fetchModels() {
-    try {
-      setLoading(true);
-      setResult("");
-      const res = await axios.get(`/api/ai-models/available`, { params: { contentType } });
-      const available = res.data?.availableModels || res.data?.models || [];
-      setModels(available);
-      const rec = res.data?.recommendedModel || available[0]?.model || "";
-      setRecommendedModel(rec);
-      setSelectedModel(rec);
-    } catch (err: any) {
-      setResult(`Failed to fetch models: ${err.message}`);
-    } finally {
-      setLoading(false);
-    }
+  function getModelsForContentType(type: ContentType): string[] {
+    if (type === "image-generation") return AVAILABLE_MODELS.image;
+    if (type === "video-generation") return AVAILABLE_MODELS.video;
+    return AVAILABLE_MODELS.text;
+  }
+
+  function fetchModels() {
+    const available = getModelsForContentType(contentType);
+    setModels(available);
+    setSelectedModel(available[0] || "");
   }
 
   async function generate() {
     try {
       setLoading(true);
       setResult("");
-      const res = await axios.post(`/api/poe/generate-with-model`, {
-        contentType,
-        model: selectedModel,
+      
+      const token = localStorage.getItem("token") || localStorage.getItem("auth_token");
+      if (!token) {
+        setResult("Error: No authentication token found");
+        return;
+      }
+
+      // Parse JWT to get tenantId
+      const base64Url = token.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = decodeURIComponent(
+        atob(base64)
+          .split('')
+          .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+          .join('')
+      );
+      const payload = JSON.parse(jsonPayload);
+      const tenantId = payload.tenantId;
+
+      if (!tenantId) {
+        setResult("Error: Tenant ID not found in token");
+        return;
+      }
+
+      let endpoint = "";
+      let requestBody: any = {
         prompt,
+        model: selectedModel,
+        tenant_id: tenantId,
+      };
+
+      if (contentType === "image-generation") {
+        endpoint = "/v1/content/generate/image";
+        requestBody.resolution = "1024x1024";
+        requestBody.style = "vivid";
+      } else if (contentType === "video-generation") {
+        endpoint = "/v1/content/generate/video";
+        requestBody.duration_seconds = 8;
+        requestBody.aspect_ratio = "16:9";
+      } else {
+        endpoint = "/v1/content/generate/text";
+        requestBody.system_prompt_type = CONTENT_TYPE_TO_SYSTEM_PROMPT[contentType];
+        requestBody.max_tokens = 2000;
+        requestBody.temperature = 0.7;
+      }
+
+      const res = await axios.post(endpoint, requestBody, {
+        headers: { Authorization: `Bearer ${token}` },
       });
+      
       setResult(JSON.stringify(res.data, null, 2));
     } catch (err: any) {
       setResult(`Generation failed: ${err?.response?.data?.message || err.message}`);
@@ -91,25 +145,18 @@ export default function ModelsPage() {
       <div className="space-y-2">
         <div className="flex items-center gap-2">
           <label className="text-sm font-medium">Models</label>
-          {loading && <span className="text-xs text-gray-500">Loading...</span>}
         </div>
         <div className="grid grid-cols-1 gap-2">
           {models.map((m) => (
-            <label key={m.model} className="flex items-center gap-3 border rounded px-3 py-2">
+            <label key={m} className="flex items-center gap-3 border rounded px-3 py-2">
               <input
                 type="radio"
                 name="model"
-                value={m.model}
-                checked={selectedModel === m.model}
-                onChange={() => setSelectedModel(m.model)}
+                value={m}
+                checked={selectedModel === m}
+                onChange={(e) => setSelectedModel(e.target.value)}
               />
-              <div className="flex-1">
-                <div className="text-sm font-medium">{m.displayName || m.model}</div>
-                <div className="text-xs text-gray-500">{m.description || m.provider}</div>
-              </div>
-              {recommendedModel === m.model && (
-                <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded">Recommended</span>
-              )}
+              <span>{m}</span>
             </label>
           ))}
           {models.length === 0 && !loading && (
@@ -119,11 +166,6 @@ export default function ModelsPage() {
       </div>
 
       <div className="flex gap-3">
-        <button
-          onClick={fetchModels}
-          className="bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded"
-          disabled={loading}
-        >Refresh Models</button>
         <button
           onClick={generate}
           className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"

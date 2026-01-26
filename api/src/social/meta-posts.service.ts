@@ -4,6 +4,13 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 export class MetaPostsService {
   private metaPosts = new Map<string, { content: string; metaPageId: string }>();
 
+  create(content: string, metaPageId: string) {
+    const id = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const record = { content, metaPageId };
+    this.metaPosts.set(id, record);
+    return { id, ...record };
+  }
+
   findAll() {
     return Array.from(this.metaPosts.values());
   }

@@ -7,7 +7,7 @@ export interface ScheduledItemDocument extends Document {
   creativeId: Types.ObjectId;
   platform: string;
   channelType: 'organic' | 'ad';
-  publisher: 'ayrshare' | 'metaDirect';
+  publisher: 'metaDirect';
   scheduledAt: Date;
   status: 'pending' | 'inProgress' | 'published' | 'failed';
   platformPostId?: string;
@@ -22,7 +22,7 @@ export const ScheduledItemSchema = new Schema<ScheduledItemDocument>({
   creativeId: { type: Schema.Types.ObjectId, ref: 'Creative', required: true },
   platform: { type: String, required: true },
   channelType: { type: String, enum: ['organic', 'ad'], required: true },
-  publisher: { type: String, enum: ['ayrshare', 'metaDirect'], required: true },
+  publisher: { type: String, enum: ['metaDirect'], required: true },
   scheduledAt: { type: Date, required: true },
   status: { type: String, enum: ['pending', 'inProgress', 'published', 'failed'], default: 'pending' },
   platformPostId: { type: String },

@@ -217,7 +217,7 @@ export interface ScheduledItem {
   creativeId: Types.ObjectId;
   platform: string;
   channelType: 'organic' | 'ad';
-  publisher: 'ayrshare' | 'metaDirect';
+  publisher: 'metaDirect';
   scheduledAt: Date;
   status: 'pending' | 'inProgress' | 'published' | 'failed';
   platformPostId?: string;
@@ -281,7 +281,7 @@ export interface IntegrationConfig {
   _id: Types.ObjectId;
   scope: 'global' | 'tenant';
   tenantId: Types.ObjectId | null;
-  service: 'gemini' | 'json2video' | 'ayrshare' | 'r2' | 'stripe' | 'meta';
+  service: 'gemini' | 'r2' | 'stripe' | 'meta';
   config: string;
   createdAt: Date;
   updatedAt: Date;

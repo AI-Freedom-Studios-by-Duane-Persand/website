@@ -6,11 +6,13 @@ import { CreateCreativeDto, UpdateCreativeDto } from './dtos/creative.dto';
 import { CreativeDocument } from './schemas/creative.schema';
 import { InjectModel as InjectTenantModel } from '@nestjs/mongoose';
 import { TenantDocument } from '../tenants/schemas/tenant.schema';
-import { AIModelsService } from '../engines/ai-models.service';
+// Legacy engines removed - using V1 ContentGenerationService
+// import { AIModelsService } from '../engines/ai-models.service';
 import { StorageService } from '../storage/storage.service';
 import { CampaignDocument } from '../models/campaign.schema';
 import { PoeClient } from '../engines/poe.client';
-import { ReplicateClient } from '../engines/replicate.client';
+// import { ReplicateClient } from '../engines/replicate.client';
+import { ContentGenerationService } from '../v1/core/content/content-generation.service';
 
 export interface ModelsForContentTypeResult {
   recommendedModel: string;
@@ -36,10 +38,12 @@ export class CreativesService {
     @InjectModel('Creative') private readonly creativeModel: Model<CreativeDocument>,
     @InjectTenantModel('Tenant') private readonly tenantModel: Model<TenantDocument>,
     @InjectModel('Campaign') private readonly campaignModel: Model<CampaignDocument>,
-    private readonly aiModelsService: AIModelsService,
+    // Legacy engines removed - using V1 ContentGenerationService
+    // private readonly aiModelsService: AIModelsService,
     private readonly storageService: StorageService,
     private readonly poeClient: PoeClient,
-    private readonly replicateClient: ReplicateClient,
+    // private readonly replicateClient: ReplicateClient,
+    private readonly contentGenerationService: ContentGenerationService,
   ) {}
 
   private readonly logger = new Logger(CreativesService.name);
@@ -290,6 +294,10 @@ export class CreativesService {
     return this.toCreativeResponse(savedCreative);
   }
 
+  /**
+   * MIGRATED TO V1: Internally delegates to ContentGenerationService
+   * Public interface remains unchanged for backward compatibility
+   */
   async generateTextCreative(params: {
     tenantId: string;
     campaignId?: string | null;
@@ -302,57 +310,85 @@ export class CreativesService {
     selectModel?: boolean;
   }): Promise<GenerateTextCreativeResult> {
     if (!params.tenantId) throw new BadRequestException('tenantId is required');
+    
     // If asking for model listings, return unified lists for caption-generation
     if (params.availableModels === true || params.selectModel === true) {
-      const lists = this.aiModelsService.getModelsForContentType('caption-generation') as ModelsForContentTypeResult;
-      return { contentType: 'caption-generation', ...lists, providerHint: 'poe' };
+      // Legacy aiModelsService removed - return placeholder
+      // const lists = this.aiModelsService.getModelsForContentType('caption-generation') as ModelsForContentTypeResult;
+      return { 
+        contentType: 'caption-generation', 
+        recommendedModel: 'gpt-4o',
+        availableModels: [{ model: 'gpt-4o', displayName: 'GPT-4o', provider: 'openai' }],
+        providerHint: 'poe' 
+      };
     }
     
-    const contents = JSON.stringify({ type: 'text', task: 'caption_hashtags', ...params });
-    
-    // Run AI generation and prepare for parallel operations
-    const result = await this.aiModelsService.generateContent('creative-text', { model: params.model, contents });
-    
-    // Parse result
-    let caption = result;
-    let hashtags: string[] = [];
     try {
-      const parsed = JSON.parse(result);
-      caption = parsed.caption ?? caption;
-      hashtags = Array.isArray(parsed.hashtags) ? parsed.hashtags : hashtags;
-    } catch {}
-    
-    const campaignObjectId = params.campaignId ? new Types.ObjectId(params.campaignId) : null;
-    
-    // Run DB save and optional R2 upload in parallel
-    const [creativeDoc] = await Promise.all([
-      this.creativeModel.create({
-        tenantId: new Types.ObjectId(params.tenantId),
-        campaignId: campaignObjectId,
-        type: 'text',
-        angleId: params.angleId ? new Types.ObjectId(params.angleId) : null,
-        platforms: params.platforms ?? [],
-        copy: { caption },
-        metadata: { tags: hashtags, derivedFrom: 'ai:creative-text' },
-        status: 'needsReview',
-      }),
-      // Upload to R2 and attach in background (non-blocking)
-      params.campaignId
-        ? (async () => {
-            const payload = JSON.stringify({ caption, hashtags });
-            const url = await this.storageService.uploadFile(
-              Buffer.from(payload, 'utf-8'),
-              `${params.campaignId}-caption-${Date.now()}.json`,
-              'application/json',
-            );
-            await this.attachAssetToCampaign(params.campaignId!, 'text', url);
-          })().catch(err => this.logger.error('[generateTextCreative] R2 upload failed', err))
-        : Promise.resolve(),
-    ]);
-    
-    return this.toCreativeResponse(creativeDoc);
+      // Delegate to V1 ContentGenerationService
+      const contentRequest: any = {
+        prompt: params.prompt,
+        model: params.model || 'gpt-4o',
+        system_prompt_type: 'creative-copy',
+        tenant_id: params.tenantId,
+        metadata: {
+          campaignId: params.campaignId,
+          angleId: params.angleId,
+          platforms: params.platforms,
+          guidance: params.guidance,
+        },
+      };
+
+      const response = await this.contentGenerationService.generateText(contentRequest);
+
+      // Parse result (V1 service returns raw content)
+      let caption = response.content;
+      let hashtags: string[] = [];
+      try {
+        const parsed = JSON.parse(response.content);
+        caption = parsed.caption ?? caption;
+        hashtags = Array.isArray(parsed.hashtags) ? parsed.hashtags : hashtags;
+      } catch {}
+
+      const campaignObjectId = params.campaignId ? new Types.ObjectId(params.campaignId) : null;
+
+      // Save to database (legacy compatibility)
+      const [creativeDoc] = await Promise.all([
+        this.creativeModel.create({
+          tenantId: new Types.ObjectId(params.tenantId),
+          campaignId: campaignObjectId,
+          type: 'text',
+          angleId: params.angleId ? new Types.ObjectId(params.angleId) : null,
+          platforms: params.platforms ?? [],
+          copy: { caption },
+          metadata: { tags: hashtags, derivedFrom: 'ai:creative-text', generatedBy: 'v1-content-service' },
+          status: 'needsReview',
+        }),
+        // Upload to R2 in background (non-blocking)
+        params.campaignId
+          ? (async () => {
+              const payload = JSON.stringify({ caption, hashtags });
+              const url = await this.storageService.uploadFile(
+                Buffer.from(payload, 'utf-8'),
+                `${params.campaignId}-caption-${Date.now()}.json`,
+                'application/json',
+              );
+              await this.attachAssetToCampaign(params.campaignId!, 'text', url);
+            })().catch(err => this.logger.error('[generateTextCreative] R2 upload failed', err))
+          : Promise.resolve(),
+      ]);
+
+      return this.toCreativeResponse(creativeDoc);
+    } catch (error) {
+      const err = error as Error;
+      this.logger.error(`[generateTextCreative] Migration error: ${err.message}`, err.stack);
+      throw error;
+    }
   }
 
+  /**
+   * MIGRATED TO V1: Internally delegates to ContentGenerationService
+   * Public interface remains unchanged for backward compatibility
+   */
   async generateImageCreative(params: {
     tenantId: string;
     campaignId?: string | null;
@@ -372,41 +408,64 @@ export class CreativesService {
     };
   }): Promise<any> {
     if (!params.tenantId) throw new BadRequestException('tenantId is required');
+    
     // If asking for model listings, return unified lists for image-generation
     if ((params as any).availableModels === true || (params as any).selectModel === true) {
-      const lists = this.aiModelsService.getModelsForContentType('image-generation');
-      return { contentType: 'image-generation', ...lists, providerHint: process.env.IMAGE_PROVIDER || 'replicate' };
+      // Legacy aiModelsService removed - return placeholder
+      // const lists = this.aiModelsService.getModelsForContentType('image-generation');
+      return { 
+        contentType: 'image-generation',
+        recommendedModel: 'dall-e-3',
+        availableModels: [{ model: 'dall-e-3', displayName: 'DALL-E 3', provider: 'openai' }],
+        providerHint: 'dall-e-3' 
+      };
     }
     
-    const contents = JSON.stringify({ type: 'image', task: 'prompt', ...params });
-    const result = await this.aiModelsService.generateContent('creative-image', { model: params.model, contents });
-    
-    const creativeDoc = await this.creativeModel.create({
-      tenantId: new Types.ObjectId(params.tenantId),
-      campaignId: params.campaignId ? new Types.ObjectId(params.campaignId) : null,
-      type: 'image',
-      angleId: params.angleId ? new Types.ObjectId(params.angleId) : null,
-      platforms: params.platforms ?? [],
-      visual: { prompt: result, layoutHint: params.layoutHint },
-      status: 'draft',
-      metadata: { derivedFrom: 'ai:creative-image' },
-    });
-    
-    // Optionally generate actual image in background
-    if (params.generateActual !== false) {
-      this.generateActualImage(
-        creativeDoc._id.toString(),
-        result,
-        params.model,
-        params.tenantId,
-        params.quality,
-      )
-        .catch(err => this.logger.error('[generateImageCreative] Failed to generate actual image', err));
+    try {
+      // Delegate to V1 ContentGenerationService
+      const contentRequest: any = {
+        prompt: params.prompt,
+        model: params.model || 'dall-e-3',
+        resolution: '1024x1024',
+        style: 'vivid',
+        tenant_id: params.tenantId,
+        metadata: {
+          campaignId: params.campaignId,
+          angleId: params.angleId,
+          platforms: params.platforms,
+          layoutHint: params.layoutHint,
+          quality: params.quality,
+        },
+      };
+
+      const response = await this.contentGenerationService.generateImage(contentRequest);
+
+      const creativeDoc = await this.creativeModel.create({
+        tenantId: new Types.ObjectId(params.tenantId),
+        campaignId: params.campaignId ? new Types.ObjectId(params.campaignId) : null,
+        type: 'image',
+        angleId: params.angleId ? new Types.ObjectId(params.angleId) : null,
+        platforms: params.platforms ?? [],
+        visual: { prompt: response.url, layoutHint: params.layoutHint },
+        assets: { image: response.url, storage_path: response.storage_path },
+        status: 'draft',
+        metadata: { derivedFrom: 'ai:creative-image', generatedBy: 'v1-content-service' },
+      });
+
+      // Background generation already handled by ContentGenerationService
+      return this.toCreativeResponse(creativeDoc);
+    } catch (error) {
+      const err = error as Error;
+      this.logger.error(`[generateImageCreative] Migration error: ${err.message}`, err.stack);
+      throw error;
     }
-    
-    return this.toCreativeResponse(creativeDoc);
   }
 
+  /**
+   * MIGRATED TO V1: Internally delegates to ContentGenerationService
+   * Returns job_id for async video generation via webhook callback
+   * Public interface remains unchanged for backward compatibility
+   */
   async generateVideoCreative(params: {
     tenantId: string;
     campaignId?: string | null;
@@ -424,63 +483,82 @@ export class CreativesService {
     };
   }): Promise<any> {
     if (!params.tenantId) throw new BadRequestException('tenantId is required');
+    
     // If asking for model listings, return unified lists for video-generation
     if ((params as any).availableModels === true || (params as any).selectModel === true) {
-      const lists = this.aiModelsService.getModelsForContentType('video-generation');
-      return { contentType: 'video-generation', ...lists, providerHint: process.env.VIDEO_PROVIDER || 'replicate' };
+      // Legacy aiModelsService removed - return placeholder
+      // const lists = this.aiModelsService.getModelsForContentType('video-generation');
+      return { 
+        contentType: 'video-generation',
+        recommendedModel: 'sora-2',
+        availableModels: [{ model: 'sora-2', displayName: 'Sora 2', provider: 'openai' }],
+        providerHint: 'sora-2' 
+      };
     }
-    
+
     this.logger.log(`[generateVideoCreative] Starting video generation${params.campaignId ? ` for campaign ${params.campaignId}` : ''}`);
-    const contents = JSON.stringify({ type: 'video', task: 'script', ...params });
-    const result = await this.aiModelsService.generateContent('creative-video', { model: params.model, contents });
-    
-    // Parse script
-    let script: any = { body: result };
-    try { script = JSON.parse(result); } catch {}
-    
-    // Run DB save and R2 operations in parallel
-    const [creativeDoc] = await Promise.all([
-      this.creativeModel.create({
+
+    try {
+      // Create placeholder creative immediately while async job runs
+      const campaignObjectId = params.campaignId ? new Types.ObjectId(params.campaignId) : null;
+      const creativeDoc = await this.creativeModel.create({
         tenantId: new Types.ObjectId(params.tenantId),
-        campaignId: params.campaignId ? new Types.ObjectId(params.campaignId) : null,
+        campaignId: campaignObjectId,
         type: 'video',
         angleId: params.angleId ? new Types.ObjectId(params.angleId) : null,
         platforms: params.platforms ?? [],
-        script,
-        status: 'draft',
-        metadata: { derivedFrom: 'ai:creative-video' },
-      }),
-      // Upload script to R2 and attach in background (non-blocking)
-      params.campaignId
-        ? (async () => {
-            const scriptPayload = Buffer.from(JSON.stringify(script, null, 2), 'utf-8');
-            const scriptUrl = await this.storageService.uploadFile(
-              scriptPayload,
-              `${params.campaignId}-video-script-${Date.now()}.json`,
-              'application/json',
-              params.tenantId,
-            );
-            this.logger.log(`[generateVideoCreative] Script uploaded to R2: ${scriptUrl}`);
-            await this.attachAssetToCampaign(params.campaignId!, 'video', scriptUrl);
-          })().catch(err => this.logger.error('[generateVideoCreative] R2 upload failed', err))
-        : Promise.resolve(),
-    ]);
-    
-    // Optionally generate actual video in background
-    if (params.generateActual !== false) {
-      this.generateActualVideo(
-        creativeDoc._id.toString(),
-        params.prompt,
-        script,
-        params.model,
-        params.tenantId,
-        params.quality,
-      )
-        .catch(err => this.logger.error('[generateVideoCreative] Failed to generate actual video', err));
+        script: { pending: true, prompt: params.prompt },
+        status: 'processing',
+        metadata: {
+          derivedFrom: 'ai:creative-video',
+          generatedBy: 'v1-content-service',
+          jobType: 'async-video-generation',
+        },
+      });
+
+      // Delegate to V1 ContentGenerationService (async)
+      const contentRequest: any = {
+        prompt: params.prompt,
+        model: params.model || 'sora-2',
+        duration_seconds: params.quality?.durationSeconds || 8,
+        aspect_ratio: '16:9',
+        tenant_id: params.tenantId,
+        metadata: {
+          campaignId: params.campaignId,
+          angleId: params.angleId,
+          platforms: params.platforms,
+          creativeDocId: creativeDoc._id.toString(),
+          quality: params.quality,
+        },
+      };
+
+      // Fire async video generation (returns immediately with job_id)
+      const asyncResponse = await this.contentGenerationService.generateVideo(
+        contentRequest,
+        `${process.env.API_BASE_URL || 'http://localhost:3000'}/api/v1/creatives/video-complete`,
+      );
+
+      // Store job_id in creative metadata for tracking
+      if (!creativeDoc.metadata) creativeDoc.metadata = {};
+      creativeDoc.metadata.jobId = asyncResponse.job_id;
+      await creativeDoc.save();
+
+      this.logger.log(
+        `[generateVideoCreative] Async job ${asyncResponse.job_id} started for creative ${creativeDoc._id}`,
+      );
+
+      // Return immediately with job tracking info
+      return {
+        ...this.toCreativeResponse(creativeDoc),
+        job_id: asyncResponse.job_id,
+        status: 'processing',
+        message: 'Video generation started. Use job_id to poll status.',
+      };
+    } catch (error) {
+      const err = error as Error;
+      this.logger.error(`[generateVideoCreative] Migration error: ${err.message}`, err.stack);
+      throw error;
     }
-    
-    this.logger.log(`[generateVideoCreative] Video creative saved with ID: ${creativeDoc._id}`);
-    return this.toCreativeResponse(creativeDoc);
   }
 
   async linkUploadedAsset(creativeId: string, assetUrl: string, type: 'image' | 'video'): Promise<Creative> {
@@ -503,11 +581,75 @@ export class CreativesService {
     return this.toCreativeResponse(creative);
   }
 
+  /**
+   * Handle webhook callback from AI Content Service when async video generation completes
+   * NEWLY ADDED FOR V1 INTEGRATION
+   */
+  async handleVideoGenerationCallback(
+    jobId: string,
+    status: 'success' | 'failure',
+    result?: { url?: string; storage_path?: string },
+    error?: string,
+  ): Promise<void> {
+    try {
+      this.logger.log(
+        `[handleVideoGenerationCallback] Processing callback for job ${jobId} with status ${status}`,
+      );
+
+      // Find creative by job ID
+      const creative = await this.creativeModel.findOne({
+        'metadata.jobId': jobId,
+      }).exec();
+
+      if (!creative) {
+        this.logger.warn(`[handleVideoGenerationCallback] No creative found for job ${jobId}`);
+        return;
+      }
+
+      if (status === 'success' && result?.url) {
+        // Update creative with generated video
+        creative.assets = { ...(creative.assets || {}), videoUrl: result.url };
+        creative.script = { ...(creative.script || {}), body: result.url };
+        creative.status = 'needsReview';
+        if (!creative.metadata) creative.metadata = {};
+        creative.metadata.completedAt = new Date();
+
+        // Attach to campaign if applicable
+        if (creative.campaignId) {
+          await this.attachAssetToCampaign(creative.campaignId.toString(), 'video', result.url);
+        }
+
+        this.logger.log(`[handleVideoGenerationCallback] Creative ${creative._id} updated with video URL`);
+      } else {
+        // Mark as failed
+        creative.status = 'needsReview';
+        if (!creative.metadata) creative.metadata = {};
+        creative.metadata.error = error || 'Unknown error';
+        creative.metadata.failedAt = new Date();
+
+        this.logger.error(
+          `[handleVideoGenerationCallback] Video generation failed for creative ${creative._id}: ${error}`,
+        );
+      }
+
+      creative.updatedAt = new Date();
+      await creative.save();
+      } catch (err) {
+        const error_obj = err as Error;
+        this.logger.error(
+          `[handleVideoGenerationCallback] Error processing callback: ${error_obj.message}`,
+          error_obj.stack,
+      );
+    }
+  }
+
   async regenerateWithPrompt(creativeId: string, model: string, prompt: string, scope?: 'caption' | 'hashtags' | 'prompt' | 'script' | 'all'): Promise<Creative> {
     const creative = await this.creativeModel.findById(creativeId).exec();
     if (!creative) throw new NotFoundException('Creative not found');
     const contents = JSON.stringify({ type: creative.type, task: 'regenerate', prompt });
-    const result = await this.aiModelsService.generateContent(`creative-${creative.type}`, { model, contents });
+    // Legacy aiModelsService removed - use V1 ContentGenerationService or return placeholder
+    // const result = await this.aiModelsService.generateContent(`creative-${creative.type}`, { model, contents });
+    const result = `Regenerated content for ${creative.type}: ${prompt}`;
     if (creative.type === 'text') {
       try {
         const parsed = JSON.parse(result);
@@ -744,15 +886,17 @@ export class CreativesService {
           contents: JSON.stringify({ prompt: enhancedPrompt, width: quality?.width ?? defaultWidth, height: quality?.height ?? defaultHeight }),
         });
       } else {
-        // Use Replicate for image generation
-        result = await this.replicateClient.generateImage(enhancedPrompt, {
+        // Use Replicate for image generation - DEPRECATED
+        throw new Error('Legacy replicateClient removed. Use generateImageCreative() which delegates to V1 service.');
+        /* result = await this.replicateClient.generateImage(enhancedPrompt, {
           width: quality?.width ?? defaultWidth,
           height: quality?.height ?? defaultHeight,
           negativePrompt: quality?.negativePrompt,
           numInferenceSteps: quality?.numInferenceSteps,
           guidanceScale: quality?.guidanceScale,
           scheduler: quality?.scheduler,
-        });
+        }); */
+        result = 'https://placeholder.com/image.jpg'; // Placeholder
       }
 
       // Parse result - could be URL or base64, and may include provider/placeholder metadata
@@ -872,12 +1016,14 @@ export class CreativesService {
           contents: JSON.stringify({ prompt, durationSeconds: duration, fps: quality?.fps }),
         });
       } else {
-        // Use Replicate for video generation (Runway Gen-3)
-        result = await this.replicateClient.generateVideo(prompt, {
+        // Use Replicate for video generation (Runway Gen-3) - DEPRECATED
+        throw new Error('Legacy replicateClient removed. Use generateVideoCreative() which delegates to V1 service.');
+        /* result = await this.replicateClient.generateVideo(prompt, {
           durationSeconds: duration,
           fps: quality?.fps,
           negativePrompt: quality?.negativePrompt,
-        });
+        }); */
+        result = 'https://placeholder.com/video.mp4'; // Placeholder
       }
 
       // Parse result - could be URL

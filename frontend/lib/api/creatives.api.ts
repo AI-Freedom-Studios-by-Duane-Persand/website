@@ -65,9 +65,19 @@ export interface RenderMediaRequest {
 export interface ImprovePromptRequest {
   prompt: string;
   context?: string;
+  content_type?: 'text' | 'image' | 'video';
 }
 
 export interface ImprovePromptResponse {
+  success?: boolean;
+  data?: {
+    content: string;
+    model: string;
+    tokens_used?: number;
+    timestamp?: string;
+  };
+  // Fallback for legacy format
+  content?: string;
   improved_prompt?: string;
   improvedPrompt?: string;
 }
@@ -76,6 +86,31 @@ export interface RegenerateRequest {
   model?: string;
   prompt?: string;
   scope?: string;
+}
+
+export interface V1TextGenerationRequest {
+  prompt: string;
+  model?: string;
+  system_prompt_type?: string;
+  tenant_id: string;
+  max_tokens?: number;
+  temperature?: number;
+}
+
+export interface V1ImageGenerationRequest {
+  prompt: string;
+  model?: string;
+  tenant_id: string;
+  resolution?: string;
+  style?: string;
+}
+
+export interface V1VideoGenerationRequest {
+  prompt: string;
+  model?: string;
+  tenant_id: string;
+  duration_seconds?: number;
+  aspect_ratio?: string;
 }
 
 export const creativesApi = {
@@ -96,6 +131,56 @@ export const creativesApi = {
   regenerate: (id: string, payload: RegenerateRequest) =>
     apiClient.put(`/creatives/${id}/regenerate`, payload),
   
-  improvePrompt: (payload: ImprovePromptRequest) =>
-    apiClient.post<ImprovePromptResponse>('/poe/improve-prompt', payload),
+  // V1 Content Service endpoints
+  improvePrompt: (payload: ImprovePromptRequest) => {
+    // Get token directly from localStorage to ensure we have the latest
+    const token = typeof window !== 'undefined' 
+      ? (localStorage.getItem('token') || localStorage.getItem('authToken') || localStorage.getItem('auth_token'))
+      : null;
+    
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+    
+    // Parse JWT to get tenantId
+    try {
+      const base64Url = token.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = decodeURIComponent(
+        atob(base64)
+          .split('')
+          .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+          .join('')
+      );
+      const parsed = JSON.parse(jsonPayload);
+      const tenantId = parsed.tenantId || parsed.tenant_id;
+      
+      if (!tenantId) {
+        throw new Error('No tenantId found in token');
+      }
+      
+      return apiClient.post<ImprovePromptResponse>('/v1/content/generate/text', {
+        prompt: payload.prompt,
+        model: 'gpt-4o',
+        system_prompt_type: 'prompt-improver',
+        tenant_id: tenantId,
+        context: payload.context,
+      });
+    } catch (error) {
+      console.error('Failed to parse token:', error);
+      throw new Error('Invalid authentication token');
+    }
+  },
+  
+  generateText: (payload: V1TextGenerationRequest) =>
+    apiClient.post('/v1/content/generate/text', payload),
+  
+  generateImage: (payload: V1ImageGenerationRequest) =>
+    apiClient.post('/v1/content/generate/image', payload),
+  
+  generateVideo: (payload: V1VideoGenerationRequest) =>
+    apiClient.post('/v1/content/generate/video', payload),
+  
+  getJobStatus: (jobId: string) =>
+    apiClient.get(`/v1/content/jobs/${jobId}`),
 };

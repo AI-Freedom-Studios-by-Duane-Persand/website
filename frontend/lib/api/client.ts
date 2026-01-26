@@ -120,6 +120,8 @@ export class ApiClient {
   }
 
   private buildHeaders(extra?: Record<string, string>): Record<string, string> {
+    // Reload token before building headers to ensure we have the latest
+    this.loadAuthToken();
     const headers = { ...this.defaultHeaders, ...(extra || {}) };
     if (this.authToken) headers['Authorization'] = `Bearer ${this.authToken}`;
     return headers;
