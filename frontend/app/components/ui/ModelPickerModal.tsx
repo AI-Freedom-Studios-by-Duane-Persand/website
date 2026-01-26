@@ -62,19 +62,11 @@ export function ModelPickerModal({
 
   function fetchModels() {
     const available = AVAILABLE_MODELS[contentType] || [];
-    const rec = available.find(m => m.recommended)?.model || available[0]?.model || "";
-    setModels(available);
-    setRecommendedModel(rec);
-    setSelectedModel(rec);
-  }
+    const rec =
+      available.find((m) => m.recommended)?.model ||
+      available[0]?.model ||
+      "";
 
-  function handleSelect() {
-    if (selectedModel) {
-      onSelect(selectedModel);
-      onClose();
-  function fetchModels() {
-    const available = AVAILABLE_MODELS[contentType] || [];
-    const rec = available.find(m => m.recommended)?.model || available[0]?.model || "";
     setModels(available);
     setRecommendedModel(rec);
     setSelectedModel(rec);
@@ -117,7 +109,9 @@ export function ModelPickerModal({
                     </div>
                   )}
                   {m.provider && (
-                    <div className="text-xs text-slate-500 mt-1">{m.provider}</div>
+                    <div className="text-xs text-slate-500 mt-1">
+                      {m.provider}
+                    </div>
                   )}
                 </div>
                 {recommendedModel === m.model && (
@@ -131,7 +125,9 @@ export function ModelPickerModal({
         )}
 
         {models.length === 0 && (
-          <div className="text-center py-8 text-slate-400">No models available</div>
+          <div className="text-center py-8 text-slate-400">
+            No models available
+          </div>
         )}
 
         <div className="flex gap-3 justify-end pt-4 border-t border-white/10">
