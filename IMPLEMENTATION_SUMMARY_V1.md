@@ -308,7 +308,7 @@ curl http://localhost:8000/health
 Add to `.env`:
 ```bash
 AI_CONTENT_SERVICE_URL=http://localhost:8000
-API_BASE_URL=http://localhost:3000
+API_BASE_URL=http://localhost:3001
 ```
 
 ### 3. Test Integration

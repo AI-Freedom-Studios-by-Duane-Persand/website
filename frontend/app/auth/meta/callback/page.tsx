@@ -38,8 +38,8 @@ function MetaOAuthCallbackContent() {
         setMessage("Exchanging authorization code for access token...");
 
         // Exchange code for access token
-        const appId = process.env.NEXT_PUBLIC_META_APP_ID;
-        const appSecret = process.env.NEXT_PUBLIC_META_APP_SECRET;
+        const appId = '1446935900283273';
+        const appSecret = 'e685e72595a48da1439a945424009f0b';
         const redirectUri = `${window.location.origin}/auth/meta/callback`;
 
         if (!appId || !appSecret) {
@@ -109,7 +109,9 @@ function MetaOAuthCallbackContent() {
             userId,
             tenantId,
             userAccessToken: longLivedData.access_token,
-            scopes: ["pages_manage_posts", "pages_manage_engagement", "instagram_basic", "instagram_content_publish"],
+            // scopes: ["pages_manage_posts", "pages_manage_engagement", "instagram_basic", "instagram_content_publish"],
+            scopes: ["email", "public_profile"]
+
           }),
         });
 
