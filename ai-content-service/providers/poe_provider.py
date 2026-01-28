@@ -175,11 +175,12 @@ class PoeProvider(BaseProvider):
             
             # Create message with custom parameters for video generation
             # Duration is passed via the parameters field as per Poe API docs
+            # IMPORTANT: OpenAI Sora requires duration as STRING literal ('4', '8', '12'), not integer
             message = fp.ProtocolMessage(
                 role="user",
                 content=enhanced_prompt,
                 parameters={
-                    "duration": duration_seconds,
+                    "duration": str(duration_seconds),  # Convert to string for API compatibility
                     "aspect_ratio": aspect_ratio,
                 }
             )

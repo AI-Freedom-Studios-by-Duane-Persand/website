@@ -30,6 +30,7 @@ class VideoGenerationResponse(BaseModel):
     status: str = Field(default="processing", description="Job status")
     model: str = Field(..., description="Model used")
     duration_seconds: int = Field(..., description="Video duration")
+    message: Optional[str] = Field(None, description="Optional message (e.g., duration adjustment notice)")
     timestamp: datetime = Field(default_factory=datetime.utcnow)
 
 

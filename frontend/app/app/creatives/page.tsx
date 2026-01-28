@@ -20,7 +20,7 @@ type Creative = {
   visual?: { imageUrl?: string; prompt?: string }; 
   assets?: { videoUrl?: string }; 
   script?: { hook?: string; body?: string | string[]; outro?: string }; 
-  metadata?: { prompt?: string };
+  metadata?: { tags?: string[]; derivedFrom?: string; funnelStage?: string };
   tenantId?: string;
   campaignId?: string;
   updatedAt: string;
@@ -115,7 +115,8 @@ export default function CreativesPage() {
   async function fetchCreatives() {
     try {
       const data = await creativesApi.list();
-      setCreatives(data || []);
+      // Type assertion to handle API response format with extended metadata
+      setCreatives((data || []) as any as Creative[]);
     } catch (err: any) {
       const parsed = parseApiError(err);
       toast.error(getUserMessage(parsed));
@@ -310,11 +311,13 @@ export default function CreativesPage() {
         throw new Error('No tenantId found in token');
       }
 
-      let prompt = '';
+      let prompt: string = '';
       if (type === 'image' && creative.visual?.prompt) {
         prompt = creative.visual.prompt;
-      } else if (type === 'video' && creative.metadata?.prompt) {
-        prompt = creative.metadata.prompt;
+      } else if (type === 'video' && creative.script?.body) {
+        // Video prompts are stored in script.body (can be string or string[])
+        const body = creative.script.body;
+        prompt = Array.isArray(body) ? body.join(' ') : (body || '');
       }
 
       if (!prompt) {
@@ -335,7 +338,12 @@ export default function CreativesPage() {
           model: 'sora-2',
           tenant_id: tenantId,
           duration_seconds: 12,
-        }) as { job_id?: string; status?: string };
+        }) as { job_id?: string; status?: string; message?: string; duration_seconds?: number };
+
+        // Show user notification if duration was adjusted
+        if (videoRes?.message) {
+          toast.info(videoRes.message);
+        }
 
         if (videoRes?.job_id) {
           let isComplete = false;
@@ -465,11 +473,12 @@ export default function CreativesPage() {
         await handleRenderMedia(recreateId, 'video');
       } else if (creative.type === 'text') {
         // For text creatives, use a stored original prompt or user-provided instruction
-        const storedPrompt = creative.visual?.prompt || creative.metadata?.prompt || null;
+        const storedPromptRaw = creative.visual?.prompt || creative.script?.body || null;
+        const storedPrompt = Array.isArray(storedPromptRaw) ? storedPromptRaw.join(' ') : storedPromptRaw;
         const prompt = recreatePrompt?.trim()
           || storedPrompt
           || `Regenerate caption preserving tone and length of the original: ${creative.copy?.caption || ''}`;
-        await creativesApi.regenerate(recreateId, { model: 'gpt-4o', prompt, scope: 'all' });
+        await creativesApi.regenerate(recreateId, { model: 'gpt-4o', prompt: prompt || '', scope: 'all' });
       }
       
       setShowRecreateModal(false);
