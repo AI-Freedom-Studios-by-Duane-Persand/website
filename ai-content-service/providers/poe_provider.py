@@ -5,11 +5,17 @@ Handles text, image, and video generation via Poe API using fastapi_poe.
 
 import os
 import logging
-from typing import Optional
+from typing import Optional, Dict
 import fastapi_poe as fp
+import uuid
+import asyncio
 from .base import BaseProvider
 
 logger = logging.getLogger(__name__)
+
+# In-memory job storage for demo purposes
+# In production, use a database or Redis
+JOB_STORAGE: Dict[str, dict] = {}
 
 
 class PoeProvider(BaseProvider):
@@ -147,7 +153,10 @@ class PoeProvider(BaseProvider):
         tenant_id: Optional[str] = None
     ) -> str:
         """
-        Generate video via Poe API (async).
+        Generate video via Poe API (async, non-blocking).
+        
+        Returns immediately with a job_id. The actual generation happens in background.
+        Use get_job_status(job_id) to poll for completion.
         
         Args:
             prompt: Video description prompt
@@ -160,11 +169,63 @@ class PoeProvider(BaseProvider):
             Job ID for async tracking
         
         Raises:
-            Exception: If API call fails
+            Exception: If job submission fails
         """
-        logger.info(f"Generating video for tenant {tenant_id} with model {model}, duration={duration_seconds}s")
+        logger.info(f"Submitting video generation for tenant {tenant_id} with model {model}, duration={duration_seconds}s")
         
+        # Generate unique job ID immediately
+        job_id = f"vid_{uuid.uuid4().hex[:12]}"
+        
+        # Store job metadata
+        JOB_STORAGE[job_id] = {
+            "status": "pending",
+            "model": model,
+            "prompt": prompt,
+            "duration_seconds": duration_seconds,
+            "aspect_ratio": aspect_ratio,
+            "tenant_id": tenant_id,
+            "result": None,
+            "error": None,
+        }
+        
+        # Submit actual generation as background task (don't await)
+        # This allows us to return immediately without blocking
         try:
+            asyncio.create_task(
+                self._generate_video_background(
+                    job_id=job_id,
+                    prompt=prompt,
+                    model=model,
+                    duration_seconds=duration_seconds,
+                    aspect_ratio=aspect_ratio,
+                    tenant_id=tenant_id,
+                )
+            )
+            logger.info(f"Video generation job submitted: {job_id}")
+            return job_id
+        except Exception as e:
+            JOB_STORAGE[job_id]["status"] = "failed"
+            JOB_STORAGE[job_id]["error"] = str(e)
+            logger.error(f"Failed to submit video generation: {str(e)}")
+            raise
+    
+    async def _generate_video_background(
+        self,
+        job_id: str,
+        prompt: str,
+        model: str,
+        duration_seconds: int,
+        aspect_ratio: str,
+        tenant_id: Optional[str],
+    ) -> None:
+        """
+        Background task for actual video generation (runs async).
+        This is called in the background and doesn't block the API response.
+        """
+        try:
+            logger.info(f"Starting background video generation for job {job_id}")
+            JOB_STORAGE[job_id]["status"] = "processing"
+            
             # Build enhanced prompt with aspect ratio and duration
             enhanced_prompt = f"{prompt}"
             if aspect_ratio:
@@ -185,8 +246,7 @@ class PoeProvider(BaseProvider):
                 }
             )
             
-            # Submit async video generation job to Poe API
-            # This returns immediately with a job that can be polled
+            # Call Poe API (this may take 60+ seconds)
             full_response = ""
             async for partial in fp.get_bot_response(
                 messages=[message],
@@ -195,32 +255,38 @@ class PoeProvider(BaseProvider):
             ):
                 full_response += partial.text
             
-            # Extract job ID from response if available, otherwise use response as job ID
-            # Poe video bots return a reference/ID for tracking
-            logger.info(f"Video job submitted for tenant {tenant_id}: {full_response[:100]}")
+            logger.info(f"Poe API response received for job {job_id}: {full_response[:100]}")
             
-            # If response contains a URL or job ID, use it; otherwise use the response as identifier
+            # Extract result from response
             import re
-            job_id_match = re.search(r'job[_-]?id["\']?\s*[:=]\s*["\']?([a-zA-Z0-9\-]+)["\']?', full_response, re.IGNORECASE)
-            if job_id_match:
-                return job_id_match.group(1)
             
             # Check for URL pattern (video services often return URLs directly)
             url_match = re.search(r'https?://[^\s\)]+', full_response)
             if url_match:
                 url = url_match.group(0)
-                logger.info(f"Video generated synchronously for tenant {tenant_id}: {url}")
-                # Store as job_id so polling returns the URL immediately
-                return f"video:{url}"
+                logger.info(f"Video generated successfully for job {job_id}: {url}")
+                JOB_STORAGE[job_id]["status"] = "completed"
+                JOB_STORAGE[job_id]["result"] = {"video_url": url}
+                return
             
-            # Fallback: use first 100 chars of response as job identifier
-            job_id = full_response[:100].replace('\n', ' ')
-            logger.info(f"Video job tracked with response: {job_id}")
-            return job_id
-        
+            # Check for job ID in response
+            job_id_match = re.search(r'job[_-]?id["\']?\s*[:=]\s*["\']?([a-zA-Z0-9\-]+)["\']?', full_response, re.IGNORECASE)
+            if job_id_match:
+                poe_job_id = job_id_match.group(1)
+                logger.info(f"Video job queued at Poe for job {job_id}: {poe_job_id}")
+                JOB_STORAGE[job_id]["status"] = "processing"
+                JOB_STORAGE[job_id]["result"] = {"poe_job_id": poe_job_id}
+                return
+            
+            # If we got here, it's still processing (Poe returns "Generating..." status updates)
+            logger.info(f"Video generation in progress for job {job_id}")
+            JOB_STORAGE[job_id]["status"] = "processing"
+            JOB_STORAGE[job_id]["result"] = {"status_text": full_response[:200]}
+            
         except Exception as e:
-            logger.error(f"Video generation failed for tenant {tenant_id}: {str(e)}")
-            raise
+            logger.error(f"Background video generation failed for job {job_id}: {str(e)}")
+            JOB_STORAGE[job_id]["status"] = "failed"
+            JOB_STORAGE[job_id]["error"] = str(e)
     
     async def get_job_status(self, job_id: str) -> dict:
         """
@@ -231,38 +297,47 @@ class PoeProvider(BaseProvider):
         
         Returns:
             Job status dict: {status, progress, result?, error?}
-        
-        Raises:
-            Exception: If job not found or API fails
         """
         logger.info(f"Checking status of job {job_id}")
         
         try:
-            # Check if this is a direct video URL (synchronous generation)
-            if job_id.startswith("video:"):
-                url = job_id.replace("video:", "")
-                logger.info(f"Returning synchronously generated video URL: {url}")
+            # Look up job in storage
+            if job_id not in JOB_STORAGE:
+                logger.warning(f"Job {job_id} not found in storage")
                 return {
-                    "status": "completed",
-                    "progress": 100,
-                    "result": url,
+                    "status": "failed",
+                    "error": f"Job {job_id} not found",
                     "job_id": job_id,
                 }
             
-            # For async jobs, Poe API would be polled here
-            # Since Poe SDK doesn't have built-in async polling for video,
-            # we return a processing status
-            # In production, you would:
-            # 1. Store job_id in a database when submitted
-            # 2. Have a background worker poll Poe API for status
-            # 3. Update database with final URL when complete
+            job = JOB_STORAGE[job_id]
+            status = job["status"]
             
-            logger.info(f"Job {job_id} status: currently processing")
-            return {
-                "status": "processing",
-                "progress": 50,
+            # Map internal status to progress percentage
+            progress_map = {
+                "pending": 10,
+                "processing": 50,
+                "completed": 100,
+                "failed": 0,
+            }
+            progress = progress_map.get(status, 0)
+            
+            response = {
+                "status": status,
+                "progress": progress,
                 "job_id": job_id,
             }
+            
+            # Add result if completed
+            if status == "completed" and job["result"]:
+                response["result"] = job["result"]
+            
+            # Add error if failed
+            if status == "failed" and job["error"]:
+                response["error"] = job["error"]
+            
+            logger.info(f"Job {job_id} status: {status} ({progress}%)")
+            return response
         
         except Exception as e:
             logger.error(f"Failed to get job status for {job_id}: {str(e)}")

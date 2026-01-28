@@ -342,7 +342,7 @@ export default function CreativesPage() {
 
         // Show user notification if duration was adjusted
         if (videoRes?.message) {
-          toast.info(videoRes.message);
+          toast(videoRes.message, { icon: 'ℹ️', duration: 4000 });
         }
 
         if (videoRes?.job_id) {
