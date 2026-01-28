@@ -2,7 +2,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { getAuthHeaders } from "@/lib/utils/auth-headers";
 
-const API_BASE_URL =
+const API_BASE_URL = 
   process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "";
 
 export type SocialConnectionsCardProps = {
@@ -58,6 +58,7 @@ export default function SocialConnectionsCard({
     setLoading(true);
     setError(null);
     try {
+    
       const res = await fetch(`${API_BASE_URL}/social-accounts-manager/accounts`, {
         headers: { ...getAuthHeaders() },
       });
@@ -71,46 +72,41 @@ export default function SocialConnectionsCard({
     }
   }, []);
 
-  const handleConnect = useCallback(async () => {
-    setConnecting(true);
-    setError(null);
-    try {
-      // Use Meta (Facebook) OAuth to connect Facebook Pages and Instagram accounts
-      const appId = process.env.NEXT_PUBLIC_META_APP_ID;
-      const redirectUri = `${window.location.origin}/auth/meta/callback`;
-      // Cryptographically secure CSRF state token
-      const state = (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function')
-        ? crypto.randomUUID()
-        : Array.from(crypto.getRandomValues(new Uint8Array(16)))
-        .map((b) => b.toString(16).padStart(2, '0'))
-        .join('');
-      
-      if (!appId) {
-        throw new Error('Meta App ID not configured');
-      }
-      
-      // Store state in session storage for verification in callback
-      sessionStorage.setItem('meta_oauth_state', state);
-      
-      // Generate OAuth URL
-     const scope = [
-  'pages_show_list',
-  'pages_read_engagement',
-  'pages_manage_posts',
-  'instagram_basic',
-  'instagram_content_publish',
-  'business_management',
-].join(',');
+ const handleConnect = useCallback(async () => {
+  setConnecting(true);
+  setError(null);
 
-      const authUrl = `https://www.facebook.com/v24.0/dialog/oauth?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}&scope=${scope}&response_type=code`;
-      
-      // Redirect to Meta OAuth
-      window.location.href = authUrl;
-    } catch (err: any) {
-      setError(err?.message || "Unable to start connection flow");
-      setConnecting(false);
-    }
-  }, []);
+  try {
+    const state = crypto.randomUUID?.() || Array.from(crypto.getRandomValues(new Uint8Array(16)))
+      .map((b) => b.toString(16).padStart(2, '0')).join('');
+
+    sessionStorage.setItem('meta_oauth_state', state);
+
+    
+    //TODO: Remove the hard code , Call backend to generate URL
+    const res = await fetch('http://localhost:3001/api/meta/auth/url', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+          appId: '1446935900283273',
+        appSecret: 'e685e72595a48da1439a945424009f0b',
+        // appId: process.env.NEXT_PUBLIC_META_APP_ID,
+        // appSecret: process.env.NEXT_PUBLIC_META_APP_SECRET,
+        redirectUri: `${window.location.origin}/auth/meta/callback`,
+        state,
+      }),
+    });
+    const data = await res.json();
+    if (!data.url) throw new Error('Failed to get OAuth URL');
+
+    // Redirect user
+    window.location.href = data.url;
+  } catch (err: any) {
+    setError(err.message || 'Failed to start connection');
+    setConnecting(false);
+  }
+}, []);
+
 
   useEffect(() => {
     fetchProfiles();
