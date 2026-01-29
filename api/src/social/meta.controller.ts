@@ -9,22 +9,39 @@ export class MetaController {
    * Generate OAuth authorization URL
    * Frontend redirects user to this URL to start OAuth flow
    */
-  @Post('auth/url')
-  generateAuthUrl(@Body() body: { appId: string; appSecret: string; redirectUri: string; state: string; scope?: string }) {
-    const scope = body.scope || 'pages_manage_posts,pages_manage_engagement,pages_read_engagement,instagram_basic,instagram_content_publish';
-    
-    const url = this.metaService.generateAuthUrl(
-      {
-        appId: body.appId,
-        appSecret: body.appSecret,
-        redirectUri: body.redirectUri,
-      },
-      body.state,
-      scope,
-    );
+ @Post('auth/url')
+generateAuthUrl(
+  @Body()
+  body: {
+    appId: string;
+    appSecret: string;
+    redirectUri: string;
+    state: string;
+    scope?: string;
+  },
+) {
+  const scope =
+   
+    [
+      'email',
+      'public_profile',
+      
+    ].join(',');
 
-    return { url };
-  }
+  const url = this.metaService.generateAuthUrl(
+    {
+      appId: body.appId,
+      appSecret: body.appSecret,
+      redirectUri: body.redirectUri,
+    },
+    body.state,
+    scope,
+  );
+
+  console.log('Generated Meta OAuth URL:', url);
+  return { url };
+}
+
 
   /**
    * Exchange OAuth code for access token
