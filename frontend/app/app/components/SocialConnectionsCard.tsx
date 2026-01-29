@@ -59,7 +59,7 @@ export default function SocialConnectionsCard({
     setError(null);
     try {
     
-      const res = await fetch(`${API_BASE_URL}/social-accounts-manager/accounts`, {
+      const res = await fetch(`http://localhost:3001/social-accounts-manager/accounts`, {
         headers: { ...getAuthHeaders() },
       });
       if (!res.ok) throw new Error(`Failed to fetch accounts (${res.status})`);
@@ -89,10 +89,10 @@ export default function SocialConnectionsCard({
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
           appId: '1446935900283273',
-        appSecret: 'e685e72595a48da1439a945424009f0b',
+          appSecret: 'e685e72595a48da1439a945424009f0b',
         // appId: process.env.NEXT_PUBLIC_META_APP_ID,
         // appSecret: process.env.NEXT_PUBLIC_META_APP_SECRET,
-        redirectUri: `${window.location.origin}/auth/meta/callback`,
+        redirectUri: `http://localhost:3000/auth/meta/callback`,
         state,
       }),
     });

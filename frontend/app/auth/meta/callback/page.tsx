@@ -40,7 +40,8 @@ function MetaOAuthCallbackContent() {
         // Exchange code for access token
         const appId = '1446935900283273';
         const appSecret = 'e685e72595a48da1439a945424009f0b';
-        const redirectUri = `https://aifreedomstudios.com/auth/callback`;
+        const redirectUri = `http://localhost:3000/auth/meta/callback`;
+
 
         if (!appId || !appSecret) {
           throw new Error("Meta App credentials not configured");
