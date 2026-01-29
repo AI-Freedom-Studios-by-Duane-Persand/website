@@ -92,7 +92,7 @@ export default function SocialConnectionsCard({
           appSecret: 'e685e72595a48da1439a945424009f0b',
         // appId: process.env.NEXT_PUBLIC_META_APP_ID,
         // appSecret: process.env.NEXT_PUBLIC_META_APP_SECRET,
-        redirectUri: `http://localhost:3000/auth/meta/callback`,
+        redirectUri: `https://aifreedomstudios.com/auth/meta/callback`,
         state,
       }),
     });
