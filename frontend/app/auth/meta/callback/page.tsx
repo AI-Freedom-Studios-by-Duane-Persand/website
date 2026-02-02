@@ -40,14 +40,14 @@ function MetaOAuthCallbackContent() {
         // Exchange code for access token
         const appId = '1446935900283273';
         const appSecret = 'e685e72595a48da1439a945424009f0b';
-        const redirectUri = `https://aifreedomstudios.com/auth/meta/callback`;
-
+        const redirectUri = `https://aifreedomstudios.com//auth/meta/callback
+`;
 
         if (!appId || !appSecret) {
           throw new Error("Meta App credentials not configured");
         }
 
-        const tokenRes = await fetch(`${API_BASE_URL}/api/meta/auth/token`, {
+        const tokenRes = await fetch(`https://aifreedomstudios.com//api/meta/auth/token`, {
           method: "POST",
           headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
           body: JSON.stringify({ appId, appSecret, redirectUri, code }),
@@ -63,7 +63,7 @@ function MetaOAuthCallbackContent() {
         setMessage("Getting long-lived access token...");
 
         // Exchange for long-lived token (60 days)
-        const longLivedRes = await fetch(`${API_BASE_URL}/api/meta/auth/long-lived-token`, {
+        const longLivedRes = await fetch(`https://aifreedomstudios.com//api/meta/auth/long-lived-token`, {
           method: "POST",
           headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
           body: JSON.stringify({ appId, appSecret, shortLivedToken: access_token }),
@@ -79,7 +79,7 @@ function MetaOAuthCallbackContent() {
 
         // Get user's Pages
         const pagesRes = await fetch(
-          `${API_BASE_URL}/api/meta/pages?accessToken=${longLivedData.access_token}`,
+          `https://aifreedomstudios.com//api/meta/pages?accessToken=${longLivedData.access_token}`,
           {
             headers: getAuthHeaders(),
           }
