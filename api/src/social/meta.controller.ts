@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Body, Query, Param } from '@nestjs/common';
 import { MetaService, MetaPostOptions, InstagramMediaOptions } from './meta.service';
 const META_REDIRECT_URI =
-  'https://aifreedomstudios.com/auth/meta/callback';
+  'http://localhost:3000/auth/meta/callback';
   const META_APP_ID = '1446935900283273';
 const META_APP_SECRET = 'e685e72595a48da1439a945424009f0b';
 @Controller('meta')
