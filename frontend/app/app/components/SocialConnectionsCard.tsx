@@ -59,7 +59,7 @@ export default function SocialConnectionsCard({
     setError(null);
     try {
     
-      const res = await fetch(`https://aifreedomstudios.com//api/social-accounts-manager/accounts`, {
+      const res = await fetch(`https://aifreedomstudios.com/api/social-accounts-manager/accounts`, {
         headers: { ...getAuthHeaders() },
       });
       if (!res.ok) throw new Error(`Failed to fetch accounts (${res.status})`);

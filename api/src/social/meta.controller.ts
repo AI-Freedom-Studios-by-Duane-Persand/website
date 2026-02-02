@@ -23,27 +23,27 @@ generateAuthUrl(
     scope?: string;
   },
 ) {
-  const scope =
-   
-    [
-      'email',
-      'public_profile',
-      
-    ].join(',');
+  // Use default scopes if not provided
+  const scope = body.scope || ['email', 'public_profile'].join(',');
 
+  // Generate URL using your metaService
   const url = this.metaService.generateAuthUrl(
     {
-      appId: META_APP_ID,
-      appSecret: META_APP_SECRET,
-      redirectUri: META_REDIRECT_URI,
+      appId: body.appId || META_APP_ID,
+      appSecret: body.appSecret || META_APP_SECRET,
+      redirectUri: body.redirectUri || META_REDIRECT_URI,
     },
     body.state,
     scope,
   );
 
+  // ✅ This will print the full URL in your terminal
   console.log('Generated Meta OAuth URL:', url);
+
+  // Return URL in response
   return { url };
 }
+
 
 
   /**
