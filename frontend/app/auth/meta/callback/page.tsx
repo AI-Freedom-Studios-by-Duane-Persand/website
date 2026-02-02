@@ -63,7 +63,7 @@ function MetaOAuthCallbackContent() {
         setMessage("Getting long-lived access token...");
 
         // Exchange for long-lived token (60 days)
-        const longLivedRes = await fetch(`https://aifreedomstudios.com//api/meta/auth/long-lived-token`, {
+        const longLivedRes = await fetch(`https://aifreedomstudios.com/api/meta/auth/long-lived-token`, {
           method: "POST",
           headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
           body: JSON.stringify({ appId, appSecret, shortLivedToken: access_token }),
@@ -79,7 +79,7 @@ function MetaOAuthCallbackContent() {
 
         // Get user's Pages
         const pagesRes = await fetch(
-          `https://aifreedomstudios.com//api/meta/pages?accessToken=${longLivedData.access_token}`,
+          `https://aifreedomstudios.com/api/meta/pages?accessToken=${longLivedData.access_token}`,
           {
             headers: getAuthHeaders(),
           }
