@@ -23,7 +23,7 @@ export default function MetaCallback() {
          
         appId: '1446935900283273',
         appSecret: 'e685e72595a48da1439a945424009f0b',
-        redirectUri: `http://localhost:3000/auth/meta/callback`,
+        redirectUri: `https://aifreedomstudios.com/auth/meta/callback`,
         code,
       }),
     })
