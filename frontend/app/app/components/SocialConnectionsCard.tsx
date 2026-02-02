@@ -59,7 +59,7 @@ export default function SocialConnectionsCard({
     setError(null);
     try {
     
-      const res = await fetch(`http://localhost:3001/api/social-accounts-manager/accounts`, {
+      const res = await fetch(`https://aifreedomstudios.com//api/social-accounts-manager/accounts`, {
         headers: { ...getAuthHeaders() },
       });
       if (!res.ok) throw new Error(`Failed to fetch accounts (${res.status})`);
@@ -84,7 +84,7 @@ export default function SocialConnectionsCard({
 
     
     //TODO: Remove the hard code , Call backend to generate URL
-    const res = await fetch('http://localhost:3001/api/meta/auth/url', {
+    const res = await fetch('https://aifreedomstudios.com//api/meta/auth/url', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
