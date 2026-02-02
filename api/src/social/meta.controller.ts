@@ -1,6 +1,9 @@
 import { Controller, Get, Post, Body, Query, Param } from '@nestjs/common';
 import { MetaService, MetaPostOptions, InstagramMediaOptions } from './meta.service';
-
+const META_REDIRECT_URI =
+  'https://aifreedomstudios.com/auth/meta/callback';
+  const META_APP_ID = '1446935900283273';
+const META_APP_SECRET = 'e685e72595a48da1439a945424009f0b';
 @Controller('meta')
 export class MetaController {
   constructor(private readonly metaService: MetaService) {}
@@ -30,9 +33,9 @@ generateAuthUrl(
 
   const url = this.metaService.generateAuthUrl(
     {
-      appId: body.appId,
-      appSecret: body.appSecret,
-      redirectUri: body.redirectUri,
+      appId: META_APP_ID,
+      appSecret: META_APP_SECRET,
+      redirectUri: META_REDIRECT_URI,
     },
     body.state,
     scope,
@@ -51,9 +54,9 @@ generateAuthUrl(
   async exchangeToken(@Body() body: { appId: string; appSecret: string; redirectUri: string; code: string }) {
     return this.metaService.exchangeCodeForToken(
       {
-        appId: body.appId,
-        appSecret: body.appSecret,
-        redirectUri: body.redirectUri,
+        appId: META_APP_ID,
+        appSecret: META_APP_SECRET,
+        redirectUri: META_REDIRECT_URI,
       },
       body.code,
     );
@@ -66,8 +69,8 @@ generateAuthUrl(
   async getLongLivedToken(@Body() body: { appId: string; appSecret: string; shortLivedToken: string }) {
     return this.metaService.getLongLivedToken(
       {
-        appId: body.appId,
-        appSecret: body.appSecret,
+        appId: META_APP_ID,
+        appSecret: META_APP_SECRET,
         redirectUri: '', // Not needed for token exchange
       },
       body.shortLivedToken,

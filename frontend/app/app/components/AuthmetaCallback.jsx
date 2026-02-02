@@ -16,7 +16,7 @@ export default function MetaCallback() {
     }
   console.log('Authorization code:', process.env.NEXT_PUBLIC_META_APP_ID);
    
-    fetch(`https://aifreedomstudios.com//api/meta/auth/token`, {
+    fetch(`https://aifreedomstudios.com/api/meta/auth/token`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

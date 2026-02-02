@@ -84,7 +84,7 @@ export default function SocialConnectionsCard({
 
     
     //TODO: Remove the hard code , Call backend to generate URL
-    const res = await fetch('https://aifreedomstudios.com//api/meta/auth/url', {
+    const res = await fetch('https://aifreedomstudios.com/api/meta/auth/url', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
