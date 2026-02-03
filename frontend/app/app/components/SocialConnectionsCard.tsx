@@ -81,18 +81,18 @@ export default function SocialConnectionsCard({
       .map((b) => b.toString(16).padStart(2, '0')).join('');
 
     sessionStorage.setItem('meta_oauth_state', state);
-
+   console.log("Generated OAuth state:", state);
     
     //TODO: Remove the hard code , Call backend to generate URL
-    const res = await fetch('https://aifreedomstudios.com/api/meta/auth/url', {
+    const res = await fetch('http://localhost:3001/api/meta/auth/url', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-          appId: '1446935900283273',
-          appSecret: 'e685e72595a48da1439a945424009f0b',
+          appId: '1516949189404267',
+          appSecret: '107347f43003b35146b33be7567bf332',
         // appId: process.env.NEXT_PUBLIC_META_APP_ID,
         // appSecret: process.env.NEXT_PUBLIC_META_APP_SECRET,
-        redirectUri: `https://aifreedomstudios.com/auth/meta/callback`,
+        redirectUri: `http://localhost:3000/auth/meta/callback`,
         state,
       }),
     });

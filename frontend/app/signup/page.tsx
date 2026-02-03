@@ -59,7 +59,7 @@ export default function SignupPage() {
         budget,
         userId,
       });
-      const token = response.access_token || response.token;
+      const token = response.result?.access_token || response.result?.token;
       if (token) {
         try {
           localStorage.setItem("token", token);

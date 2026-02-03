@@ -16,14 +16,14 @@ export default function MetaCallback() {
     }
   console.log('Authorization code:', process.env.NEXT_PUBLIC_META_APP_ID);
    
-    fetch(`https://aifreedomstudios.com/api/meta/auth/token`, {
+    fetch(`http://localhost:3001/api/meta/auth/token`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
          
-        appId: '1446935900283273',
-        appSecret: 'e685e72595a48da1439a945424009f0b',
-        redirectUri: `https://aifreedomstudios.com/auth/meta/callback`,
+        appId: '1516949189404267',
+        appSecret: '107347f43003b35146b33be7567bf332',
+        redirectUri: `http://localhost:3000/auth/meta/callback`,
         code,
       }),
     })
