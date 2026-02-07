@@ -74,10 +74,11 @@ async def generate_video(request: VideoGenerationRequest, http_request: Request)
         
         # Validate duration for model
         validated_duration = validate_video_duration(request.model, request.duration_seconds)
+        duration_adjusted = validated_duration != request.duration_seconds
         
         logger.info(
             f"Video generation request for tenant {request.tenant_id}: "
-            f"model={request.model}, duration={validated_duration}s"
+            f"model={request.model}, duration={validated_duration}s{' (adjusted)' if duration_adjusted else ''}"
         )
         
         # Submit async video generation job
@@ -98,6 +99,7 @@ async def generate_video(request: VideoGenerationRequest, http_request: Request)
             status="processing",
             model=request.model,
             duration_seconds=validated_duration,
+            message=f"Duration adjusted to {validated_duration}s (nearest valid value for {request.model})" if duration_adjusted else None
         )
     
     except HTTPException:
