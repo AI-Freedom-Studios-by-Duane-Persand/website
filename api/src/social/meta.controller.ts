@@ -1,9 +1,9 @@
-import { Controller, Get, Post, Body, Query, Param } from '@nestjs/common';
+import { Controller, Get, Post, Body, Query, Param, BadRequestException } from '@nestjs/common';
 import { MetaService, MetaPostOptions, InstagramMediaOptions } from './meta.service';
 const META_REDIRECT_URI =
-  'https://aifreedomstudios.com/auth/meta/callback';
-  const META_APP_ID = '1446935900283273';
-const META_APP_SECRET = 'e685e72595a48da1439a945424009f0b';
+  'http://localhost:3000/auth/meta/callback';
+  const META_APP_ID = '1516949189404267';
+const META_APP_SECRET = '107347f43003b35146b33be7567bf332';
 @Controller('meta')
 export class MetaController {
   constructor(private readonly metaService: MetaService) {}
@@ -24,7 +24,12 @@ generateAuthUrl(
   },
 ) {
   // Use default scopes if not provided
-  const scope = body.scope || ['email', 'public_profile'].join(',');
+const scope =
+  [
+    'public_profile',
+    'pages_show_list',
+    'business_management',
+  ].join(',');
 
   // Generate URL using your metaService
   const url = this.metaService.generateAuthUrl(
@@ -39,6 +44,7 @@ generateAuthUrl(
 
   // ✅ This will print the full URL in your terminal
   console.log('Generated Meta OAuth URL:', url);
+  console.log('With state parameter:', body.state);
 
   // Return URL in response
   return { url };
@@ -76,6 +82,33 @@ generateAuthUrl(
       body.shortLivedToken,
     );
   }
+  
+@Get('auth/callback')
+async metaCallback(
+  @Query('code') code: string,
+  @Query('state') state: string,
+) {
+  console.log('META CALLBACK HIT');
+  console.log('Code:', code);
+  console.log('State:', state);
+
+  if (!code) {
+    throw new BadRequestException('No code received from Meta');
+  }
+
+  const token = await this.metaService.exchangeCodeForToken(
+    {
+      appId: META_APP_ID,
+      appSecret: META_APP_SECRET,
+      redirectUri: META_REDIRECT_URI,
+    },
+    code,
+  );
+
+  console.log('Meta access token:', token);
+
+  return token; // ✅ NestJS sends JSON automatically
+}
 
   /**
    * Get user's Facebook Pages

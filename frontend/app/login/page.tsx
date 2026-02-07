@@ -39,11 +39,14 @@ export default function LoginPage() {
 
   try {
     const res = await authApi.login({ email, password });
+    console.log("Login response:", res.user);
 
-    const token = res.access_token || res.token;
+    const token = res?.result?.access_token || res?.result?.token ;
     if (!token) throw new Error("Login failed: no token");
-   
+    
     localStorage.setItem("token", token);
+    localStorage.setItem("userId", res.user?._id || "");
+    localStorage.setItem("tenantId", res.user?.tenantId || "");
     document.cookie = `auth_token=${token}; path=/; SameSite=Lax;`;
 
     const payload = apiClient.parseToken();

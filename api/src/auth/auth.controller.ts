@@ -42,7 +42,7 @@ export class AuthController {
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
         path: '/',
       });
-      return result;
+      return {result,user};
     } catch (err) {
       const stack = typeof err === 'object' && err !== null && 'stack' in err ? (err as any).stack : String(err);
       const message = typeof err === 'object' && err !== null && 'message' in err ? (err as any).message : 'Unknown error';

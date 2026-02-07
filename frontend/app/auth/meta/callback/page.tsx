@@ -38,16 +38,16 @@ function MetaOAuthCallbackContent() {
         setMessage("Exchanging authorization code for access token...");
 
         // Exchange code for access token
-        const appId = '1446935900283273';
-        const appSecret = 'e685e72595a48da1439a945424009f0b';
-        const redirectUri = `https://aifreedomstudios.com/auth/meta/callback
-`;
+        const appId = '1516949189404267';
+        const appSecret = '107347f43003b35146b33be7567bf332';
+        const redirectUri = `http://localhost:3000/auth/meta/callback`;
+
 
         if (!appId || !appSecret) {
           throw new Error("Meta App credentials not configured");
         }
 
-        const tokenRes = await fetch(`https://aifreedomstudios.com/api/meta/auth/token`, {
+        const tokenRes = await fetch(`http://localhost:3001/api/meta/auth/token`, {
           method: "POST",
           headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
           body: JSON.stringify({ appId, appSecret, redirectUri, code }),
@@ -63,7 +63,7 @@ function MetaOAuthCallbackContent() {
         setMessage("Getting long-lived access token...");
 
         // Exchange for long-lived token (60 days)
-        const longLivedRes = await fetch(`https://aifreedomstudios.com/api/meta/auth/long-lived-token`, {
+        const longLivedRes = await fetch(`http://localhost:3001/api/meta/auth/long-lived-token`, {
           method: "POST",
           headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
           body: JSON.stringify({ appId, appSecret, shortLivedToken: access_token }),
@@ -79,7 +79,7 @@ function MetaOAuthCallbackContent() {
 
         // Get user's Pages
         const pagesRes = await fetch(
-          `https://aifreedomstudios.com/api/meta/pages?accessToken=${longLivedData.access_token}`,
+          `http://localhost:3001/api/meta/pages?accessToken=${longLivedData.access_token}`,
           {
             headers: getAuthHeaders(),
           }
@@ -97,21 +97,21 @@ function MetaOAuthCallbackContent() {
         // For now, we'll get it from localStorage or auth context
         const userId = localStorage.getItem("userId") || localStorage.getItem("user_id");
         const tenantId = localStorage.getItem("tenantId") || localStorage.getItem("tenant_id");
-
+        console.log("User ID:", userId);
+        console.log("Tenant ID:", tenantId);
         if (!userId || !tenantId) {
           throw new Error("User not authenticated");
         }
 
         // Save all accounts to database via backend
-        const saveRes = await fetch(`${API_BASE_URL}/api/social-accounts-manager/connect`, {
+        const saveRes = await fetch(`http://localhost:3001/api/social-accounts-manager/connect`, {
           method: "POST",
           headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
           body: JSON.stringify({
             userId,
             tenantId,
             userAccessToken: longLivedData.access_token,
-            // scopes: ["pages_manage_posts", "pages_manage_engagement", "instagram_basic", "instagram_content_publish"],
-            scopes: ["email", "public_profile"]
+            scopes: [ 'public_profile','pages_show_list','business_management', ]
 
           }),
         });

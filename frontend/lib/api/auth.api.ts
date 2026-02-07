@@ -10,14 +10,18 @@ export interface LoginRequest {
 }
 
 export interface AuthResponse {
-  access_token?: string;
-  token?: string;
+  result?: {
+    access_token?: string;
+    token?: string;
+  };
   user?: {
-    id: string;
+    _id: string;
     email: string;
     name?: string;
     role?: string;
     tenantId?: string;
+    passwordHash?: string;
+    roles?: string[];
   };
 }
 
@@ -25,7 +29,7 @@ export const authApi = {
   // Sign up: accept flexible DTO to match backend variations
   signup: async (dto: Record<string, any>) => {
     const response = await apiClient.post<AuthResponse>('/auth/signup', dto);
-    const token = response.access_token || response.token;
+    const token = response.result?.access_token || response.result?.token;
     if (token) apiClient.setAuthToken(token);
     return response;
   },
@@ -33,7 +37,7 @@ export const authApi = {
   // Login user
   login: async (dto: LoginRequest) => {
     const response = await apiClient.post<AuthResponse>('/auth/login', dto);
-    const token = response.access_token || response.token;
+    const token = response.result?.access_token || response.result?.token;
     if (token) apiClient.setAuthToken(token);
     return response;
   },
@@ -55,7 +59,7 @@ export const authApi = {
   // Refresh token
   refreshToken: async () => {
     const response = await apiClient.post<AuthResponse>('/auth/refresh', {});
-    const token = response.access_token || response.token;
+    const token = response.result?.access_token || response.result?.token;
     if (token) apiClient.setAuthToken(token);
     return response;
   },
