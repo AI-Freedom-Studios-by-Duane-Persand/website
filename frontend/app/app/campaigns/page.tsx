@@ -205,7 +205,7 @@ export default function CampaignsPage() {
     if (!metaContent.trim()) return;
     setPublishing(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/meta-posts`, {
+      const res = await fetch(`http://localhost:3001/meta-posts`, {
         method: "POST",
         headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
         body: JSON.stringify({ content: metaContent, metaPageId }),

@@ -52,10 +52,7 @@ const scope =
 
 
 
-  /**
-   * Exchange OAuth code for access token
-   * Called from OAuth callback handler
-   */
+ 
   @Post('auth/token')
   async exchangeToken(@Body() body: { appId: string; appSecret: string; redirectUri: string; code: string }) {
     return this.metaService.exchangeCodeForToken(

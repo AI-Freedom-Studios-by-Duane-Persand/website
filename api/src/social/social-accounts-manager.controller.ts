@@ -67,81 +67,84 @@ export class SocialAccountsManagerController {
   /**
    * Save connected accounts after OAuth flow
    */
-  @Post('connect')
-  @UseGuards(AuthGuard('jwt'))
-  @UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
-  async connectAccounts(
-    @Body() dto: ConnectAccountsDto,
-    @Req() req: any,
-  ) {
-    const currentUserId = req?.user?.userId ?? req?.user?.id;
-    const currentTenantId = req?.user?.tenantId;
+@Post('connect')
+@UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
+async connectAccounts(
+  @Body() dto: ConnectAccountsDto,
+) {
+  const { userId, tenantId, userAccessToken, metaUserId, scopes } = dto;
 
-    if (!currentUserId || currentUserId !== dto.userId) {
-      throw new ForbiddenException('You are not allowed to connect accounts for this user');
-    }
-    if (!currentTenantId || currentTenantId !== dto.tenantId) {
-      throw new ForbiddenException('Tenant mismatch for account connection');
-    }
+  // Get user's Pages
+  const pages = await this.metaService.getUserPages(userAccessToken);
 
-    const { userId, tenantId, userAccessToken, metaUserId, scopes } = dto;
+  const connectedAccounts = [];
 
-    // Get user's Pages
-    const pages = await this.metaService.getUserPages(userAccessToken);
+  for (const page of pages) {
+    // Save Facebook Page account
+    const fbAccount = await this.accountsManager.upsertAccount({
+      userId,
+      tenantId,
+      platform: 'facebook',
+      metaUserId,
+      pageId: page.id,
+      pageName: page.name,
+      accessToken: page.access_token,
+      tokenType: 'page',
+      scopes,
+    });
 
-    const connectedAccounts = [];
+    connectedAccounts.push(fbAccount);
 
-    for (const page of pages) {
-      // Save Facebook Page account
-      const fbAccount = await this.accountsManager.upsertAccount({
-        userId,
-        tenantId,
-        platform: 'facebook',
-        metaUserId,
-        pageId: page.id,
-        pageName: page.name,
-        accessToken: page.access_token,
-        tokenType: 'page',
-        scopes,
-      });
-      connectedAccounts.push(fbAccount);
+    // Check for Instagram Business account
+    try {
+      const igAccount = await this.metaService.getInstagramAccount(
+        page.id,
+        page.access_token,
+      );
 
-      // Check for Instagram Business account
-      try {
-        const igAccount = await this.metaService.getInstagramAccount(page.id, page.access_token);
-        
-        if (igAccount) {
-          const igAccountDoc = await this.accountsManager.upsertAccount({
-            userId,
-            tenantId,
-            platform: 'instagram',
-            metaUserId,
-            pageId: page.id,
-            pageName: page.name,
-            instagramAccountId: igAccount.id,
-            instagramUsername: igAccount.username,
-            accessToken: page.access_token, // Instagram uses Page token
-            tokenType: 'page',
-            scopes,
-          });
-          connectedAccounts.push(igAccountDoc);
-        }
-      } catch (error: any) {
-        const message = error instanceof Error ? error.stack || error.message : String(error);
-        this.logger.error(`Failed to get Instagram for page ${page.id}: ${message}`);
+      if (igAccount) {
+        const igAccountDoc = await this.accountsManager.upsertAccount({
+          userId,
+          tenantId,
+          platform: 'instagram',
+          metaUserId,
+          pageId: page.id,
+          pageName: page.name,
+          instagramAccountId: igAccount.id,
+          instagramUsername: igAccount.username,
+          accessToken: page.access_token,
+          tokenType: 'page',
+          scopes,
+        });
+
+        connectedAccounts.push(igAccountDoc);
       }
-    }
+    } catch (error: any) {
+      const message =
+        error instanceof Error
+          ? error.stack || error.message
+          : String(error);
 
-    return {
-      success: true,
-      connectedAccounts: connectedAccounts.length,
-      accounts: connectedAccounts.map(acc => ({
-        id: acc._id,
-        platform: acc.platform,
-        name: acc.platform === 'facebook' ? acc.pageName : acc.instagramUsername,
-      })),
-    };
+      this.logger.error(
+        `Failed to get Instagram for page ${page.id}: ${message}`,
+      );
+    }
   }
+
+  return {
+    success: true,
+    connectedAccounts: connectedAccounts.length,
+    accounts: connectedAccounts.map(acc => ({
+      id: acc._id,
+      platform: acc.platform,
+      name:
+        acc.platform === 'facebook'
+          ? acc.pageName
+          : acc.instagramUsername,
+    })),
+  };
+}
+
 
   /**
    * Get all connected accounts for a user
